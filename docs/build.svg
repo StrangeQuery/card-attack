@@ -39,19 +39,15 @@
 <text x="1356.0" y="1523.0" font-size="14" fill="#1D2B4F" dominant-baseline="central">copied</text>
 <text x="1356.0" y="1315.0" font-size="14" fill="#1D2B4F" dominant-baseline="central">copied</text>
 <text x="1356.0" y="503.0" font-size="14" fill="#1D2B4F" dominant-baseline="central">copied</text>
-<rect x="56" y="700.0" width="8" height="42.0" fill="#1D2B4F"/>
-<text x="78" y="577.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">Design prototypes and their numbers</text>
-<text x="78" y="600.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">prototypes/dierubik.py (floating-point design); likewise macpc.py, degauss.py, accel.py</text>
-<text x="78" y="620.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">drive: numbers from city3.rs, swarm: devices/swarm<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>mid.rs (both not in the repo)</text>
-<text x="78" y="640.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">partychat/data/credits<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>chat.txt; qr: the address in CARD<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>ATTACK<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>QR<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>URL</text>
-<text x="78" y="658.5" font-size="12.5" font-weight="400" fill="#6B7489" dominant-baseline="central">file: segments/dierubik/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>data.py, drive/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>data.py, swarm/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>data.py,</text>
-<text x="78" y="675.5" font-size="12.5" font-weight="400" fill="#6B7489" dominant-baseline="central">qr/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>data.py</text>
-<rect x="60" y="577.5" width="1.5" height="122.5" fill="#A3ABBB"/>
-<rect x="60" y="577.5" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="600.0" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="620.0" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="640.0" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="658.5" width="10" height="1.5" fill="#A3ABBB"/>
+<rect x="56" y="700.0" width="8" height="42.0" fill="#FFFFFF" stroke="#1D2B4F" stroke-width="2" stroke-dasharray="5 4"/>
+<text x="78" y="611.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">Designs and their numbers</text>
+<text x="78" y="634.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">the floating-point designs, outside the repository: the moves, colours, paths and rates</text>
+<text x="78" y="654.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">each segment is dealt</text>
+<text x="78" y="674.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">partychat/data/credits<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>chat.txt; qr: the address in CARD<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>ATTACK<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>QR<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>URL</text>
+<rect x="60" y="611.5" width="1.5" height="88.5" fill="#A3ABBB"/>
+<rect x="60" y="611.5" width="10" height="1.5" fill="#A3ABBB"/>
+<rect x="60" y="634.0" width="10" height="1.5" fill="#A3ABBB"/>
+<rect x="60" y="674.0" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="696" y="700.0" width="8" height="42.0" fill="#1D2B4F"/>
 <text x="718" y="554.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">segments/SEG/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>data.py</text>
 <text x="718" y="577.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">Run once by hand; prints the tables the machines are dealt (sines, moves, colours, rates,</text>
@@ -83,23 +79,17 @@
 <rect x="2620" y="825.0" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="2620" y="843.5" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="56" y="898.0" width="8" height="42.0" fill="#FFFFFF" stroke="#1D2B4F" stroke-width="2" stroke-dasharray="5 4"/>
-<text x="78" y="772.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">Fonts and images</text>
-<text x="78" y="795.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">macOS system fonts (/System/Library/Fonts: Futura, Helvetica, Menlo, Arial)</text>
-<text x="78" y="815.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">prototypes/pcfonts/Px437<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>IBM<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>*.ttf, prototypes/macfonts/*.bdf</text>
-<text x="78" y="835.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">CARDIAC photo cut-out segments/ending/data/cardiac.bin (not in this repo)</text>
-<text x="78" y="855.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">$CARD<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>ATTACK<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>WORK/images/bchbabe<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>src.jpg (mac's Boom)</text>
-<text x="78" y="873.5" font-size="12.5" font-weight="400" fill="#6B7489" dominant-baseline="central">file: openers/data/make.py, ui/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>atlas.py, prototypes/macdesk.py, prototypes/macdoom.py</text>
-<rect x="60" y="772.5" width="1.5" height="125.5" fill="#A3ABBB"/>
-<rect x="60" y="772.5" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="795.0" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="815.0" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="835.0" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="855.0" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="873.5" width="10" height="1.5" fill="#A3ABBB"/>
+<text x="78" y="829.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">Fonts and images</text>
+<text x="78" y="852.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">macOS system fonts (Futura, Helvetica, Menlo, Arial); IBM PC and Mac bitmap fonts</text>
+<text x="78" y="872.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">photos and pictures in the folder named by CARD<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>ATTACK<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>WORK</text>
+<rect x="60" y="829.5" width="1.5" height="68.5" fill="#A3ABBB"/>
+<rect x="60" y="829.5" width="10" height="1.5" fill="#A3ABBB"/>
+<rect x="60" y="852.0" width="10" height="1.5" fill="#A3ABBB"/>
+<rect x="60" y="872.0" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="696" y="898.0" width="8" height="42.0" fill="#1D2B4F"/>
 <text x="718" y="772.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">Bitmap and atlas generators</text>
 <text x="718" y="795.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">openers/data/make.py; ui/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>atlas.py</text>
-<text x="718" y="815.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">mac/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>data.py (runs macdesk, macdoom, macpyramid, macboomcrash)</text>
+<text x="718" y="815.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">mac/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>data.py (the desktop, the game and the crash)</text>
 <text x="718" y="835.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">polys/data/boxes.sh + bragbox.py; deep/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>fish<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>atlas.py</text>
 <text x="718" y="855.0" font-size="15" font-weight="400" fill="#6B7489" dominant-baseline="central">needs: Python venv (numpy, Pillow) and the system fonts</text>
 <text x="718" y="873.5" font-size="12.5" font-weight="400" fill="#6B7489" dominant-baseline="central">file: those scripts' headers</text>
@@ -119,16 +109,11 @@
 <rect x="1340" y="855.0" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="1340" y="873.5" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="56" y="1096.0" width="8" height="42.0" fill="#FFFFFF" stroke="#1D2B4F" stroke-width="2" stroke-dasharray="5 4"/>
-<text x="78" y="990.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">3D models</text>
-<text x="78" y="1013.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">Blender's Suzanne; prototypes/accel<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>models/car.obj (made by</text>
-<text x="78" y="1033.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">prototypes/accel<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>models.py in Blender)</text>
-<text x="78" y="1053.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">Killer Whale .glb in $CARD<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>ATTACK<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>WORK/models/creatures</text>
-<text x="78" y="1071.5" font-size="12.5" font-weight="400" fill="#6B7489" dominant-baseline="central">file: mesh/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>mesh.py, accel/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>car.py, deep/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>orca.py</text>
-<rect x="60" y="990.5" width="1.5" height="105.5" fill="#A3ABBB"/>
-<rect x="60" y="990.5" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="1013.0" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="1053.0" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="1071.5" width="10" height="1.5" fill="#A3ABBB"/>
+<text x="78" y="1047.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">3D models</text>
+<text x="78" y="1070.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">Blender's Suzanne; the car and the killer whale, modelled in Blender</text>
+<rect x="60" y="1047.5" width="1.5" height="48.5" fill="#A3ABBB"/>
+<rect x="60" y="1047.5" width="10" height="1.5" fill="#A3ABBB"/>
+<rect x="60" y="1070.0" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="696" y="1096.0" width="8" height="42.0" fill="#1D2B4F"/>
 <text x="718" y="970.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">Mesh exporters</text>
 <text x="718" y="993.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">mesh/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>mesh.py runs blender<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>export.py inside Blender (headless)</text>
@@ -151,23 +136,20 @@
 <rect x="1340" y="1053.0" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="1340" y="1071.5" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="56" y="1755.0" width="8" height="42.0" fill="#FFFFFF" stroke="#1D2B4F" stroke-width="2" stroke-dasharray="5 4"/>
-<text x="78" y="1649.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">Train and night sources</text>
-<text x="78" y="1672.0" font-size="15" font-weight="400" fill="#6B7489" dominant-baseline="central">Blender: prototypes/models/build<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>models.py, build<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>night<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>models.py -&gt;</text>
-<text x="78" y="1692.0" font-size="15" font-weight="400" fill="#6B7489" dominant-baseline="central">$CARD<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>ATTACK<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>WORK/models/*.obj</text>
-<text x="78" y="1712.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">$CARD<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>ATTACK<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>WORK/demos footage; audience/stadium; callouts<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>final.json</text>
-<text x="78" y="1730.5" font-size="12.5" font-weight="400" fill="#6B7489" dominant-baseline="central">file: train/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>data.py, night/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>data.py, prototypes/callouts.py</text>
-<rect x="60" y="1649.5" width="1.5" height="105.5" fill="#A3ABBB"/>
-<rect x="60" y="1649.5" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="1672.0" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="1712.0" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="1730.5" width="10" height="1.5" fill="#A3ABBB"/>
+<text x="78" y="1686.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">Train and night sources</text>
+<text x="78" y="1709.0" font-size="15" font-weight="400" fill="#6B7489" dominant-baseline="central">Blender scenes -&gt; models (.obj) in CARD<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>ATTACK<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>WORK</text>
+<text x="78" y="1729.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">footage of other demos; the callouts</text>
+<rect x="60" y="1686.5" width="1.5" height="68.5" fill="#A3ABBB"/>
+<rect x="60" y="1686.5" width="10" height="1.5" fill="#A3ABBB"/>
+<rect x="60" y="1709.0" width="10" height="1.5" fill="#A3ABBB"/>
+<rect x="60" y="1729.0" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="696" y="1755.0" width="8" height="42.0" fill="#1D2B4F"/>
 <text x="718" y="1604.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">train/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>data.py, make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>tables.py (--half);</text>
 <text x="718" y="1629.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">night/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>data.py, make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>tables.py</text>
-<text x="718" y="1652.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">import prototypes/train.py, train<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>depart.py, train<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>night.py; tables use pcfonts and</text>
-<text x="718" y="1672.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">system fonts</text>
+<text x="718" y="1652.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">build the scenes from the models and the designs; the tables use the PC fonts and system</text>
+<text x="718" y="1672.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">fonts</text>
 <text x="718" y="1692.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">-&gt; train: scene.bin, tables.bin, tables<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>h.bin; night: scene.bin, clips.bin, tables.bin</text>
-<text x="718" y="1712.0" font-size="15" font-weight="400" fill="#6B7489" dominant-baseline="central">needs: Python venv, the source folder $CARD<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>ATTACK<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>WORK</text>
+<text x="718" y="1712.0" font-size="15" font-weight="400" fill="#6B7489" dominant-baseline="central">needs: Python venv, the designs, the source folder CARD<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>ATTACK<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>WORK</text>
 <text x="718" y="1730.5" font-size="12.5" font-weight="400" fill="#6B7489" dominant-baseline="central">file: those scripts' headers</text>
 <rect x="700" y="1604.5" width="1.5" height="150.5" fill="#A3ABBB"/>
 <rect x="700" y="1604.5" width="10" height="1.5" fill="#A3ABBB"/>
@@ -203,21 +185,18 @@
 <rect x="2620" y="2010.5" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="2620" y="2029.0" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="56" y="1933.0" width="8" height="42.0" fill="#FFFFFF" stroke="#1D2B4F" stroke-width="2" stroke-dasharray="5 4"/>
-<text x="78" y="1827.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">Stadium sources</text>
-<text x="78" y="1850.0" font-size="15" font-weight="400" fill="#6B7489" dominant-baseline="central">Blender via prototypes/stadium.py prep: audience/stadium<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>build.py, pose<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>people.py -&gt;</text>
-<text x="78" y="1870.0" font-size="15" font-weight="400" fill="#6B7489" dominant-baseline="central">$CARD<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>ATTACK<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>WORK/audience</text>
-<text x="78" y="1890.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">models/blimp.obj; demos/SLUG/frames<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>160x120.rgb; callouts<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>final.json</text>
-<text x="78" y="1908.5" font-size="12.5" font-weight="400" fill="#6B7489" dominant-baseline="central">file: segments/stadium/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>data.py, prototypes/stadium.py</text>
-<rect x="60" y="1827.5" width="1.5" height="105.5" fill="#A3ABBB"/>
-<rect x="60" y="1827.5" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="1850.0" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="1890.0" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="1908.5" width="10" height="1.5" fill="#A3ABBB"/>
+<text x="78" y="1864.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">Stadium sources</text>
+<text x="78" y="1887.0" font-size="15" font-weight="400" fill="#6B7489" dominant-baseline="central">Blender: the stadium and the posed audience, in CARD<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>ATTACK<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>WORK</text>
+<text x="78" y="1907.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">the airship model; demo footage at 160x120; the callouts</text>
+<rect x="60" y="1864.5" width="1.5" height="68.5" fill="#A3ABBB"/>
+<rect x="60" y="1864.5" width="10" height="1.5" fill="#A3ABBB"/>
+<rect x="60" y="1887.0" width="10" height="1.5" fill="#A3ABBB"/>
+<rect x="60" y="1907.0" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="696" y="1933.0" width="8" height="42.0" fill="#1D2B4F"/>
 <text x="718" y="1827.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">stadium/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>data.py</text>
-<text x="718" y="1850.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">imports prototypes/stadium.py; places the crowd, flags, lights once</text>
-<text x="718" y="1870.0" font-size="15" font-weight="400" fill="#6B7489" dominant-baseline="central">needs: Python venv, $CARD<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>ATTACK<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>WORK</text>
-<text x="718" y="1890.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">-&gt; scene.bin, pictures.bin</text>
+<text x="718" y="1850.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">places the crowd, flags and lights once</text>
+<text x="718" y="1870.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">-&gt; scene.bin, pictures.bin</text>
+<text x="718" y="1890.0" font-size="15" font-weight="400" fill="#6B7489" dominant-baseline="central">needs: Python venv, the designs, CARD<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>ATTACK<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>WORK</text>
 <text x="718" y="1908.5" font-size="12.5" font-weight="400" fill="#6B7489" dominant-baseline="central">file: segments/stadium/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>data.py</text>
 <rect x="700" y="1827.5" width="1.5" height="105.5" fill="#A3ABBB"/>
 <rect x="700" y="1827.5" width="10" height="1.5" fill="#A3ABBB"/>
@@ -225,20 +204,17 @@
 <rect x="700" y="1870.0" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="700" y="1890.0" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="700" y="1908.5" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="56" y="2111.0" width="8" height="42.0" fill="#1D2B4F"/>
-<text x="78" y="2025.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">Rooms sources</text>
-<text x="78" y="2048.0" font-size="15" font-weight="400" fill="#6B7489" dominant-baseline="central">Blender Cycles: prototypes/dorm3d/room.py, hall.py -&gt;</text>
-<text x="78" y="2068.0" font-size="15" font-weight="400" fill="#6B7489" dominant-baseline="central">segments/rooms/data/dorm3d/*.exr (not kept)</text>
-<text x="78" y="2086.5" font-size="12.5" font-weight="400" fill="#6B7489" dominant-baseline="central">file: prototypes/dorm3d/room.py, prototypes/dorm.py, .gitignore</text>
-<rect x="60" y="2025.5" width="1.5" height="85.5" fill="#A3ABBB"/>
-<rect x="60" y="2025.5" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="2048.0" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="2086.5" width="10" height="1.5" fill="#A3ABBB"/>
+<rect x="56" y="2111.0" width="8" height="42.0" fill="#FFFFFF" stroke="#1D2B4F" stroke-width="2" stroke-dasharray="5 4"/>
+<text x="78" y="2062.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">Rooms sources</text>
+<text x="78" y="2085.0" font-size="15" font-weight="400" fill="#6B7489" dominant-baseline="central">Blender Cycles renders of the dorm and the hall (.exr, not kept)</text>
+<rect x="60" y="2062.5" width="1.5" height="48.5" fill="#A3ABBB"/>
+<rect x="60" y="2062.5" width="10" height="1.5" fill="#A3ABBB"/>
+<rect x="60" y="2085.0" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="696" y="2111.0" width="8" height="42.0" fill="#1D2B4F"/>
 <text x="718" y="2005.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">rooms/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>data.py</text>
-<text x="718" y="2028.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">imports prototypes/dorm.py, screening.py, which read the .exr renders</text>
-<text x="718" y="2048.0" font-size="15" font-weight="400" fill="#6B7489" dominant-baseline="central">needs: Python venv</text>
-<text x="718" y="2068.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">-&gt; rooms.bin</text>
+<text x="718" y="2028.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">reads the .exr renders</text>
+<text x="718" y="2048.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">-&gt; rooms.bin</text>
+<text x="718" y="2068.0" font-size="15" font-weight="400" fill="#6B7489" dominant-baseline="central">needs: Python venv, the designs</text>
 <text x="718" y="2086.5" font-size="12.5" font-weight="400" fill="#6B7489" dominant-baseline="central">file: segments/rooms/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>data.py</text>
 <rect x="700" y="2005.5" width="1.5" height="105.5" fill="#A3ABBB"/>
 <rect x="700" y="2005.5" width="10" height="1.5" fill="#A3ABBB"/>
@@ -246,22 +222,20 @@
 <rect x="700" y="2048.0" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="700" y="2068.0" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="700" y="2086.5" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="56" y="2294.0" width="8" height="42.0" fill="#1D2B4F"/>
-<text x="78" y="2188.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">Other designs</text>
-<text x="78" y="2211.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">prototypes/ending<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>sq.py (sqend), knob.py (deep's ending), accel.py (cache in</text>
-<text x="78" y="2231.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">$CARD<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>ATTACK<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>WORK/pkg8)</text>
-<text x="78" y="2251.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">deep/data/fish<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>atlas.png (lane above)</text>
-<text x="78" y="2269.5" font-size="12.5" font-weight="400" fill="#6B7489" dominant-baseline="central">file: sqend/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>data.py, deep/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>knob.py, make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>hd.py, prototypes/accel.py</text>
-<rect x="60" y="2188.5" width="1.5" height="105.5" fill="#A3ABBB"/>
-<rect x="60" y="2188.5" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="2211.0" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="2251.0" width="10" height="1.5" fill="#A3ABBB"/>
-<rect x="60" y="2269.5" width="10" height="1.5" fill="#A3ABBB"/>
+<rect x="56" y="2294.0" width="8" height="42.0" fill="#FFFFFF" stroke="#1D2B4F" stroke-width="2" stroke-dasharray="5 4"/>
+<text x="78" y="2205.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">Other designs</text>
+<text x="78" y="2228.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">the SQ ending, the deep's ending and the drive: the floating-point designs, outside the</text>
+<text x="78" y="2248.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">repository</text>
+<text x="78" y="2268.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">deep/data/fish<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>atlas.png</text>
+<rect x="60" y="2205.5" width="1.5" height="88.5" fill="#A3ABBB"/>
+<rect x="60" y="2205.5" width="10" height="1.5" fill="#A3ABBB"/>
+<rect x="60" y="2228.0" width="10" height="1.5" fill="#A3ABBB"/>
+<rect x="60" y="2268.0" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="696" y="2294.0" width="8" height="42.0" fill="#1D2B4F"/>
 <text x="718" y="2183.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">sqend/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>data.py; deep/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>hd.py, make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>knob.py;</text>
 <text x="718" y="2208.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">accel/data/make<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>data.py</text>
 <text x="718" y="2231.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">-&gt; sqend.bin; deep: hd<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>fish.bin, hd<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>bell.bin, hd<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>bubble.bin, knob.bin; accel: traffic.bin</text>
-<text x="718" y="2251.0" font-size="15" font-weight="400" fill="#6B7489" dominant-baseline="central">needs: Python venv ($CARD<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>ATTACK<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>WORK for accel.py's cache)</text>
+<text x="718" y="2251.0" font-size="15" font-weight="400" fill="#6B7489" dominant-baseline="central">needs: Python venv ($CARD<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>ATTACK<tspan font-family="Helvetica,Arial,'DejaVu Sans',sans-serif">_</tspan>WORK for the drive's cache)</text>
 <text x="718" y="2269.5" font-size="12.5" font-weight="400" fill="#6B7489" dominant-baseline="central">file: those scripts' headers</text>
 <rect x="700" y="2183.5" width="1.5" height="110.5" fill="#A3ABBB"/>
 <rect x="700" y="2183.5" width="10" height="1.5" fill="#A3ABBB"/>
@@ -301,7 +275,7 @@
 <rect x="2620" y="2259.0" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="1336" y="1502.0" width="8" height="72.0" fill="#1D2B4F"/>
 <text x="1358" y="1416.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">Machine sources</text>
-<text x="1358" y="1439.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">segments/*/machines/*.rs (443 programs; 473 [[bin]] targets in segments/Cargo.toml)</text>
+<text x="1358" y="1439.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">segments/*/machines/*.rs (476 machines, each a [[bin]] target in segments/Cargo.toml)</text>
 <text x="1358" y="1459.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">demokit/ (tables, Pixel, LCG); shared/cardiac.rs built-ins, shared/prelude.rs</text>
 <text x="1358" y="1477.5" font-size="12.5" font-weight="400" fill="#6B7489" dominant-baseline="central">file: segments/Cargo.toml, docs/RUST.md, demokit/src/lib.rs</text>
 <rect x="1340" y="1416.5" width="1.5" height="85.5" fill="#A3ABBB"/>
@@ -406,7 +380,7 @@
 <rect x="1340" y="439.0" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="1340" y="457.5" width="10" height="1.5" fill="#A3ABBB"/>
 <rect x="2616" y="482.0" width="8" height="42.0" fill="#1D2B4F"/>
-<text x="2638" y="416.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">The cut</text>
+<text x="2638" y="416.5" font-size="19" font-weight="700" fill="#1D2B4F" dominant-baseline="central">Running order and job costs</text>
 <text x="2638" y="439.0" font-size="15" font-weight="400" fill="#1D2B4F" dominant-baseline="central">segments/cut/cut.txt, costs.txt</text>
 <text x="2638" y="457.5" font-size="12.5" font-weight="400" fill="#6B7489" dominant-baseline="central">file: package.sh</text>
 <rect x="2620" y="416.5" width="1.5" height="65.5" fill="#A3ABBB"/>
