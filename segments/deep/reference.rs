@@ -9,7 +9,7 @@
 // shaded by the face it hit (a top, a front, a side), crevices and lit edges where blocks meet, strata of rock tones
 // and a grain of chips, rubble and coral; further out the seabed is smooth, lit by the slope ahead and textured with
 // the same strata. Then the diver's lamp near the camera, caustics, glowing spots and lip bands, the fog. Open water is
-// dark below and bright above, with god rays. Then, in the prototype's order, the kelp, seagrass and fish (painted
+// dark below and bright above, with god rays. Then, far to near, the kelp, seagrass and fish (painted
 // over what is further), the marine snow, the jellyfish (far ones first), the caption, the portal and the whiteout;
 // each channel exactly as worked out, 0..255. Then the dive's second video, its creatures at 1536x768
 // (reference_hd.rs). Arguments: map.txt script.txt font3x5.txt hd.txt (the HD creatures' index; its .bin files beside

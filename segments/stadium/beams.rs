@@ -1,7 +1,7 @@
 // The beams through the haze (the moving heads and the searchlights), the lasers and the pyro. Included after
 // glow.rs.
 //
-// The beams are the prototype's: for each ray (at half size) the place along each beam's axis nearest it, the light
+// The beams: for each ray (at half size) the place along each beam's axis nearest it, the light
 // a Gaussian across the beam there (its width growing from the source), fading with the height (the haze), the
 // distance along it, and behind what stands nearer. Worked out only where it can show: in a band round each beam's
 // line on the screen, four widths wide (the band from the line's ends and its widest width there).
@@ -391,7 +391,7 @@ pub fn beam_tabs() -> BeamTabs {
     }
 }
 
-/// The beams' half-size light made full size (the prototype's bilinear: across, each pixel 3/4 of its own half pixel
+/// The beams' half-size light made full size (bilinear: across, each pixel 3/4 of its own half pixel
 /// and 1/4 of its neighbour on its side; then the same up and down) and added, where any beam reached. The quarters
 /// and three quarters by logarithms.
 pub fn add_beams<O: Ops>(o: &mut O, t: &Tables, f: &mut Frame, acc: &[V; 3], touched: &[bool]) {
@@ -469,7 +469,7 @@ pub fn s_ldiv<O: Ops>(a: i64, b: i64, k: i64, t: &Tables, o: &mut O) -> i64 {
 
 /// The lasers: each beam a line from its source 125 m out, a bright core and a glow (by the distance from the
 /// line's piece on the screen, pixels), hidden behind what stands nearer (its depth along the line, 1 / z linear on
-/// the screen), fading with the depth and along it. Worked out within 20 pixels of the line and the prototype's box
+/// the screen), fading with the depth and along it. Worked out within 20 pixels of the line and a box
 /// round it (12 pixels past its ends).
 ///
 /// `band`: 1 only within 4 pixels of the line and its ends (the core and the glow next to it: drawn at the film's
@@ -496,7 +496,7 @@ pub fn lasers<O: Ops>(o: &mut O, t: &Tables, bt: &LaserTabs, f: &mut Frame, cam:
             let ll = s_lin(&[(vxp, Some(vxp)), (vyp, Some(vyp))], o);
             if !s_lt(0, ll, o) { continue; }
             let len = { let h = s_div(s_lnw(ll, t, o), 2, o); s_tab_o(&t.exp, -EXP_LO, h, o) };
-            // the band: the line pushed 12 px past its ends, 30 px either side; inside the prototype's box
+            // the band: the line pushed 12 px past its ends, 30 px either side; inside the box round it
             let ux = s_div(s_lin(&[(vxp, Some(1000))], o), len, o);
             let uy = s_div(s_lin(&[(vyp, Some(1000))], o), len, o);
             let w = |o: &mut O, k: i64, px: i64| -> i64 { s_div(s_lin(&[(k, Some(px * 100))], o), 1000, o) };

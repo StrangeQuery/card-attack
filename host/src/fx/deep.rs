@@ -1,9 +1,9 @@
-//! The dive, at 192x96: down a canyon of terraces in the spirit of Subnautica (from the prototype sea2/deep12.rs).
+//! The dive, at 192x96: down a canyon of terraces in the spirit of Subnautica.
 //! The seabed is a stored height map (segments/deep/data/map.txt), dealt to the machines a row at a time, and traced
 //! per pixel through a camera that pitches, yaws and rolls; everything else is points and lines through the same
 //! camera; light, fog and glow are worked out as colours, each channel exactly, 0..255.
 //!
-//! Each frame's numbers (the camera from the prototype's path: where it is, its forward, right and up vectors; the
+//! Each frame's numbers (the camera along the dive's path: where it is, its forward, right and up vectors; the
 //! light; phases; where the jellyfish, kelp, seagrass and fish are) are the script's (segments/deep/script.rs), worked
 //! out on CARDIAC by the train's machines once, in the setup; the host carries cards from machine to machine and
 //! files the frames. Per frame:
@@ -20,7 +20,7 @@
 //!   light, and the same strata as a texture. Then how far it is and its fog, the diver's lamp, the caustics, the
 //!   glowing spots and the lips' bands, and mix machines make the colour; open water gets its colour for how far up
 //!   it looks, and the god rays;
-//! - then, as the prototype draws them: the kelp, seagrass and fish (leaves rasterized row by row, painted over what is
+//! - then, far to near: the kelp, seagrass and fish (leaves rasterized row by row, painted over what is
 //!   further), the marine snow, the jellyfish (halo, bell, tentacles);
 //! - the channels the machines punched are the frame's colours as they are (no palette, no dithering).
 //!

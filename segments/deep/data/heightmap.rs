@@ -1,12 +1,12 @@
-// The dive's height map, printed once from the seabed of the prototype (sea2/deep12.rs): rolling ridges, rocky
+// The dive's height map, printed once from the dive's floating-point seabed: rolling ridges, rocky
 // bumps and a canyon; then terraces going down, steeper each time (drop k is 18 + 9k high over 24 units, the shelf
 // before it 40 - 4k long, 20 at the least), rough, with the canyon's walls rising either side. One row per unit of
 // z, 0..441; on each, x = -100..100 a unit apart. A row is its base (the terraces' height there, whole units), how
 // far the base drops to the next row, how far it is past the nearest lip below the canyon's head (z over 140; 99
 // when more than 2 units away), then the 201 heights over the base in tenths (within 999 either way), then the
 // glowing spots on the seabed between it and the next row: how many, and for each its unit along x (-100..99) and
-// its kind and pulse, 10 kind + pulse (kind 1 teal or 2 violet, pulse 0..9). The spots are scattered as the
-// prototype's were (one in 2.5 x 2.5 units on average), a unit apart.
+// its kind and pulse, 10 kind + pulse (kind 1 teal or 2 violet, pulse 0..9). The spots are scattered by a
+// hash (one in 2.5 x 2.5 units on average), a unit apart.
 //   rustc -O heightmap.rs && ./heightmap > map.txt
 use std::fmt::Write as _;
 fn smooth(e0: f64, e1: f64, x: f64) -> f64 { let t = ((x - e0) / (e1 - e0)).clamp(0.0, 1.0); t * t * (3.0 - 2.0 * t) }

@@ -1,4 +1,4 @@
-//! The degauss at the rotozoom's end (fx/rotodg.rs; prototypes/degauss.py, made for Mode X's last frames; the
+//! The degauss at the rotozoom's end (fx/rotodg.rs; designed for Mode X's last frames; the
 //! reference is segments/modex/degauss.rs): a colour
 //! blotch creeps in where the screen is lit, a monitor's DEGAUSS sign comes up, blinking, then the degauss: the
 //! picture jolts and wobbles, its three colours land apart, a rainbow swirl washes round it, a brief brightening,

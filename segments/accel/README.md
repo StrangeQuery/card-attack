@@ -76,20 +76,19 @@ The host (`host/src/fx/accel.rs`, `accel_hd.rs` and `accel_jump.rs`) does this b
 
 Assets made ahead of time are used as demos have always used them:
 
-- **Our car** is a mesh modelled in Blender (`prototypes/accel_models/car.obj`), turned into cards by
+- **Our car** is a mesh modelled in Blender, turned into cards by
   `data/make_car.py`. The mesh kit's machines place, light, depth-test and draw it.
-- **The traffic's sprites** (`traffic.bin`): each body, from behind and from the front, drawn from the design and
-  stored at every width the drive can ask for. `atwth` punches how wide a car is to be drawn; the host takes the
+- **The traffic's sprites** (`traffic.bin`): each body, from behind and from the front, stored at every width the drive can ask for. `atwth` punches how wide a car is to be drawn; the host takes the
   stored sprite of that width (or the next wider one stored), `asamp` punches which of its pixels each screen pixel
   shows, and the machines haze it (`amix`) and lay it over the scene where it is nearer (`apaint`).
-- **The jet's sprites** (`data/jet.txt`): one for each of the 36 frames it is in the sky, drawn from the design at
+- **The jet's sprites** (`data/jet.txt`): one for each of the 36 frames it is in the sky, drawn at
   the size the machines work out for that frame. The machines punch which frame's sprite to use and where it goes,
   and lay it on.
-- **Tables** printed by `data/make_data.py` from the design: the street's plan and grade, the blocks and the
+- **Tables** printed by `data/make_data.py`: the street's plan and grade, the blocks and the
   traffic's starting places, the wall texture and the palette, the street's colours, the pools' falloffs, the
   march's steps, the cross-section, the quarter-wave sine and the swerve the lane is worked out from, the glow's
   profile, the flares' falloff and its logarithm, the ghosts' profiles, the 4 x 4 dither, the DAC, the software
-  half's levels, and the sparks' launch numbers (the design's random numbers). The turn table (cosine and sine for
+  half's levels, and the sparks' launch numbers. The turn table (cosine and sine for
   each slope) is the [drive](../drive)'s.
 
 ## Why it's hard on CARDIAC
@@ -108,8 +107,7 @@ Assets made ahead of time are used as demos have always used them:
 ## How it's done
 
 `reference.rs` (with `hd.rs` and `jump.rs`) draws the beat in ordinary Rust, whole numbers only, every division
-saying how it rounds and every number a machine holds within a card. It is the spec, and was compared frame by
-frame with the design (`prototypes/accel.py`, look A). `host/src/fx/accel_hd.rs` and `accel_jump.rs` do the same
+saying how it rounds and every number a machine holds within a card. It is the spec. `host/src/fx/accel_hd.rs` and `accel_jump.rs` do the same
 on CARDIAC, the numbers punched by machines except where the list above says the host works them out; `accel.rs`
 files the two halves and lays the calls on.
 
@@ -148,7 +146,7 @@ files the two halves and lays the calls on.
   horizon moved) are worked out by the swarm's sums (exact sums of products, divisions rounded down, the sine
   table). Our car is drawn by the mesh kit, flat shaded, a material a face, at twice the size: four samples a
   pixel, averaged by `aavg4`. Its shadow is `ashu`, `ashk`, `aghs` and `amix`'s; the sparks where it lands
-  (`data/sparks.txt`, the design's random numbers) are `asaxis`, `asfade`, `ageq` and `aflabs`'s.
+  (`data/sparks.txt`) are `asaxis`, `asfade`, `ageq` and `aflabs`'s.
 - **The lights.** Each light's glow is its profile (`data/glowt.txt`) times its amount (`agparam`, `aamt`,
   `agtab`), by how far out each pixel is (`agaxis`, `agpt`: an octagon), summed (`agsum`). The bloom is `abthr`,
   `abox`, `abmix` and `abadd`'s; the flares' streaks and stars are `aflp`, `apart`, `aflv`, `aflax`, `afway`,
@@ -191,32 +189,10 @@ Cells per machine (96 at most; a machine in two phases gives its data, then each
 | The frame and the software half | `adither` 28, `asrow4` 89, `asrun` 59, `asg4` 70, `asql` 85, `asqp` 21, `adim` 41 |
 | From other folders | the [drive](../drive)'s 11, the [mesh](../mesh) kit's (`mesh_front`, `mesh_tone`, `mesh_mix`, `mesh_walk`, `mesh_depth`, `polydot`), the [swarm](../swarm)'s sums, the UI kit's `ui_page`, `ui_ease` and deep's `umix` |
 
-## Where it differs from the design
-
-The design (`prototypes/accel.py`) is written in floating point. The segment works in whole numbers that fit a
-card, with machines of at most 96 cells, and these are the choices that follow from it.
-
-- The design's formulas are taken in whole-number forms: the march's steps, the glow's octagon (max + 3 min / 8
-  for a circle), the flares' streak and star terms (each a quotient, at most 192 along the falloff's table), and the
-  ghosts' centres at whole pixels with their profile by 16ths of the radius on each axis.
-- The camera's path and our car's lane are whole eighths, worked out by `aphase`, `aswerve` and `alane`. They
-  differ from the design's floating-point path by one eighth on one frame each, at the bottom of the swerve.
-- Our car turns by a yaw and a pitch, the two turns the mesh kit takes, so the design's roll in the air and its bob
-  are not drawn. Headings and grades are taken as their tangents, as the angles are small. The landing falls on the
-  drive's frame 174 (the design's 173.85). The camera follows the car's height at frames f - 1 and f - 2, halved
-  (the design's f - 1.5). The highlight is the kit's table (power 32; the design's 24), with one half-way vector
-  for the whole car. A pixel takes 2 x 2 samples (the design's 3 x 3). The shadow's ellipse lies along the street
-  (the design's along the car). The tail lamps' glow is always full; the design dims it as they turn away, which
-  they hardly do.
-- Things more than 600 pixels off the screen's middle, and car lamps more than 990 across, are culled. The furthest
-  slow car starts at 999 quarters, the most a card holds (the design's 1000).
-- The software half is the accelerated half's pipeline sampled at the middles of its 4 x 4 blocks, an eighth of a
-  192x96 pixel from the design's pixel middles, with a coarser march.
-
 ## Making it
 
     python segments/accel/data/make_data.py          # the tables and sprites (traffic.bin is not kept in git)
-    python segments/accel/data/make_car.py           # car.txt, car_mats.txt from prototypes/accel_models/car.obj
+    python segments/accel/data/make_car.py           # car.txt, car_mats.txt from the Blender mesh
     ./build.sh                                       # the machines, among the rest
     ./refs.sh                                        # refs/accel_ref, the reference
     host/target/release/card-attack accel refs/accel_ref
@@ -225,7 +201,7 @@ card, with machines of at most 96 cells, and these are the choices that follow f
 
 - `reference.rs`, `hd.rs`, `jump.rs`: the reference.
 - `machines/`: the 106 machines.
-- `data/make_data.py` prints the assets from the design, `prototypes/accel.py`: the street's plan and grade, the
+- `data/make_data.py` prints the assets: the street's plan and grade, the
   blocks, the traffic's starting places and its sprites, the palette, the cross-section, the march's steps, the
   tables (glow, falloff, ghosts, dither, DAC, the software levels), the jet's sprites, the sparks' launch numbers,
   and the tables the camera's path and our car's lane are worked out from. `data/make_car.py` makes our car's

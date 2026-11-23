@@ -10,7 +10,7 @@
 //   cursor blinking (six frames on, six off);
 // - brag.rgba, 704x192 RGB and cover: 320 x 200 / 256 COLORS on a black box, for the cut's over line.
 // The crossfade at step j of 7 takes each pixel from a toward b by 32 j / 7 32nds (rounded down), a + (b - a) c / 32
-// toward zero: the prototype's j / 7 to within a 64th. Args: the demo folder.
+// toward zero: j / 7 to within a 64th. Args: the demo folder.
 use std::io::Write;
 
 #[path = "../ui/pages.rs"]

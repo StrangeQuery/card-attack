@@ -484,7 +484,7 @@ fn on_screen<O: Ops>(o: &mut O, cam: &Cam, c: [i64; 3]) -> (i64, i64, i64) {
     (x, y, iz)
 }
 
-/// A beam of light through the haze (the prototype's beam(): a soft line from a to b, its width w0 to w1 (cm) along
+/// A beam of light through the haze (a soft line from a to b, its width w0 to w1 (cm) along
 /// it, its colour (thousandths) times inten (thousandths of 1.0), fading along it as (1 - s)^1.5 and as its width's
 /// 0.3th power in pixels; behind what's in front of it): its ends in the camera's space (cut at the near plane), on
 /// the screen; along its longer axis at each pixel's middle (every second where it is wider than 4 pixels, those
@@ -662,7 +662,7 @@ fn aud_way<O: Ops>(o: &mut O, az: &V, el: &V) -> [V; 3] {
     [x, y, se]
 }
 
-/// The stadium's show clock's bar (truncated toward 0, as the prototype's int()) at frame f: (f - 484) / 21.0004.
+/// The stadium's show clock's bar (truncated toward 0) at frame f: (f - 484) / 21.0004.
 fn bar_at<O: Ops>(o: &mut O, f: i64) -> i64 {
     let m = one(o.lin(&[(K(f), Some(K(1000))), (K(-1000 * (F_END - 36)), None)]));
     let q = one(o.div(K(m), K(21_000), 0));

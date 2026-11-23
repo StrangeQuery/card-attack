@@ -1,4 +1,4 @@
-// The words over the city (the prototype's overlays()): the ray-generation shader top left (from 0.3 s, gone by
+// The words over the city: the ray-generation shader top left (from 0.3 s, gone by
 // 2.8 s) and the brag bottom left (1.2 s to 3.7 s), each over a dark glass panel, with a shadow. On the frame's
 // 0..255 values. Included after shadow.rs.
 

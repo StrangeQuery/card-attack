@@ -1,4 +1,4 @@
-// The shading of what isn't sky: each pixel's place, its material's pattern (the prototype's shade(), as filtered
+// The shading of what isn't sky: each pixel's place, its material's pattern (as filtered
 // tables looked up by the place), the sun, the sky's light, the tunnel's lamps, the fog. Included after shade.rs.
 
 /// The pixels being shaded, as vectors: their places (centimetres), the place across the line, the ray's unit way
@@ -87,7 +87,7 @@ pub fn dot_dn<O: Ops>(o: &mut O, d: &[V; 3], n: &[V; 3]) -> V {
     o.clamp(v(&s), -999, 999)
 }
 
-/// What a glossy surface reflects of the sky (the prototype's refl_sky): the ray mirrored in the normal, kept from
+/// What a glossy surface reflects of the sky: the ray mirrored in the normal, kept from
 /// going far below the horizon, looked up in the all-round map, times Schlick's reflectance (by the cosine; its table
 /// for f0) and a tint (thousandths, each channel).
 pub fn refl_sky<O: Ops>(o: &mut O, tb: &Tb, env: &Env, e: i64, round: &SkyMap, px: &Px, schlick: &str, tint: [i64; 3]) -> [V; 3] {
@@ -332,7 +332,7 @@ pub fn water<O: Ops>(o: &mut O, tb: &Tb, env: &Env, px: &Px, k: i64, e: i64, out
     (f, [nx, nz], Mirror { az, up: up.clone(), r: [rx, up, rz] })
 }
 
-/// Grime on a wall (the prototype's weathering): streaks from the top, drips under it, dirt over the foot,
+/// Grime on a wall: streaks from the top, drips under it, dirt over the foot,
 /// blotches; a factor in thousandths (at most 0.6 off).
 pub fn weathering<O: Ops>(o: &mut O, tb: &Tb, u: &V, y: &V, top: &V, base: &V, seed: &V) -> V {
     let us = o.lin(&[(v(u), None), (v(seed), None)]);
@@ -1374,7 +1374,7 @@ pub fn tunnel_lamps<O: Ops>(o: &mut O, w: &World, cam: &Cam, px: &Px, tunnel: &V
     tunnel_light(o, &w.tun, cam, e, &g(&px.xr), &g(&px.p[1]), &g(&px.p[2]))
 }
 
-/// What the water mirrors where its ripples point at something above it (the prototype's mirrored()): the mirror's
+/// What the water mirrors where its ripples point at something above it: the mirror's
 /// pixel the ripple's lean moves to (amp pixels for a full lean), where it shows something farther than the water,
 /// shaded as itself; else the sky as given.
 pub fn mirrored<O: Ops>(o: &mut O, w: &World, cam: &Cam, env: &Env, e: i64, k: i64, front: Option<i64>, ray: &[V; 3], map: &SkyMap, round: &SkyMap,

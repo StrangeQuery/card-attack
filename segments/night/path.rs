@@ -1,6 +1,6 @@
-// The night's cameras (the prototype's NightCam): the cab braking into the station, the platform, and the chase:
-// one flight path from the platform to the stadium's crest, worked out at the start from the design's keyframes as
-// the prototype makes it (a Catmull-Rom curve through them, resampled every metre, smoothed along its length 300
+// The night's cameras: the cab braking into the station, the platform, and the chase:
+// one flight path from the platform to the stadium's crest, worked out at the start from the design's keyframes
+// (a Catmull-Rom curve through them, resampled every metre, smoothed along its length 300
 // times, resampled every quarter metre), the camera's speed along it frame by frame (eased, looking ahead to brake,
 // smoothed), and each frame's aim (ahead, at the drone, the airship's screen, round the airship, the bowl), averaged
 // over a second, and its bank. Millimetres in the film's unbent frame. Included after night.rs.
@@ -138,7 +138,7 @@ pub fn chords<O: Ops>(o: &mut O, pts: &[[i64; 3]]) -> V {
     l
 }
 
-/// The flight: the path (the prototype's _smooth_path), the places along it, the speed frame by frame (_profile),
+/// The flight: the path, the places along it, the speed frame by frame,
 /// the cab's braking.
 pub fn flight<O: Ops>(o: &mut O, nw: &NightWorld) -> Path {
     let keys = &nw.path_keys;
@@ -242,8 +242,8 @@ pub fn flight<O: Ops>(o: &mut O, nw: &NightWorld) -> Path {
     path
 }
 
-/// The distance along the path of its point nearest to p (mm), only from `after` on if given (else, as the
-/// prototype, all of it).
+/// The distance along the path of its point nearest to p (mm), only from `after` on if given (else
+/// all of it).
 fn nearest_along<O: Ops>(o: &mut O, path: &Path, p: [i64; 3], after: Option<i64>) -> i64 {
     let d: [V; 3] = std::array::from_fn(|c| { let a: V = path.p.iter().map(|q| q[c]).collect(); let t = o.lin(&[(v(&a), None), (K(-p[c]), None)]); o.div(v(&t), K(100), 0) });
     let s = o.lin(&[(v(&d[0]), Some(v(&d[0]))), (v(&d[1]), Some(v(&d[1]))), (v(&d[2]), Some(v(&d[2])))]);
@@ -293,7 +293,7 @@ fn wanted<O: Ops>(o: &mut O, path: &Path, d: &V) -> V {
     o.sel(&f1, K(5200), v(&s))
 }
 
-/// The prototype's _profile: frame by frame the speed eased toward the least wanted over the stretch it could brake
+/// The speed profile: frame by frame the speed eased toward the least wanted over the stretch it could brake
 /// in (24 places), never changing by more than the frame's acceleration, then smoothed (a Gaussian of 4 frames,
 /// its weights printed in thousandths), the distances scaled to reach the hand-off at frame NCH; 26 frames on at
 /// the hand-off's 2.2 m.
@@ -366,7 +366,7 @@ fn braking<O: Ops>(o: &mut O, tb: &Tb) -> (V, V) {
     let sp = o.lin(&[(v(&pw), Some(K(7)))]);
     let z0 = one(o.lin(&[(K(Z0), Some(K(10)))]));
     let c = cumsum(o, &sp);
-    // scaled to stop exactly where the station is laid out (the prototype's ZS): the ratio in hundred-thousandths
+    // scaled to stop exactly where the station is laid out (ZS): the ratio in hundred-thousandths
     let want = one(o.lin(&[(K(ZS), Some(K(10))), (K(z0), Some(K(-1)))]));
     let got = one(o.div(K(c[(F_STOP - 1) as usize]), K(100), 0));
     let ratio = one(o.div(K(want), K(got), 1));
@@ -444,7 +444,7 @@ pub fn blimp_at<O: Ops>(o: &mut O, nw: &NightWorld, tenths: &[i64]) -> [V; 3] {
 
 /// The drone (film, unbent, mm) at times (tenths of a frame): bobbing, swooping in from ahead to hover under the
 /// canopy, then leading the camera along the path; aside while we read the airship's screen; away up over the
-/// stadium while we orbit (the prototype's drone_pos).
+/// stadium while we orbit.
 pub fn drone_at<O: Ops>(o: &mut O, nw: &NightWorld, tenths: &[i64]) -> [V; 3] {
     let tb = &nw.w.tb;
     let p = &nw.path;
@@ -561,7 +561,7 @@ pub fn chase_eyes<O: Ops>(o: &mut O, nw: &NightWorld, tenths: &[i64]) -> [V; 3] 
 
 fn pick3(a: &[V; 3], at: &[usize]) -> [V; 3] { std::array::from_fn(|c| at.iter().map(|&i| a[c][i]).collect()) }
 
-/// Where the camera wants to look at times (tenths of a frame): unit ways (thousandths), the prototype's raw_aim:
+/// Where the camera wants to look at times (tenths of a frame): unit ways (thousandths):
 /// on the platform up it and then at the drone swooping in; flying, ahead along the path (further the faster),
 /// half at the drone early on, at the airship's screen as we read it, at the airship as we orbit it, down at the
 /// bowl over the last 30 frames; past the hand-off at the bowl.
@@ -714,7 +714,7 @@ pub fn raw_rolls<O: Ops>(o: &mut O, nw: &NightWorld, tenths: &[i64]) -> V {
 
 /// The camera's aim and bank at a time (tenths of a frame): the wanted ways averaged over a second (a Gaussian of 4
 /// frames, 25 of them), the banks over 2.5 times as long (49), narrowing to none over the last 20 frames so it lands
-/// on the hand-off's aim exactly (the prototype's aim()).
+/// on the hand-off's aim exactly.
 pub fn aim<O: Ops>(o: &mut O, nw: &NightWorld, tenths: i64) -> ([i64; 3], i64) {
     let tb = &nw.w.tb;
     // sigma (thousandths of a frame): 4 times (F_END - t) / 20 held to 0..1

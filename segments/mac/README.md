@@ -29,9 +29,7 @@ screen and the watch turns for two seconds. Then the application: a checkerboard
 PRODUCTION and CARD ATTACK dissolving in and out over it (HyperCard's dissolve). 377 frames, 31.4 s, all of them in
 the film after the [openers](../openers) (`seg mac mac/video_hd.rgb 0 377 1536x768` in the cut).
 
-The prototype is `prototypes/macboomcrash.py` (Boom crashing: the hall of mirrors, the bomb box, the editor), built
-on `prototypes/macdoom.py` (the game and the windows behind it), `macpyramid.py`'s bomb box and editor menus, and `macdesk.py`'s launch. From the reminder on it is
-macdoom.py's script as before, 58 frames later. This segment makes the screen; the Mac's bezel round it is the
+This segment makes the screen; the Mac's bezel round it is the
 [turn](../turn)'s first frame, laid over the whole segment as a layer by the cut (`over turn/bezel.rgba 1536x768 0 0
 0 377`). The sound cues, frame by frame, are in `data/cues.txt`, as notes for the soundtrack; nothing in the film
 reads them.
@@ -61,21 +59,19 @@ reads them.
 icons, each window back to front, the alert, the menu bar), each a list of items (filled and framed rectangles,
 sprites, lines of text, pictures worked out) whose places are a corner of the window (or of the screen) and a
 distance, as the Mac's own resources gave a window's parts in its coordinates; the zoom rects as their two
-rectangles and a step; the pointer as still or a glide's two points and a step; the tunnel's picture and title. The
-script is the prototype's, frame for frame (its glides' lengths as it times them). **The game as data**
+rectangles and a step; the pointer as still or a glide's two points and a step; the tunnel's picture and title. **The game as data**
 ([`boom.rs`](boom.rs)): the window, the camera's keyframes, which shot is fired when, the gun's bob and kick, the
 face, the counters' places, the map's and textures' files, the page's sphere, the flag's proportions.
 
-**Assets** made ahead of time in Python ([`data/make_data.py`](data/make_data.py), which runs the prototypes' own
-drawing code): the sprites
+**Assets** made ahead of time in Python ([`data/make_data.py`](data/make_data.py)): the sprites
 (`sprites.txt`: the desktop's 50% grey, a checker of every other pixel black; the icons plain, selected and the floppy opened; the arrow and the watch's eight hands; the Alarm
 Clock's small clock; the close, zoom and grow boxes, the scroll arrows, the close box's starburst; the OK button and
 pressed; the screen's rounded corners; the gun's four frames, the face's six, the status bar without its counters, the
 counters' digits, the page's title and LEARN TO SPEAK / FINNISH in Chicago at twice the size); `boom.txt` (the map,
 the seven textures' greys, the dither's thresholds for every light); the tunnel's printed tables (`tables.txt`: per
 slope step, the angle within the octant and the secant; per distance, how far along, the depth's twist and the shades
-with the fog in them; the sine); the title cards at 128x86 (`titles.txt`, Futura as the prototype sets them);
-HyperCard's dissolve (`dissolve.bin`, the prototype's pixel order); the cues (`cues.txt`). Chicago 12, Geneva 9 and
+with the fog in them; the sine); the title cards at 128x86 (`titles.txt`, in Futura);
+HyperCard's dissolve (`dissolve.bin`, its pixel order); the cues (`cues.txt`). Chicago 12, Geneva 9 and
 Geneva 12 are the UI kit's atlas faces 17-19. The tunnel's arctangent, secant, twist (1440 / R) and fog curve (its
 power 1.3) are worked out in Python and printed in these tables; CARDIAC fetches them, it does not compute them.
 
@@ -129,7 +125,7 @@ sums of products, divisions rounded down, the sine table), as the turn's are. Un
 
 **Once:** the page's sphere (radius 70): for each row, on the arithmetic, its span (|x| up to the whole root of 70^2 -
 y^2), the first pixel's height s (the whole root of what is left), what the square is over s^2, its light -50 x - 60 y
-+ 62 s (7000ths: the prototype's -0.5 nx - 0.6 ny + 0.62 nz), and the dither's thresholds, ceil((70000 (2k + 1) -
++ 62 s (7000ths: -0.5 nx - 0.6 ny + 0.62 nz), and the dither's thresholds, ceil((70000 (2k + 1) -
 179200) / 288) (the light held to 0..1, times 0.9, plus 0.08, under the step's middle). `mac_ball` keeps the root and
 the light across the row (the square under the root changes by 2x + 1 a pixel: a step of the root when what it is
 over the root's square passes either way; the light in hundreds and the rest), `mac_bdot` dithers it (the 4x4 ordered
@@ -158,13 +154,13 @@ one fewer each frame out, at most three), `ui_ease` how far each third has come,
 `mac_dissolve` says which of the card's pixels' turns have come; the host lays those, the rim black and the letters
 white, over the tunnel (copied four by four from its blocks). Then the screen's corners, and the pointer.
 
-**The crash** (the prototype's `haywire()`, `script()`). The hall of mirrors' schedule is worked out ahead of time
-in Python, not on CARDIAC: `make_data.py` runs the prototype's generator and formulas in floating point and prints the
+**The crash.** The hall of mirrors' schedule is worked out ahead of time
+in Python, not on CARDIAC: `make_data.py` runs the schedule's random number generator and formulas in floating point and prints the
 result to `data/haywire.txt`. From the frame's place in the haywire stretch, u = (f - 32) / 36, it works out which
 frames come out clean (u < 0.4 and the frame's random number above 0.25 + 1.5 u), how many of the 48 bands show
 (1 + int(48 u^2)), how far the smear moves (int(6 + 60 u) columns), how many strips tear (int(9 (u - 0.5)) from
-halfway) and what the counter shows. The bands' places (the prototype's random numbers) and the four strips' rows
-and moves (the prototype's constants) are printed in the same file. The pictures the schedule moves are worked out on
+halfway) and what the counter shows. The bands' places (random numbers) and the four strips' rows
+and moves (constants) are printed in the same file. The pictures the schedule moves are worked out on
 CARDIAC. Each frame from 32 to 67: the game's own frame, on CARDIAC as above (Boom plays on under the bug, its last two shots too); where
 a band shows the walls behind, the game's view from the same place with the angle half a turn on (the arithmetic
 adds 500000 millionths), only those columns' rays cast and walled (the flats in full), no muzzle flash. Then the host
@@ -194,26 +190,17 @@ hand-written tapes in [`swarm/hand`](../swarm/hand)), `mac_fidx` 182M, `mac_fdot
 and the desk about 3M. The hall of mirrors' moves are the host's: its schedule is Python's, and the host's address
 arithmetic moves the pixels by it. Live it splits into blocks, the frames from 32 to Resume one of them.
 
-## Against the prototype
+## Rounding
 
-The desk is the prototype's to the pixel except where it rounds: the pointer's glides (within a pixel or two, a few
-frames) and the zoom rects' edges (a pixel). The game is the prototype's picture in whole numbers: the camera's
-keyframes to the texel, the rays in 448ths, the walls' rows and texels to a row or a texel at their edges, the floor's
-texels to a thousandth of a texel a column (the prototype's float a texel off here and there at the tiles' edges);
-the light and the ordered dither are the prototype's exactly (a texel black where its grey times the light is at most
-the step's middle), so the dots differ only where a texel does. The gun's bob rounds down where the prototype rounds
-to the nearest. About 1-7% of the game's pixels differ from the prototype's, along edges. The sphere's height is a
-whole square root where the prototype's is exact: a few dots on the step's edges. The page and the flag are the
-prototype's to the pixel. The
-tunnel is the same picture in whole numbers (about 4% of blocks on the other side of a check's edge); Atkinson's
-dither there too: the same greys, different dots. The titles' dissolve is the prototype's exactly.
+The desk rounds the pointer's glides (within a pixel or two, a few frames) and the zoom rects' edges (a pixel). The
+game is in whole numbers: the camera's keyframes to the texel, the rays in 448ths, the walls' rows and texels to a
+row or a texel at their edges, the floor's texels to a thousandth of a texel a column; a texel is black where its
+grey times the light is at most the step's middle. The gun's bob rounds down rather than to the nearest. The sphere's
+height is a whole square root: a few dots on the step's edges. The tunnel is in whole numbers too (about 4% of blocks
+on the other side of a check's edge).
 
-The crash: the hall of mirrors' schedule is the prototype's exactly (printed by make_data.py), and its moves of
-pixels are the prototype's numpy's; the pictures it moves are the game's, so they differ from the prototype's where the game's do
-(about the same share of pixels, 4,000 to 9,000 a frame; the smear carries the frame before's differences along).
-The walls behind are the game's view half a turn round, whole numbers as the game's. The bomb box, the editor and its
-code, the menus and the scrolling are the prototype's to the pixel. The pointer's straight moves round down where the
-prototype rounds to the nearest (halves to even): a pixel off at frames 77, 79, 101 and 102.
+The crash: the walls behind are the game's view half a turn round, whole numbers as the game's. The pointer's
+straight moves round down rather than to the nearest: a pixel off at frames 77, 79, 101 and 102.
 
 ## Numbers
 

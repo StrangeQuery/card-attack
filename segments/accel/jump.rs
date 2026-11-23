@@ -3,7 +3,7 @@
 // shading, each triangle in its material's light), at twice the size and averaged two by two; its shadow; its tail
 // lamps' lights.
 //
-// The path (design: prototypes/accel.py's ahead, car_height, cam_place, car_pose), frame f, k = f - 156 (the launch):
+// The path (the car's distance ahead, its height, the camera's place and the car's pose), frame f, k = f - 156 (the launch):
 // - how far our car's middle is ahead of the camera, 64ths: 384, and for k in 0..30 1152 sin(k / 60 of a turn) /
 //   9990 more (1.8 units at the most);
 // - its height (64ths, world): in the air (k in 0..18) 704 + (25920 k - 3844 k k) / 1000 (11 up at the lip, 4.86 a

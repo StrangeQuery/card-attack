@@ -9,12 +9,10 @@ the `traceRayEXT` shader are laid over its first seconds. Every pixel's colour i
 ## What it shows
 
 256 frames at 12 fps (21.3 s), all of them in the film, straight after the dive's knob
-(`seg train train/video_hd.rgb 0 256 1536x768`). First the departure ([`prototypes/train_depart.py`](../../prototypes/train_depart.py)),
+(`seg train train/video_hd.rgb 0 256 1536x768`). First the departure,
 84 frames: a second standing at the platform under its canopy (the LED board:
 14:03 NOZOMI 37 FOR SHIN-OSAKA), then a steady push for six seconds out of the station and along the viaduct, up to
-the ride's speed. Then the prototype's ride, 172 frames, the same as before the departure was added
-([`prototypes/train.py`](../../prototypes/train.py)),
-the brag and the shader in their place in it: the city on its viaduct (0-260 m), the tunnel with its
+the ride's speed. Then the ride, 172 frames, the brag and the shader in their place in it: the city on its viaduct (0-260 m), the tunnel with its
 lamps (to 500 m), the S-curve through the paddies at sunset with the other train passing (from 550 m), the truss
 bridge over the river (920-1040 m), land again. Motion blur, the low sun's glow and its lens ghosts, the paddies and
 the river mirroring the sky and what stands above them, shadows (the city's by day, the farmland's at dusk), fog, the
@@ -128,14 +126,14 @@ two cards back as one number. The glass's tint is the host's too.
 ## Making it
 
 ```
-python segments/train/data/make_data.py       # scene.bin, from the prototype and the Blender models
+python segments/train/data/make_data.py       # scene.bin, from the Blender models
 python segments/train/data/make_tables.py     # tables.bin (about 230 MB) and tables_h.bin (--half)
 cd segments && cargo cardiac build            # the machines
 rustc --edition 2021 -O -o refs/train_ref segments/train/reference.rs   # (refs.sh)
 card-attack train refs/train_ref              # the ride on CARDIAC, checked against the reference
 ```
 
-`scene.bin` (the world's and the other train's models, the prototype's and Blender's) and `tables.bin` and
+`scene.bin` (the world's and the other train's models) and `tables.bin` and
 `tables_h.bin` (the printed tables) are assets made ahead of time in Python. They are not in git as files: they are packed in
 `generated.tar.xz`, which
 `build.sh` unpacks.
@@ -152,31 +150,27 @@ player makes the start once (`train:setup`) and the frames in blocks.
 - Live, the player makes the start as one job and the frames in blocks, by the seconds in
   [`segments/cut/costs.txt`](../cut/costs.txt).
 
-## Where it differs from the prototype
+## Simplifications
 
-Kept as small as CARDIAC's budget allows; each looks the same at speed (the preview beside the prototype's):
+Kept as small as CARDIAC's budget allows; each looks the same at speed:
 
-- **Motion blur**: a box along the nearest of 16 directions (running sums: a streak costs the same however long)
-  instead of the prototype's 28 weighted taps along the exact motion; in the fastest tiles (streaks of 16 pixels or
-  more) one blurred pixel a 2x2 block.
+- **Motion blur**: a box along the nearest of 16 directions (running sums: a streak costs the same however long);
+  in the fastest tiles (streaks of 16 pixels or more) one blurred pixel a 2x2 block.
 - **Shading rate**: one pixel shaded a 2x2 block, a 4x4 tile or an 8x8 tile where the blur will smear it 6, 16 or 48
-  pixels or more (the prototype shades every pixel). No anti-aliasing of the triangles' edges (the prototype's
-  previews average 2x2 samples).
+  pixels or more. No anti-aliasing of the triangles' edges.
 - **Numbers by logarithms**: places along rays, slopes along edges and spans, the projection, the corners' turn into
   the camera's space, normals made units and the shadow maps' places are e of a difference of ten-thousandths of a
   logarithm: right to about one part in 10,000 (a centimetre at 100 m), not exact.
 - **The sky**: worked out at every fourth pixel (and the sky map's 5 thousandths of a radian) and made fine between;
   the ridges' outlines and the sun's core sharp where they cross.
-- **Glow**: from four samples of each 4x4 block, its near blur twice with a radius of 4 blocks (the prototype's 3
-  three times), the wide one from that twice with a radius of 14 (its 12 three times); the glow and the ghosts come
+- **Glow**: from four samples of each 4x4 block, its near blur twice with a radius of 4 blocks, the wide
+  one from that twice with a radius of 14; the glow and the ghosts come
   through the vignette too (they are light added before the tone curve, whose table has the vignette in it).
-- **Shadows**: map texels of 25 cm by day (the prototype's 8) and 20 cm at dusk (its 15 by 5), looked up for each
-  2x2 block.
+- **Shadows**: map texels of 25 cm by day and 20 cm at dusk, looked up for each 2x2 block.
 - **Mirrors**: what stands above the water drawn at half the screen's size each way.
-- **The tunnel's lamps**: their light worked out on maps at the segment's start (the prototype lights every pixel from every lamp),
-  only near the tunnel's surfaces.
+- **The tunnel's lamps**: their light worked out on maps at the segment's start, only near the tunnel's surfaces.
 - **The triangles** are drawn by this segment's own raster ([`render.rs`](render.rs)), not the mesh kit's machines:
-  at 40,000 triangles a frame the kit's long divisions an edge cost too much; the models are the prototype's.
+  at 40,000 triangles a frame the kit's long divisions an edge cost too much.
 - **Normals** in hundredths, their dots over 100 (99 is a unit: about 1% short).
 - **The departure board**: the dots placed by whole centimetres (their pitch 29 quarter centimetres), each dot's
   share of a footprint and the glow of a lit one when the footprint is wider than the pitch from printed tables, the

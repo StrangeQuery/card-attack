@@ -3,7 +3,7 @@
 // and everyone else as an impostor (their pose's picture from behind, upright, turned to the camera), and the phones
 // held up. Included after raster.rs.
 
-/// The nearest dancers in view drawn as meshes, within 26 m (the prototype draws 160; here 40, the rest the
+/// The nearest dancers in view drawn as meshes, within 26 m (the rest the
 /// impostors, for the budget).
 pub const NEAR_N: usize = 64;
 /// The party version's (its budget): the nearest 40.

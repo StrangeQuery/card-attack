@@ -5,7 +5,7 @@
 // Angles are millionths of a turn, sines and cosines 999ths (the swarm's table), directions thousandths.
 
 /// The camera keys after the crest (and the two before it it eases from): times in twelve-thousandths of a second,
-/// eye and the point looked at in centimetres. (The first three are the prototype's FLIGHT keys; the rest at the
+/// eye and the point looked at in centimetres. (The first three are the flight's keys; the rest at the
 /// crowd's height.)
 pub const KEYS: [(i64, [i64; 3], [i64; 3]); 41] = [
     (0, [-4000, -15000, 1000], [0, -10000, 4500]),
@@ -61,7 +61,7 @@ pub const KEYS: [(i64, [i64; 3], [i64; 3]); 41] = [
     (531000, [-200, -4000, 1400], [0, 6400, 3200]),
 ];
 
-/// The show's moments, in t12 (from the prototype's times, which stretch its nominal ones, the crowd's weave 12.25 s, to the cut at 44.25 s).
+/// The show's moments, in t12 (nominal times stretched, from the crowd's weave at 12.25 s to the cut at 44.25 s).
 pub const HOLD: (i64, i64) = (378, 421);       // the airship's hold: THANK YOU SAUL FINGERMAN on its screen
 pub const HAG: (i64, i64) = (445, 492);        // the giant screen: THANK YOU D. W. HAGELBARGER
 pub const CARDIAC_T: i64 = 493;                // the giant screen's last picture: the CARDIAC
@@ -73,7 +73,7 @@ pub const FLARE_T: i64 = 214;                // the flare: the whole crowd lit a
 #[derive(Clone, Copy, Debug)]
 pub struct Cam { pub eye: [i64; 3], pub b: [[i64; 3]; 3] }
 
-/// The camera through the keys: Catmull-Rom (the prototype's), then turned 10 degrees right from 2 s after the crest
+/// The camera through the keys: Catmull-Rom, then turned 10 degrees right from 2 s after the crest
 /// over 1.5 s (the stream chat sits at the right), and its axes.
 pub fn camera<O: Ops>(o: &mut O, t: &Tables, t12: i64) -> Cam {
     let tt = s_lin(&[(t12, Some(1000))], o);
@@ -132,8 +132,8 @@ pub struct Show {
     pub pulse: i64,
     /// the bar (a slot of the screens) and the frame in the beat for the laser chase (thousandths)
     pub bar: i64, pub beat_m: i64,
-    /// the screens' slot: the bar on the show's own clock (not the soundtrack's phase: the footage keeps the
-    /// prototype's timing)
+    /// the screens' slot: the bar on the show's own clock (not the soundtrack's phase: the footage keeps its
+    /// own timing)
     pub slot: i64,
 }
 
@@ -143,7 +143,7 @@ pub fn cycle<O: Ops>(t12: i64, c: i64, o: &mut O) -> i64 { s_lin(&[(t12, Some(c)
 /// The beat's phase against the soundtrack (its mix): the lights' hits (beats 1 and 3 at 137.14 BPM) fall at
 /// t = BEAT_T0 + 0.875 j on the show's clock. Thousandths of a second; every beat and bar phase is counted from it
 /// (the dancers' phase, the hits, the LED walls' pulse, the strobe, the pyro, the moving heads' and lasers'
-/// patterns; the screens' slots and their footage keep the show's own clock, as the prototype has them).
+/// patterns; the screens' slots and their footage keep the show's own clock).
 pub const BEAT_T0_MS: i64 = 378;
 /// The cycles (millionths) of a rate c (millionths a twelfth) in BEAT_T0: BEAT_T0 12 c.
 pub const fn beat_off(c: i64) -> i64 { (BEAT_T0_MS * 12 * c + 500) / 1000 }
@@ -205,7 +205,7 @@ impl Tables {
 }
 
 /// An angle at t12 (millionths of a turn, its whole turns dropped) for a rate of `rad_s` radians a second and a
-/// phase (millionths of a turn): the rate as millionths of a turn a twelfth, from the prototype's number.
+/// phase (millionths of a turn): the rate as millionths of a turn a twelfth, from the radians a second.
 pub fn rate(rad_s: f64) -> i64 { (rad_s / (2.0 * std::f64::consts::PI) * 1e6 / 12.0).round() as i64 }
 pub fn angle<O: Ops>(t12: i64, r: i64, phase: i64, o: &mut O) -> i64 {
     let a = s_lin(&[(t12, Some(r)), (phase, None)], o);

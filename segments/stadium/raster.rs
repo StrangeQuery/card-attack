@@ -226,7 +226,7 @@ pub fn draw<O: Ops>(o: &mut O, t: &Tables, cv: &[[i64; 3]], vals: &[Vec<i64>], t
         // facing the camera: x right, y down, so a front face (counter-clockwise in the world) has area < 0
         let back = o.lt(v(&ayb), v(&axb));
         // only the ones wholly 20 m away or more: a solid's back can only show from inside it (the camera passes
-        // through the stands), and there the prototype draws it
+        // through the stands), and there it is drawn
         let zmin = { let z: [V; 3] = std::array::from_fn(|c| tl.iter().map(|t| verts[t.1[c]][2]).collect()); let m = o.min(v(&z[0]), v(&z[1])); o.min(v(&m), v(&z[2])) };
         let far = o.lt(K(1999), v(&zmin));
         let drop: Vec<bool> = (0..tl.len()).map(|i| back[i] == 1 && far[i] == 1).collect();

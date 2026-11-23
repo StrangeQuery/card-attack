@@ -1,4 +1,4 @@
-# our car (prototypes/accel_models/car.obj): 496 triangles, 296 corners; 100 units a street's unit. Made by make_car.py.
+# our car: 496 triangles, 296 corners; 100 units a street's unit. Made by make_car.py.
 faces 496
 vertices 296
 -96 -28 -210 -99 0 0

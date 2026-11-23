@@ -1,4 +1,4 @@
-//! The die and the Rubik's cube (the prototype's dierubik.py), 192x96 on black, for the BBS to lay over its page and
+//! The die and the Rubik's cube, 192x96 on black, for the BBS to lay over its page and
 //! the rotozoomer: the plain cube coming toward us tumbling, going to a die (its faces to ivory, the pips fizzing in),
 //! splitting into a scrambled Rubik's cube that plays the rubik segment's 16-move solve while it tumbles, a pop, then
 //! roaming on, tumbling, out to about twice the distance and back.

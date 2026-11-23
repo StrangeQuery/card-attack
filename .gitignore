@@ -41,7 +41,7 @@ segments/stadium/data/scene.bin
 segments/stadium/data/pictures.bin
 segments/rooms/data/rooms.bin
 segments/sqend/data/sqend.bin
-# the dorm's 3D renders (prototypes/dorm3d/room.py makes them)
+# the dorm's 3D renders (made in Blender ahead of time)
 segments/rooms/data/dorm3d/
 __pycache__/
 # the host's other cargo builds (native, PGO)

@@ -6,7 +6,7 @@
 //! zoom rects to the whole screen), the watch; then the one-bit tunnel at 128x86 blocks of 4x4, Atkinson-dithered, four
 //! pictures a second, with STRANGE QUERY PRESENTS / A CARDIAC PRODUCTION / CARD ATTACK dissolving in (HyperCard's
 //! dissolve). The desk's frames are described by segments/mac/desk.rs (its places a window's corner and a distance), the
-//! game's by segments/mac/boom.rs (the prototype macdoom.py's script).
+//! game's by segments/mac/boom.rs (its script).
 //!
 //! On CARDIAC, each frame of the desk: the place machine (mac_place) adds up every place (a window's corner and the
 //! distance from it, the middle of its title bar halved); the text machine (ui_text, the kit's) sets every line of
@@ -25,7 +25,7 @@
 //! each wall's column down the rows, its dots by the ordered dither; the floor machine (mac_fidx) the flats' texels, the
 //! dots machine (mac_fdot) their dots. The gun's bob and the ammo's digits are the arithmetic's too.
 //!
-//! The crash (the prototype macboomcrash.py): from frame 32 the game goes haywire, its schedule data (data/haywire.txt);
+//! The crash: from frame 32 the game goes haywire, its schedule data (data/haywire.txt);
 //! where its bands show the walls behind the player, the game's view again from the same place half a turn round (the
 //! arithmetic adds the half turn), only those columns' rays cast; the host moves the pixels (bands of the picture before
 //! moved across, a column streaked, the view behind; strips of rows torn across; the junk counter's digits laid). The

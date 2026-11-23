@@ -44,7 +44,7 @@ pub fn load<O: Ops>(o: &mut O, dir: &str) -> World {
 impl Tables {
     /// 1000 / sqrt(1 + s / 10^6) for s 0..800,000 (a pixel's squared distance from the middle)
     pub fn inv_ray_tab() -> Tab { tab("inv_ray", (0..800_000).map(|s| (1000.0 / (1.0 + s as f64 / 1e6).sqrt()).round() as i64).collect()) }
-    /// the sky's colour by the ray's height part (thousandths, -1000..1000): the prototype's night sky (with the
+    /// the sky's colour by the ray's height part (thousandths, -1000..1000): the night sky (with the
     /// city's glow and the ground) and the dark violet it deepens to, ten-thousandths, [r, g, b]
     pub fn sky_tabs() -> [[Tab; 3]; 2] {
         let f = |el: f64, violet: bool| -> [f64; 3] {
@@ -98,7 +98,7 @@ fn dissolve<O: Ops>(o: &mut O, t: &Tables, ours: &[u8], night: &[u8], k: i64) ->
     let n0 = (k as usize) * npix() * 3;
     let theirs: V = night[n0..n0 + npix() * 3].iter().map(|&x| x as i64).collect();
     let mine: V = ours.iter().map(|&x| x as i64).collect();
-    // theirs + (ours - theirs) a / 1000, rounded down (the prototype's float then the byte's truncation)
+    // theirs + (ours - theirs) a / 1000, rounded down (as a float cut to a byte)
     let d = o.sum(&[(v(&mine), 1), (v(&theirs), -1)], 0);
     let p = o.lin(&[(v(&d), Some(K(a)))]);
     let p = o.div(v(&p), K(1000), 0);

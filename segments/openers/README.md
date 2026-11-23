@@ -39,7 +39,7 @@ splits the colour into fifths and what is left over.
 
 The pictures are assets made ahead of time in Python. The word cards are bitmaps at the screen's size (`data/*.txt`,
 1 a letter, set by `data/make.py`), and the photo card is a colour picture (`data/photo.bin`: the old ending's cut-out
-of the CARDIAC laid on black and box-filtered to 88x84 at (6, 6), as the prototype fits it, with the words in white).
+of the CARDIAC laid on black and box-filtered to 88x84 at (6, 6), with the words in white).
 The host keeps the schedule (each card's length and the three frames of black after it) and deals each frame's place
 in its card. The machines work out only the fade, and colour every pixel by it.
 
@@ -79,6 +79,6 @@ average, most of it in the fades: held at full a row is a straight copy), `op_fa
   `make.py`, which makes the bitmaps in Futura. The photo card was made from the old ending's cut-out of the
   CARDIAC, which is no longer in the repository, so `photo.bin` is kept as it was made.
 - `reference.rs`: draws every frame independently in ordinary Rust, in whole numbers, from the pictures and the
-  fade's formula. It matches the prototype's frames pixel for pixel. `card-attack openers refs/openers_ref` checks
+  fade's formula. `card-attack openers refs/openers_ref` checks
   every frame against it and says identical 191/191.
 - Host: [`host/src/fx/openers.rs`](../../host/src/fx/openers.rs), with the timeline.

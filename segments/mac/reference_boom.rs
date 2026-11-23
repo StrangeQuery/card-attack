@@ -27,18 +27,18 @@
 //   64) + fl(1000 md(n, 14m), 14m), 64000), and steps md(fl(-1000 uy, 7m), 64000) a column (the same down, from 560 uy
 //   - 447 ux, by 1000 ux); its light 155 - fl(2545, m) held to 10..100.
 // - A texel of grey g (256 white) under light E is black when g is at most the table's fl((2k + 1) 800, E) for its
-//   pixel's step k of the 4x4 ordered dither: the prototype's g E <= the step's middle.
+//   pixel's step k of the 4x4 ordered dither: g E <= the step's middle in floating point.
 // - The gun's bob: 999 sin and cos of the phase PHASE f; across fl(12 bob sin, 9990), down fl(7 bob |cos|, 9990)
 //   (bob in tenths); the gun at (GUN_X + across, GUN_Y + down - kick), kept to the view. The counters: the ammo 50 less
 //   the shots, its tens and ones.
 // - The walls behind (the hall of mirrors): the same view from the same place, its angle 500000 millionths on, never
 //   in a muzzle flash.
-// The prototype works in floating point and rounds to the nearest; the walls' places and the textures' texels agree to
+// The floating-point design rounds to the nearest; the walls' places and the textures' texels agree to
 // a texel or a row, the dots of the dither to the step.
 //
 // The Wikipedia page's sphere (radius 70, its picture 141 square, centred): a pixel (x, y) is on it when x^2 + y^2 <=
-// 70^2; its light, in 7000ths, -50 x - 60 y + 62 s, s the whole square root of 70^2 - x^2 - y^2 (the prototype's -0.5
-// nx - 0.6 ny + 0.62 nz); black where that is under ceil((70000 (2k + 1) - 179200) / 288) (the prototype's light held
+// 70^2; its light, in 7000ths, -50 x - 60 y + 62 s, s the whole square root of 70^2 - x^2 - y^2 (in floating point -0.5
+// nx - 0.6 ny + 0.62 nz); black where that is under ceil((70000 (2k + 1) - 179200) / 288) (the floating-point light held
 // to 0..1, times 0.9, plus 0.08, under the step's middle), k the step of the 4x4 dither at twice the size.
 //
 // The Finnish flag: 60 narrower than its window's inside, fl(11 w, 18) high, cropped to 8 above the window's foot; the

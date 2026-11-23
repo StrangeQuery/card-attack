@@ -1,4 +1,4 @@
-# test: from prototypes/train_night.py NightCam + to_aud, centimetres
+# test: the night arrival's camera (NightCam) in the stadium's frame, centimetres
 0 -442 -11749 11545 -3868 -3685 6724
 1 -648 -11804 11491 -3769 -3817 6345
 2 -849 -11865 11426 -3650 -3944 6002

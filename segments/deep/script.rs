@@ -7,7 +7,7 @@
 // Units: angles in billionths of a turn (nt), carried as millionths of a turn (hi) and the nt past them (lo) where
 // they go round; places, sines and fractions in millionths; time by the frame f, story time f / 6 s, real time
 // f / 12 s. Products of longer numbers go by their cards (mulsum), divisions by large numbers a step at a time,
-// every one rounded down unless it says so; rounding to the nearest is half away from 0, as the prototype's.
+// every one rounded down unless it says so; rounding to the nearest is half away from 0, as in the floating-point design.
 // Sines and arctangents are from printed tables, between entries by the rest.
 //
 // The printed numbers (data/script.txt, from data/make_script.py): the lips the diver swims to and the creatures'

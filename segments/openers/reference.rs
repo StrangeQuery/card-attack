@@ -4,7 +4,7 @@
 // Each card shows a picture for its frames, then three frames of black. The first is a colour picture (photo.bin:
 // the CARDIAC's photo and its words in white); the others are bitmaps of words (1 a letter), white. On frame t of a
 // card of n frames the picture is at k = min(5, t + 1, n - t) fifths: fading in over the first five frames and out
-// over the last five. A colour c is shown as floor(c k / 5), as the prototype truncates it; a letter, white (255),
+// over the last five. A colour c is shown as floor(c k / 5); a letter, white (255),
 // is 51 k; everything else is black.
 use std::io::Write;
 const W: usize = 192; const H: usize = 96;

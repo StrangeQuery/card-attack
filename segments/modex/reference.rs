@@ -17,7 +17,7 @@
 //   Y over 270 the sky high, Y at least 0 the sky low. A downward ray, from height h = 46 + 10 L / 3 + B, meets the
 //   floor after t = 100 h / -Y hundredths of 529 pixels (rounded down; 192x96's tenths at 392 / 20 were too
 //   coarse for this size, five steps across the floor in the ball); from 25 on (past 130 2/3 pixels, the
-//   prototype's 4 twentieths of 392 / 20 at 192x96) the floor is lost in haze. The floor point is (x - 160 + t X / 100, 93 1/3 - C + t Z / 100) in pixels (across from the
+//   design's 4 twentieths of 392 / 20 at 192x96) the floor is lost in haze. The floor point is (x - 160 + t X / 100, 93 1/3 - C + t Z / 100) in pixels (across from the
 //   middle, and deep from the ball's centre's depth, toward zero), in plasma units 9 / 8 of that (rounded down; at
 //   the ball's depth a pixel is 9 / 8 plasma units), the depth's from 105: (u, v) = (9 (x - 160 + t X / 100) / 8,
 //   105 + 9 (t Z / 100 - C) / 8). It shows the plasma there 4 32nds darker, as reference_plasma's.

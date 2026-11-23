@@ -69,14 +69,11 @@ nearest-neighbour blit), and copies it.
 `pl_tone` 4,019M, `mx_norm` 2,862M, `pl_ring` 1,447M, `pl_wave` 1,173M, `mx_bounce` 1,062M, `mx_row` 893M,
 `pl_slant` 656M, `pl_rings` 540M, `mx_hit` 501M, `mx_span` 123M, `mx_compose` 112M, the sign's outline 4.9M.
 
-## Against the prototype
+## In whole numbers
 
-The prototype is the 192x96 scene sampled at 320x240 in floating point; this is the scene re-built at 320x240 in
-whole numbers, so it differs by rounding: within half a pixel in place (the prototype samples pixel centres), the
-ball 46 pixels in radius for 46 2/3, the sky's bands on whole rows. The floor seen in the ball is finer than the
-192x96 scene's: its distance in hundredths of the ray's length (tenths at this size would show the floor in five
-bands, where the prototype's is smooth), the haze from the prototype's distance on. The mean difference from the
-prototype's frames was about 4 of 255. The prototype is not in this repository.
+The scene is built at 320x240 in whole numbers: the ball 46 pixels in radius, the sky's bands on whole rows. The
+floor seen in the ball is finer than the 192x96 scene's: its distance in hundredths of the ray's length (tenths at
+this size would show the floor in five bands).
 
 ## Machines
 

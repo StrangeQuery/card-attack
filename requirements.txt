@@ -1,4 +1,4 @@
-# The data generators (segments/*/data, prototypes): python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+# The data generators (segments/*/data): python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 # numpy and Pillow at the versions that made the data in the repo
 numpy==2.0.2
 pillow==11.3.0

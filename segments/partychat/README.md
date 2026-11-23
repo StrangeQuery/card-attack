@@ -6,8 +6,7 @@ The stream chat over the stadium party, which carries the film's credits. Party 
 lines, and the messages post one after another. Each one slides up into place and pushes the older ones up, and all
 of them have posted by the time the giant screen shows the CARDIAC. The panel stays up until the cut to black.
 
-The prototype is `prototypes/partychat.py` without its emoji: only
-the scrolling text is kept. The words are in `data/credits_chat.txt`.
+The words are in `data/credits_chat.txt`.
 
 | Video | Frames | What it is |
 |---|---|---|
@@ -67,13 +66,11 @@ The cut lays the layer on the stadium with deep's `umix`, as it does every layer
 laying the panel and the text: `ui_cover` 4,003M and `umix` 3,085M. The chat's own machines take 0.8M (`pc_place`
 0.50M, `pc_stack` 0.24M, `pc_wrap` 0.03M).
 
-## Against the prototype
+## Details
 
 - **There are no emoji,** neither in the messages nor floating beside the panel.
-- **The slide** steps by whole frames from each message's posting frame. The prototype's posts fall between frames
-  (one every 21.8 frames) and its slide moves by the fraction, so a message's place differs by at most a quarter of
-  its height on the one frame it lands.
-- **Posting** is even up to the CARDIAC. The prototype posted until 24 frames before the party's end.
+- **The slide** steps by whole frames from each message's posting frame.
+- **Posting** is even up to the CARDIAC.
 - The text is the kit's (advances summed, glyphs from the atlas). The "·" of a credit line is appended to the
   atlas's Arial 22.
 

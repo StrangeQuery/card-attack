@@ -5,7 +5,7 @@
 // the bell atlas, seen from three heights, their tentacles and oral arms as soft strands, their halo). Each
 // creature is hidden where the dive's seabed, kelp or seagrass is nearer (its depth, 8 x 8 pixels a sample).
 //
-// The look is the HD preview's (prototypes): its floating point made
+// The look is the HD preview's, its floating point made
 // whole numbers. Every sum, product and division below is one the machines do; a creature's numbers (where it is on
 // the screen, which way it faces, how big, its strands' points) are worked out exactly (the swarm's sums: products
 // of cards, divisions rounded down, square roots and angles from its printed tables), and its pixels a row at a time

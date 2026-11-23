@@ -1,5 +1,5 @@
 // Motion blur: each pixel the mean of the pixels along its motion over the shutter (0.4 of a frame), its streak's
-// length from the cameras a fifth of a frame either side. The prototype gathers 28 weighted taps; here the streak is
+// length from the cameras a fifth of a frame either side. The streak is
 // a box, from running sums along lines across the screen in 16 directions, so a streak costs the same however long.
 // Included after tunnel.rs.
 

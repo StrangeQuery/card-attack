@@ -21,11 +21,9 @@ frames; the cut shows them in two pieces.
   still in the room (its frames 0 to 47), and we zoom in over the people's heads onto the dive, which the cut
   carries on from its frame 48.
 
-The designs are `prototypes/dorm.py` and `prototypes/screening.py`. Both rooms are built in 3D in Blender and rendered
-ahead of time in Cycles through the designs' cameras (`prototypes/dorm3d/`: `room.py` the dorm, `hall.py` the hall,
-`kit.py` their shared helpers; MakeHuman people, see [CREDITS.md](../../CREDITS.md)), into the layers the designs'
-`draw_art` reads (albedo, the screen's light, the constant light, and for the hall the beam too). The renders are not
-in the repository. The palettes are capped by k-means in `data/make_data.py` (the dorm 3,876 entries, its monitor's
+Both rooms are built in 3D in Blender and rendered ahead of time in Cycles (MakeHuman people, see
+[CREDITS.md](../../CREDITS.md)), into layers (albedo, the screen's light, the constant light, and for the hall the
+beam too). The renders are not in the repository. The palettes are capped by k-means in `data/make_data.py` (the dorm 3,876 entries, its monitor's
 surroundings 1,401, the hall 2,137), so CARDIAC's work per frame stays what it was with the flat drawings.
 
 ## Why it's hard on CARDIAC

@@ -1,4 +1,4 @@
-// The light: the prototype's light_at (the giant screen and the LED walls as area lights, the moving heads' pools,
+// The light (the giant screen and the LED walls as area lights, the moving heads' pools,
 // the strobes, the pyro; on the airship its searchlights' pools) worked out at points, as an ambient cube: the light
 // falling on the six faces of a small cube there (+x, -x, +y, -y, +z, -z), each colour. A surface takes its point's
 // cube and its own normal: the sum of each face's light times the normal's part along it squared. The points: the

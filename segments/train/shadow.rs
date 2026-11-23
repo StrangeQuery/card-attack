@@ -1,7 +1,7 @@
-// The sun's shadows (the prototype's SMap): depth maps looking down the sun's rays, one for the city by day and one
+// The sun's shadows: depth maps looking down the sun's rays, one for the city by day and one
 // for the evening's land, worked out once at the start from the world's triangles (the other train added each
-// frame at dusk), and looked up with 16 taps for each 2x2 block of pixels. Texels 25 cm by day (the prototype's 8),
-// 20 cm at dusk (its 15 by 5): a map's rows must be numbered by cards. Included after mirror.rs.
+// frame at dusk), and looked up with 16 taps for each 2x2 block of pixels. Texels 25 cm by day,
+// 20 cm at dusk: a map's rows must be numbered by cards. Included after mirror.rs.
 
 pub struct SMap {
     /// the sun's frame: across, up and along its rays (thousandths)

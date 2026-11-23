@@ -1,7 +1,7 @@
 // The dive's ending at 1536x768 (frames 228..352): a big, chunky old amp's volume knob on a
 // craggy rock pillar, rough, worn and fouled, faintly glowing in the dark water, set to 9. The diver comes to a stop
 // over it; it sticks twice, then one click turns it to 10; it powers up for a second and a half, crackling; lightning;
-// a flash; and the dive cuts to the train. The design (prototypes/knob.py) in whole numbers: every
+// a flash; and the dive cuts to the train. The design in whole numbers: every
 // sum, product and division below is one the machines do (the swarm's sums for the few numbers a frame, small
 // machines for the many pixels).
 //
@@ -27,7 +27,7 @@
 //   32nds;
 // - from the click, arcs off the rim: each a jagged line of 10 steps, turning at random, forking; drawn (forks 24
 //   32nds of white, mains white), their glow every 4 x 4 pixels (by whole pixels along past a line's end and across
-//   it, from the table: the prototype's blur), summed (at most 32), mixed toward (170, 210, 255); and the frame
+//   it, from the table: the design's blur), summed (at most 32), mixed toward (170, 210, 255); and the frame
 //   flashed toward (225, 240, 255) (32nds).
 // The random choices (the blobs', flakes' and arcs') are from knob.txt, random cards, the blobs' and arcs' printed
 // already scaled to the numbers they stand for.

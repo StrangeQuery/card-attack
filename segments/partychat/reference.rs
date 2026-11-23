@@ -1,4 +1,4 @@
-// The party chat's reference, in ordinary Rust (the prototype: partychat.py, without its emoji). Args: the demo
+// The party chat's reference, in ordinary Rust (without emoji). Args: the demo
 // folder. The layer over the stadium party, 512x768 at 1024, 0 of the frame (RGB and cover, a frame each, 495
 // frames): the panel (half over the party), its head, the messages (data/messages.txt: each posting at its frame, the
 // newest at the bottom sliding up into place over its first four frames, the older pushed up; each wrapped to the

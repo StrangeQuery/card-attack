@@ -1,5 +1,5 @@
 // The orcas (the dive at 1536x768, frames 84..156): a pair of killer whales gliding left to right far out and low in
-// the canyon's haze, seen only as silhouettes, as in the design (prototypes/orca.py, variant 6). Drawn into the
+// the canyon's haze, seen only as silhouettes, as in the design (its variant 6). Drawn into the
 // water before the fish, snow and jellyfish; hidden where the dive's seabed or kelp is nearer.
 //
 // The model is the Killer Whale by Poly by Google (CC BY 3.0) as the mesh kit's cards (data/make_orca.py: 860 units

@@ -4,7 +4,7 @@
 // atlas.txt's faces 10 and on, every glyph its whole cell). The machines place the characters (the advances summed
 // along a line, the line step down the page, a line centred on its x if it says so), show as many as have arrived,
 // put the cursor after the last, and lay each glyph's ink and paper on. The page is drawn at its own pixels, then
-// shown at `sx` x `sy` times at x, y of the 1536x768 frame (a blit). The texts are the prototypes' (bbs.py, vga.py).
+// shown at `sx` x `sy` times at x, y of the 1536x768 frame (a blit). The texts are the BBS's and the VGA's.
 
 /// A colour: red, green, blue.
 pub type Rgb = [u8; 3];
@@ -159,7 +159,7 @@ pub const DEGAUSS: Page = Page { name: "degauss", w: 57, h: 16, face: VGA16, adv
 ] };
 
 /// The CGA's brag, in its own 8x8 font, on a black box: laid on the turn's 320x200 CGA picture rather than the
-/// 1536x768 frame, each pixel 2 x 2 there, the box's top left at x, y (the prototype's text doubled about the middle of
+/// 1536x768 frame, each pixel 2 x 2 there, the box's top left at x, y (the design's text doubled about the middle of
 /// the picture and moved to the lower left corner, 8 pixels in). The ink is the picture's colour 3, the box colour 0.
 pub const CGA_BRAG: Page = Page { name: "cga_brag", w: 79, h: 25, face: CGA8, advance: 8, step: 12, top: 3, cursor: GREY, sx: 2, sy: 2, x: 8, y: 143, lines: &[
     Line { x: 4, centred: false, runs: &[Run { text: "320 x 200", ink: WHITE, paper: None }] },

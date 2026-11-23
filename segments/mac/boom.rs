@@ -1,5 +1,5 @@
 // Boom, the shooter the cold open starts on, and the two windows behind it, as data: the game's window, its view and
-// status bar, its script frame by frame (the prototype macdoom.py's, and macboomcrash.py's crash: the hall of mirrors'
+// status bar, its script frame by frame (and the crash: the hall of mirrors'
 // schedule, data/haywire.txt), the map, the textures, the dither's thresholds,
 // the Wikipedia page's sphere and the Finnish flag. Shared by the host (fx/mac.rs, which works every frame out on
 // CARDIAC) and the reference (which draws them in ordinary Rust). Nothing here is worked out: the camera's keyframes,
@@ -91,7 +91,7 @@ pub const JUNK_AT: [[i64; 3]; 2] = [[19, 37, 55], [37, 0, 0]];
 /// The status bar in the junk frames: the face looks ahead, calm.
 pub const JUNK_FACE: &str = "face_0_calm";
 
-/// The hall of mirrors (data/haywire.txt, the prototype's schedule): the bands across the view (place, width), the torn
+/// The hall of mirrors (data/haywire.txt's schedule): the bands across the view (place, width), the torn
 /// strips (their first row, how far they move across; TEAR rows each), and for each frame HAYWIRE..BOMB whether it comes
 /// out clean, how many bands are spoiled, how far the smeared ones move, how many strips tear, the ammo's junk digits.
 pub const TEAR: usize = 22;

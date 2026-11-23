@@ -12,7 +12,7 @@ counter is open, and its tail is cut flat on the baseline. They are extruded and
 and to the left, so their bottom is one straight line and the near end looms. Faint stars are behind them. From
 frame 8, STRANGE QUERY, spaced out and chrome too, materialises under the letters over 14 frames: each of its pixels
 at its turn is a white sparkle for two frames, then its chrome. 36 frames at 1536x768, the film's last 3 seconds
-(`seg sqend sqend/video_hd.rgb 0 36 1536x768` in the cut). The design is `prototypes/ending_sq.py`.
+(`seg sqend sqend/video_hd.rgb 0 36 1536x768` in the cut).
 
 ## How it's done
 

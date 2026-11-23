@@ -1,4 +1,4 @@
-// The wires (the prototype's wires()): the overhead line's contact wire, messenger and droppers over both lines, the
+// The wires: the overhead line's contact wire, messenger and droppers over both lines, the
 // farm road's power lines, the suburb's: segments in the world, drawn after the blur as anti-aliased lines behind
 // what's in front of them. Included after blur.rs.
 
@@ -55,7 +55,7 @@ pub fn draw_wires<O: Ops>(o: &mut O, w: &World, cam: &Cam, env: &Env, e: i64, g:
     }
     let zc: V = cc.iter().map(|c| c[2]).collect();
     let near = o.lt(v(&zc), K(NEAR_MM));
-    // segments with both ends in front, within the guard band (else skipped, as the prototype skips those behind)
+    // segments with both ends in front, within the guard band (else skipped)
     let gx: V = cc.iter().map(|c| c[0]).collect();
     let gy: V = cc.iter().map(|c| c[1]).collect();
     let px_ = o.lin(&[(v(&zc), Some(K(96))), (v(&gx), Some(K(-95)))]);

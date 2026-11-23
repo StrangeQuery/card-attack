@@ -64,7 +64,7 @@ pub fn heading<O: Ops>(o: &mut O, t: &Tables, z: A) -> V {
 }
 
 /// The cab's camera at a time (tenths of a frame): the eye (millimetres, and centimetres), and its turn (rows across,
-/// up and ahead, thousandths), as the prototype's Cam: on the line at 7 m a frame, a little sway, looking along the
+/// up and ahead, thousandths): on the line at 7 m a frame, a little sway, looking along the
 /// line 25 m on and a little down, leaning into the curve.
 #[derive(Clone, Copy, Debug)]
 /// `bt` turns places into the camera's space for the screen (the rows across and up times f / 950, so the printed

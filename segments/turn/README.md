@@ -22,8 +22,7 @@ frames.
 1536x768, 143 frames (12 s): 24 pulling back, 30 spinning, 6 holding, 20 diving, 48 of the tunnel, 12 fading, 3
 black. The film shows all of them, between the [cold open](../mac) and the [BBS](../bbs) (`seg turn
 turn/video_hd.rgb 0 143 1536x768` in the cut). Frame 0 is the Mac's bezel the cold open is shown inside: its screen
-is 1024 pixels wide at (256, 42), the picture exactly twice its 512x342. The prototype is `prototypes/macpc.py` (and `combo.py`, not in this repository, for the
-join and the fade).
+is 1024 pixels wide at (256, 42), the picture exactly twice its 512x342.
 
 ## Why it's hard on CARDIAC
 
@@ -79,8 +78,7 @@ crossings on a row are sorted on the card sorter, the first and the last its spa
 the ends of the pieces' spans; going across, each end brings its piece in or takes it out, and between two ends the
 row shows the piece in front of the others in there. `tn_edge` marks the outline: the row cut where it or the rows
 above and below change (the runs' starts sorted on the card sorter), each piece's first, middle and last pixels marked
-when a neighbour (left, right, above, below, across the frame's edges to the other side, as the prototype's roll
-does) shows another face's way (an object's: the outline, grey 24) or an object beside nothing (the rim, 24, 24, 28).
+when a neighbour (left, right, above, below, across the frame's edges to the other side) shows another face's way (an object's: the outline, grey 24) or an object beside nothing (the rim, 24, 24, 28).
 The host fills each run with its colour (computed) or the screen's texels.
 
 **The screen's picture** is placed exactly at a grid of points 20 pixels apart over the screen's box: where the eye's
@@ -95,16 +93,16 @@ texel; the host fetches the
 texel by that index (the pictures padded 240 texels round with their edges, so a grid point off the edge keeps its
 place). The Mac's picture until the morph is half way, then the CGA tunnel's frame.
 
-**The Mac's picture** is the cold open's (`segments/mac`) running on, as the prototype's `mac_screen` does: its one-bit
+**The Mac's picture** is the cold open's (`segments/mac`) running on: its one-bit
 tunnel at its frames 108 + f (a picture every third frame, to picture 48; `data/mac.txt` prints each frame's picture), CARD ATTACK over it all the way in, the
 screen's rounded corners; made on the cold open's own machines and tables (`mac_offset`, `mac_slope`, `mac_angle`,
 `mac_reach` once; `mac_twist`, `mac_trow`, `mac_dither`, `mac_dissolve` each picture) with its sine table run on
 (`data/mac.txt`) for `tn_macturn`, the cold open's `mac_turn` taking the longer table. So the cut from the cold open's
-last frame to the turn's first is the tunnel's next picture, as in the prototype.
+last frame to the turn's first is the tunnel's next picture.
 
 **The CGA tunnel.** Once: each pixel's distance from the middle squared (the rows 1.2 times as tall), against the
 dither's two thresholds for its place in the 4x4 Bayer matrix (`data/cga.txt`, a table printed ahead of time in
-Python: the prototype's level, 2 ((r - 6) / 110)^1.2, past 1 + t or t, and each column's and row's place from the
+Python: the level, 2 ((r - 6) / 110)^1.2, past 1 + t or t, and each column's and row's place from the
 middle): a check, colour 1 or black. For a check, on
 the swarm's machines: its depth 1500 over the square root (thousandths), its place along (depth / 3.5, in
 fifth-hundredths of a ring, wrapped to two rings), its depth in hundredths, and its angle round (atan, sixteen checks:
@@ -124,7 +122,7 @@ font, drawn on CARDIAC by the kit), each of its pixels 2x2 on the picture, its b
 
 **The bezel for the cold open:** the turn also files `bezel.rgba`, its frame 0 as a layer for the cut, covering all
 but the cold open's screen (1024x684 at 256, 42): frame 0's pixels, the cover `tn_walk`'s runs of 32 and 0. In the cut, `over turn/bezel.rgba 1536x768 0 0 0 377` on the cold
-open's `seg mac mac/video_hd.rgb 0 377 1536x768` shows the whole cold open in the Mac's bezel, as the prototype's join does,
+open's `seg mac mac/video_hd.rgb 0 377 1536x768` shows the whole cold open in the Mac's bezel,
 and the turn follows.
 
 **Live**, the player splits the turn into blocks after a setup job (the CGA pixels, the brag, the last 3D frame's
@@ -166,22 +164,21 @@ rows 0.24G (`tn_cga`), the edges 0.11G, the Mac's tunnel 0.04G.
 | The tunnel's depth times its twist factor | 12,971,016 | three cards | |
 | A place round or along (fifth-hundredths), a colour | 999, 255 | card | 0 (by design), 744 |
 
-## Against the prototype
+## Rounding
 
-- **The look is the prototype's**, to within a pixel at the boxes' edges (whole numbers: lengths in tenths of a
-  millimetre, the rainbow's stripes moved 0.05 mm to whole tenths, directions in ten-thousandths, the spin's sine
-  from the 999 table) and the CGA tunnel's checks (fifth-hundredths of a check, the twist's factor in thousandths).
+- **Whole numbers:** lengths in tenths of a millimetre, the rainbow's stripes moved 0.05 mm to whole tenths,
+  directions in ten-thousandths, the spin's sine from the 999 table; the CGA tunnel's checks in fifth-hundredths of a
+  check, the twist's factor in thousandths.
 - **The screen's picture** is exact at every 20 pixels and in straight lines between: under a third of a texel from
   the true place where a pixel shows less than two texels, at worst 5 texels where the screen is seen nearly edge on
-  (frames 30, 31, 43: there a pixel spans ten texels). The prototype is exact at every pixel.
-- **The camera** stands 3709 and 5357 tenths of a millimetre from the screens at the ends (the prototype's framing
-  in whole tenths), so each screen is 1024 pixels wide to within a twentieth of a pixel.
-- **The CGA frames** take the CGA picture at each pixel's middle (the last 3D frame's texels), where the prototype's
-  `cga_full` took it at the pixel's corner: the same picture moved under a pixel, so the dive joins without a jump.
+  (frames 30, 31, 43: there a pixel spans ten texels).
+- **The camera** stands 3709 and 5357 tenths of a millimetre from the screens at the ends, so each screen is 1024
+  pixels wide to within a twentieth of a pixel.
+- **The CGA frames** take the CGA picture at each pixel's middle (the last 3D frame's texels), so the dive joins
+  without a jump.
 - **Frame 0**, the bezel: the screen's picture is exactly twice the Mac's 512x342, but the bezel's inner edge (in
-  front of the screen) covers its top and bottom row and the outline its first and last column, as in the
-  prototype's `render(0)`. The cold open is pasted over 1024x684 at (256, 42): at the cut from it to the turn those
-  edges appear.
+  front of the screen) covers its top and bottom row and the outline its first and last column. The cold open is pasted over
+  1024x684 at (256, 42): at the cut from it to the turn those edges appear.
 
 ## Files
 

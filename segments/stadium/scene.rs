@@ -17,7 +17,7 @@ pub fn scr_h() -> i64 { RES.with(|r| r.get().1) }
 pub fn npix() -> usize { (scr_w() * scr_h()) as usize }
 /// The focal length, pixels.
 pub fn focal() -> i64 { RES.with(|r| r.get().2) }
-/// Depths as K / z (z in centimetres): a long, 999,000 at the near plane (15 cm, the prototype's).
+/// Depths as K / z (z in centimetres): a long, 999,000 at the near plane (15 cm).
 pub const KZ: i64 = 14_985_000;
 pub const NEAR: i64 = 15;
 /// The night arrival's dissolve into ours (its last frames before the hand-off), then our film from the crest

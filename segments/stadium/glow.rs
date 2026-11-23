@@ -24,7 +24,7 @@ pub fn hyp_tab() -> Tab {
 /// Dots of light: camera-space places (centimetres), colours (ten-thousandths), sizes (hundredths of a pixel, at
 /// least 50): each added to its pixel and the eight round it by how much of the dot covers each (size + 50 less
 /// the distance to the pixel's middle, 0..100 hundredths), where nothing nearer stands in front (the pixel's K / z
-/// under 1.005 times the dot's). As the prototype's splat.
+/// under 1.005 times the dot's).
 pub fn dots<O: Ops>(o: &mut O, t: &Tables, f: &mut Frame, pts: &[[i64; 3]], rgb: &[[i64; 3]], size: &V) {
     // in front (20 cm)
     let z: V = pts.iter().map(|p| p[2]).collect();

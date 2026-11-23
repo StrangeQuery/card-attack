@@ -1,4 +1,4 @@
-// A frame of the night (the prototype's render() with train_night.py's hooks): the camera, what each pixel sees
+// A frame of the night: the camera, what each pixel sees
 // (the world's triangles the frame considers, our own train, the drone and the airship placed for the frame, the
 // ground), the sky going from sunset into night, the shading with the night's materials and lamps, the motion blur,
 // the wires, what the night adds over it all (npost.rs), the lens and the tone. Included after path.rs.
@@ -68,7 +68,7 @@ pub fn night_cull<O: Ops>(o: &mut O, nw: &NightWorld) -> NightCull {
     NightCull { old, new, near }
 }
 
-/// The lists of the world's triangles a frame considers (the prototype's visible_night; the ride's visible() for
+/// The lists of the world's triangles a frame considers (the ride's visible() for
 /// the old world): near (mm) and far (cm, those reaching 800 m off or more). By the bounds worked out at the start
 /// against the camera's place (metres), on the machines: cz < hi for the mode's spans, then lo < cz for those; then
 /// the four tests for near, each on those that passed the last.

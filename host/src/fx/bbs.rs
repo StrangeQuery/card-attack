@@ -1,4 +1,4 @@
-//! The BBS: the cube in front of a BBS's message reader, and then of the rotozoomer (prototypes/bbs.py, fullcut.py).
+//! The BBS: the cube in front of a BBS's message reader, and then of the rotozoomer.
 //! The cube's frames are the tumble's (tumble/video.rgb, its frames 14..147) and the die's and the Rubik's cube's
 //! (dierubik/video.rgb); the rotozoomer's are its own render (roto/video4.rgb), as the swarm's screens read them.
 //!

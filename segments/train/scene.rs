@@ -47,7 +47,7 @@ pub const NEAR_MM: i64 = 300;
 pub const GUARD_X: i64 = 960;
 pub const GUARD_Y: i64 = 480;
 
-/// Material kinds, as the prototype numbers them.
+/// Material kinds, by number.
 pub mod kind {
     pub const SKY: i64 = 0; pub const DECK: i64 = 1; pub const PADDY: i64 = 2; pub const WATER: i64 = 3; pub const BANK: i64 = 4;
     pub const STREET: i64 = 5; pub const EMBANK: i64 = 6;
@@ -129,7 +129,7 @@ pub struct Scene {
     pub world: Mesh,
     pub train: Mesh,
     pub mats: Vec<Mat>,
-    /// what the prototype selects the world's triangles by (metres)
+    /// what the world's triangles are selected by (metres)
     pub zlo: Vec<i64>, pub zhi: Vec<i64>, pub xmid: Vec<i64>, pub small: Vec<bool>, pub lod: Vec<i64>, pub iz: Vec<i64>,
     pub poles: Vec<i64>,
     pub city_wires: Vec<Vec<i64>>,

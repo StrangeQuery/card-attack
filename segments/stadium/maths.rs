@@ -32,7 +32,7 @@ pub struct Tables {
     /// the same up to three cards (slopes)
     pub expw: Tab,
     pub expwn: Tab,
-    /// a byte of a picture as linear light (the prototype's srgb_lin), ten-thousandths, and its logarithm
+    /// a byte of a picture as linear light, ten-thousandths, and its logarithm
     pub srgb: Tab,
     pub ln_srgb: Tab,
     /// the tone curve: light (ten-thousandths, 0..TONE_N) to the byte, 255 (1 - e^-1.25 x)^(1 / 2.2)

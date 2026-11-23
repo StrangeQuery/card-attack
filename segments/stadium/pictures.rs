@@ -98,7 +98,7 @@ pub fn led_texel(sc: &Scene, sd: &Sd, s: Src, x: usize, y: usize) -> [u8; 3] {
 
 pub fn banner_texel(sc: &Scene, sd: &Sd, s: Src, x: usize, y: usize) -> [u8; 3] {
     let Src::Demo(d, f) = s else { return [0; 3] };
-    // the prototype's linspace picks
+    // evenly spaced picks
     if y < 75 && (30..130).contains(&x) { return demo_px(sc, sd, d, f, y * 119 / 74, (x - 30) * 159 / 99); }
     if (78..98).contains(&y) { return px3(&sc.captions, d, (y - 78) * 39 / 19, x * 383 / 159); }
     [0; 3]
@@ -167,8 +167,8 @@ impl Sd {
 fn sd_phase<O: Ops>(o: &mut O, t12: i64, rad_s: f64) -> i64 { let a = angle(t12, rate(rad_s), 0, o); s_div(s_lin(&[(a, Some(4))], o), 15_625, o) }
 
 /// Works out the stand-ins' texels asked for (callout, texel) at t12, adding them to `sd`: each one's value 0..255
-/// by its effect, then its colour from the palette (by its hue and the value). The effects (the prototype's
-/// `standin_values`), a few sums and printed tables a texel:
+/// by its effect, then its colour from the palette (by its hue and the value). The effects,
+/// a few sums and printed tables a texel:
 /// - plasma: four sines (0..63 each) at the texel's places along x, y, the diagonal and out from the middle, each
 ///   moved by its phase this frame, summed;
 /// - tunnel: the rings (half on, half off) at the texel's depth moved by the frame's, the spokes at its angle moved,

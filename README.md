@@ -161,7 +161,6 @@ Outside `segments/`:
   the frames. `host/runtime/` (the `cardiac-host`
   crate) is the part any CARDIAC demo could use. `host/src/` is Card Attack's own: its segments (`fx/`), the
   player (`play/`), and every machine built natively (`machines.rs`, listed by `build.rs`).
-- `prototypes/`: the designs some segments were made from; their data generators import most of them.
 - `docs/`: `RUST.md` (what is compiled Rust and what is written by hand), `STYLE.md` (how a machine is written),
   and the performance notes.
 

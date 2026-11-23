@@ -9,7 +9,7 @@ frames, 329..372, are the night's layer of the dissolve, which the [stadium](../
 
 ## What it shows
 
-The design is [`prototypes/train_night.py`](../../prototypes/train_night.py). The segment renders 373 frames at
+The segment renders 373 frames at
 12 fps (31.1 s) at 1536x768. The cab at full speed into the sunset, the sun going down and the sky through dusk to a dark
 violet night with stars, the town's windows, signs and street lights coming on, our headlights on the rails; the
 train braking into the station and stopping (frame 120) under the LED board, TONIGHT: DEMOSPLASH 0x10; the cab
@@ -70,8 +70,7 @@ The file holds the numbers the flight is worked out to on CARDIAC: a separate ru
 (`NIGHT_CAMERA=1`, in [`host/src/fx/night.rs`](../../host/src/fx/night.rs)) works the flight and each frame's camera
 out on CARDIAC, checks them against the native reference (`refs/night_ref segments --camera`) and writes the file.
 That run is made before the show and the file is committed; during the film the stadium reads these numbers from the
-file rather than working them out again (see the [stadium](../stadium)). They are within 30 cm and a few thousandths
-of the prototype's camera.
+file rather than working them out again (see the [stadium](../stadium)).
 The stadium's beat is the night's: their show clock less BEAT_T0 = 0.378 s, lights on beats 1 and 3.
 
 ## The callouts
@@ -81,8 +80,8 @@ the callouts list (`callouts_final.json`, kept with the source files) in its ord
 tall billboard as the train comes in, frames 36..44). The 8 demos whose footage we may show play it
 (`data/clips.bin`, an asset: frames captured from the demos ahead of time, whose pixels CARDIAC places and lights
 on the screens); the 55 parodies show their parody title and group (captions, banners, the marquee; Future Glue with its
-emblem, a bold horse's head drawn before its name, callouts.py's HORSE) over a stand-in
-worked out on CARDIAC (callouts.py's `standin_cells`, nmat.rs's `standin`): an 80x60 picture a frame, combined on CARDIAC
+emblem, a bold horse's head drawn before its name) over a stand-in
+worked out on CARDIAC (nmat.rs's `standin`): an 80x60 picture a frame, combined on CARDIAC
 from printed tables (`si_*`, which hold a sine table, palettes, each cell's radius and angle, the tunnel's depth and light by
 the radius, the checks, the stars' places), 60 frames round, each cell 2x2 on the screen's 160x120: a plasma of four waves through a palette, a
 tunnel of checks rushing at us, a rotozoomed check turning and breathing, stars flying at us, rings running out.
@@ -104,8 +103,8 @@ the train's operations and run natively (`refs/night_ref`) and on CARDIAC (the h
 [`host/src/fx/night.rs`](../../host/src/fx/night.rs), on the train's machines, the hand-written ones included). It
 has no machines of its own.
 
-- **The start** (once, 11G on CARDIAC): the world (the train's plus the night's scene, `data/scene.bin` from the
-  prototype's models), the shadow maps, the screens' tables, and **the flight**: the 38 keyframes through a
+- **The start** (once, 11G on CARDIAC): the world (the train's plus the night's scene, `data/scene.bin`), the
+  shadow maps, the screens' tables, and **the flight**: the 38 keyframes through a
   Catmull-Rom curve at 8,001 places (cm), chords by whole square roots, resampled every metre, smoothed 300 times
   (tapered at the ends), resampled every 25 cm; the speed wanted along it, looked ahead for braking, smoothed by a
   4-frame Gaussian and scaled so the hand-off lands on the design's frame 520; the aims (a Gaussian over 25), the rolls (over 49)
@@ -153,7 +152,7 @@ on the host first (see the [train](../train)). The host's arithmetic here is thi
 ## Making it
 
 ```
-python segments/night/data/make_data.py       # scene.bin, clips.bin (from the prototype, models, callouts)
+python segments/night/data/make_data.py       # scene.bin, clips.bin (from the models and callouts)
 python segments/night/data/make_tables.py     # tables.bin
 rustc --edition 2021 -O -o refs/night_ref segments/night/reference.rs
 card-attack night refs/night_ref              # on CARDIAC (night/video_hd.rgb), checked
@@ -195,20 +194,15 @@ With the orbit (520 frames): 2,067G.
 - A world thing in front of a subject cuts it on the half-resolution pixels (2x2 steps).
 - Running lights, sparks and flashes are one pixel of the half screen (2x2), their light the same.
 
-## Where it differs from the prototype
+## Simplifications
 
-The train's differences (shading rate, motion blur, numbers by logarithms, the sky's grid, glow, shadows), and:
+The train's simplifications (shading rate, motion blur, numbers by logarithms, the sky's grid, glow, shadows), and:
 
 - **The lamps**: one pixel a 2x2 block; tubes and street lights farther than 100 m each way, our headlights 150 m,
-  left out by the host's comparisons (what they would add is under half a step); the street lights within 40 m along, as the prototype's.
+  left out by the host's comparisons (what they would add is under half a step); the street lights within 40 m along.
 - **Shadows at night**: the dusk map (the sun's last), also for the ride's world in the join.
-- **The stars**: each a pixel where it projects (the sky's showing), added after the motion blur (the prototype's
-  are blurred with the sky).
+- **The stars**: each a pixel where it projects (the sky's showing), added after the motion blur.
 - **The airship's picture**: what depends on its across or up alone printed at thousandths of the picture; its scan
-  lines sampled at those thousandths (as the prototype's numbers at that size).
+  lines sampled at those thousandths.
 - **Beams**: the Gaussian across cut where it's under a millionth of the brightest; light under a tenth of R not laid
   on.
-- **The beat**: offset by 0.378 s (the soundtrack's mix: the stadium's lights on its beats 1 and 3), so the pulses land a few
-  frames later than the prototype's.
-- **Glows** (the LED board, the airship's frame) come out a little redder than the prototype's (its bloom's green
-  weaker), the street a little darker, the paddies' pattern the train's.

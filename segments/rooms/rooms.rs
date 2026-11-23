@@ -3,7 +3,7 @@
 // screening room (halfway through the accelerated drive we pull back out of the projected picture into a hall, a
 // loose crowd standing, the projector on its cart; the drive fades, THE END, the prompt it ran from, `seaplusplus`
 // typed, Unseen Planets presents SEA++ and LOADING while we zoom slowly back in; the dive starts on the screen while
-// we're still in the room). The designs are prototypes/dorm.py and prototypes/screening.py.
+// we're still in the room).
 //
 // Written once against the train's operations (segments/train/ops.rs). Per frame CARDIAC works out: the screen's
 // mean colour (from a grid of its picture's pixels, through the bytes-to-linear table); each palette entry's light,

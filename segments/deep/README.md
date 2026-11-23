@@ -18,17 +18,15 @@ film cuts to the train (the ending, below). 353 frames, 29.4 seconds, at
 The film shows the 1536x768 video from its frame 48 to the end, 305 frames (25.4 s), after the [rooms](../rooms)
 segment's screening hall, which plays the dive's first 48 frames on its screen while it zooms in.
 
-It is the plain Rust prototype `sea2/deep12.rs`, rebuilt on CARDIAC.
-
 It files two videos. `video.rgb` is the dive at 192x96 as above; nothing in the film reads it now, but the host
 still files it and checks it.
 `video_hd.rgb` is the same 353 frames at 1536x768 with the creatures drawn sharp: the dive's water, seabed,
 kelp and seagrass at 192x96, each pixel 8 x 8, and over them, through the same camera, the fish from an atlas of
 mackerel rendered ahead of time (13 yaws, 2 heights, 8 swim phases), the marine snow made tiny rising bubbles, and the
-jellyfish: bells from an atlas of the preview's ray cast seen from seven heights, made ahead of time, the two nearest
+jellyfish: bells from an atlas of a ray-cast bell seen from seven heights, made ahead of time, the two nearest
 mixed by CARDIAC, tentacles and frilled
-oral arms as soft strands, each fading in over 3 seconds; then the ending (below). Its look is the
-final HD preview's. The 192x96 video has no knob.
+oral arms as soft strands, each fading in over 3 seconds; then the ending (below). The 192x96 video has
+no knob.
 
 ## Why it's hard on CARDIAC
 
@@ -59,7 +57,7 @@ final HD preview's. The 192x96 video has no knob.
 
 ## How it's done
 
-**The map is an asset.** `data/heightmap.rs` printed `data/map.txt` from the prototype's seabed formula, with
+**The map is an asset.** `data/heightmap.rs` printed `data/map.txt` from a seabed formula, with
 rock added (a roughness three units across and blocky outcrops: a few, low, in the sand up top; more, taller and
 wider, down the canyon): per row of z (a unit apart), the terraces' base height there and its drop to the next row,
 how far it is past a lip, the 201 heights over the base in tenths (x = -100..100), and the glowing spots on it. The
@@ -76,16 +74,16 @@ switch sits in the fog.
 300ths and hundredths, the light, the phases, where the jellyfish, kelp, seagrass and fish are, the torch's aim,
 and the camera's place across, its place from the portal's middle and the portal's plane, each split into its
 parts) are worked out on CARDIAC by `script.rs`, written once against the train's operations: the host runs it with
-the train's machines, the reference natively. It flies the prototype's path (the straight lines from lip to lip, the
+the train's machines, the reference natively. It flies the path (the straight lines from lip to lip, the
 eased pitch, the drift, the turn to the point it swims at) in whole numbers: angles in billionths of a turn, places, sines and
 fractions in millionths, sines and arctangents from printed tables (every 10,000th of a turn; every thousandth of a
 ratio) read between their entries, longer products card by card and the arctangent's ratio by long division a digit
 at a time. The path is stepped every 1/48 s of story time, 2,976 steps, each turning a 52.8th of the way toward the
 next lip, twice over. `data/script.txt` holds the printed numbers it starts from: the lips the diver swims to and
-the creatures' fixed numbers, printed by `data/make_script.py` from the prototype's random numbers (its hash). The
+the creatures' fixed numbers, printed by `data/make_script.py` from random numbers (a hash). The
 host only fetches by an index, routes by a punched flag and keeps the creatures a machine found near enough. Whole numbers
-moved the camera by a hundredth or a tenth on 10 of the 353 frames and three fish frames by a tenth, against the
-prototype's floating point (checked against a native preview first). The player works the script out on CARDIAC as
+moved the camera by a hundredth or a tenth on 10 of the 353 frames and three fish frames by a tenth, against
+floating point. The player works the script out on CARDIAC as
 the deep's first job during the film, and every block of the deep's frames uses it.
 
 **Rays, per screen row.** `drays` steps the ray 300 (f + a r + b u) across the row (each component as a whole part
@@ -127,7 +125,7 @@ many times, rounded up); k of 0 or 32, most of them, needs no sums.
 **Open water.** `dslope` again gives how far up a ray looks; `dwater` the gradient; `dshaft`, `dwave`, `dpow` and
 `uray` the god rays (two sine waves across the screen, sharpened to the 6th and 10th power).
 
-**Over the seabed, in the prototype's order.** Points are put on the screen by `ddot` (a dot product by the place's
+**Over the seabed.** Points are put on the screen by `ddot` (a dot product by the place's
 digits), `dcull`/`dfine` and `dslope`.
 - *Kelp and seagrass:* `dbase` finds each root on the map; `dsway`, `dwave`, `dswing`, `dsum` and `dpart` the
   points up each stalk; `dtip` each blade's tip. A leaf is rasterized a row at a time: `dleafv`, `dbbox`, `ureach`,
@@ -144,7 +142,7 @@ digits), `dcull`/`dfine` and `dslope`.
 - *The ending:* from frame 290 the camera slows to a stop over the knob: frame n is the path's frame
   290 + fl((36 k - k^2) / 36) and r 36ths on (k = n - 290, at most 18), its place between the two (the change times r,
   rounded, in `script.rs`), its vectors that frame's; past frame 308 the frames are 308's, the water's
-  phases going on. Exactly the design's script (prototypes/knob.py).
+  phases going on.
 
 **Colour.** Every channel is worked out 0..255 by the machines above and filed exactly as they punch it: three
 cards a pixel, no palette and no dithering, so the water's gradients, the fog and the glows are smooth. (An earlier version of the dive was dithered with the 4 x 4 Bayer map to a
@@ -225,8 +223,8 @@ every 4 x 4: `hd_rows`, `hd_walk`, `hd_gauss` (half the squared distance in tent
 fall-off table by the fade, in 256ths), `hd_mix256`.
 
 **Data.** Two atlases are pictures made ahead of time, and CARDIAC only picks, places, covers, mixes and fogs
-their texels. `data/make_hd.py` makes the atlases from `fish_atlas.png` / `fish_flash.png` and the preview's bell ray
-cast, as built data packed in `generated.tar.xz`, which `build.sh` unpacks (`hd_fish.bin` 17 MB, `hd_bell.bin` 81 MB,
+their texels. `data/make_hd.py` makes the atlases from `fish_atlas.png` / `fish_flash.png` and a ray cast of the bell,
+as built data packed in `generated.tar.xz`, which `build.sh` unpacks (`hd_fish.bin` 17 MB, `hd_bell.bin` 81 MB,
 `hd_bubble.bin`),
 and `data/hd.txt`, their index and the printed tables (cover, paleness, the strand's glow across and along, the halo's
 fall-off, the fine tentacles' lengths and the tapers).
@@ -246,8 +244,7 @@ frames; `DEEP_REF_FRAMES=` the same list makes the reference draw only those), `
 ## The orcas (1536x768)
 
 In the HD video only, frames 84..156: a pair of killer whales glide left to right far out and low in the canyon's
-haze, silhouettes the walls and floor hide, as in the design (`prototypes/orca.py`, variant 6;
-`reference_orca.rs`). The model is the Killer Whale by Poly by Google (CC BY 3.0, see CREDITS.md), made the mesh
+haze, silhouettes the walls and floor hide (`reference_orca.rs`). The model is the Killer Whale by Poly by Google (CC BY 3.0, see CREDITS.md), made the mesh
 kit's cards by `data/make_orca.py` (through `segments/mesh/data/make_mesh.py`) at 12 phases of a gentle swim
 (`data/orca_0.txt` .. `orca_11.txt`, 636 triangles each).
 
@@ -267,12 +264,11 @@ last entry, before it fetches). Drawn into the water before the fish, snow and j
 | `orca_ahead`, `orca_keep` | 26, 27 | How far ahead each depth is; whether a pixel shows |
 | the mesh kit's | | `mesh_front`, `mesh_walk`, `mesh_depth`, the swarm's edges and sums, `polydot` |
 
-1.2G instructions over the 73 frames (17M a frame). Against the design: the kit's edges are not smoothed (the
-prototype's were, three times over), and the haze is worked out at each pixel's whole units ahead.
+1.2G instructions over the 73 frames (17M a frame). The kit's edges are not smoothed, and the haze is worked out at each pixel's whole units ahead.
 
 ## The ending with the knob (1536x768)
 
-Frames 228..352, in the HD video only: the design in `prototypes/knob.py`, on CARDIAC
+Frames 228..352, in the HD video only, on CARDIAC
 (`reference_knob.rs`, part of `reference.rs`'s program). At the bottom, a volume knob on a rock pillar,
 seen from above as the diver comes to a stop; it sticks twice (308..330), clicks to 10 (331), powers up for a second
 and a half (332..349), and lightning (350, 351) and a flash (352) end the dive; the cut goes straight to the train.
@@ -281,11 +277,11 @@ and a half (332..349), and lightning (350, 351) and a flash (352) end the dive; 
 (`data/make_knob.py`): each texel's colour under the water's light, its relief and crevices, and what the dial's glow
 adds at full strength. Each frame CARDIAC works out where the knob is, how it is turned, how much the glow and the ink
 add, and the haze. `data/make_knob.py` makes the rock (30 units to the dive's unit:
-its craggy side, 96 round by 12 rows, its radius the prototype's lobes, crags and ledges; its top round the plate in
+its craggy side, 96 round by 12 rows, its radius shaped by lobes, crags and ledges; its top round the plate in
 5 rings out to the side's broken outline), the plate (100 to the unit: a disc in 9 rings, its rim chipped, and the
 rim's side) and the knob with its skirt (100 to the unit, as it stands at 9), as the mesh kit's cards; where the kit
 keeps a corner's normal, each corner carries its place in the atlas (across, down, the page). The atlas (`knob.bin`,
-built data like the dive's other atlases; 8 pages, 53 MB) holds each texel as the prototype shades it: its colour
+built data like the dive's other atlases; 8 pages, 53 MB) holds each texel's shading: its colour
 before the dial powers up, the same without the scale's ink, what the dial's own glow adds there at full strength,
 its ink (32nds) and whose (the numbers 0..10, the pointer's marks). The light falling from the water above and the
 relief (bumps, pits, dents, scratches, crust, barnacle clusters and the crevices between them) are worked out in
@@ -345,21 +341,19 @@ click about 0.6G (the knob's draw 0.36G, the dial's glow on the water 0.08G, the
 0.4G), from the click 1.1G to 2.1G (the knob lit 1.0G, the lightning 0.6G at its height). The dive's own (192x96) is
 74.8G over its 353 frames.
 
-**Against the design:** the surfaces' light is the design's own, worked out in Python ahead of time onto the atlas (a lightmap; the
+**Simplifications:** the surfaces' light is worked out in Python ahead of time onto the atlas (a lightmap; the
 knob's turns with it, by 30 degrees at most); each pixel takes the nearest texel, and the kit's places are carried
-straight across a triangle on the screen (the prototype ray cast every pixel twice over each way, smoothing its
-edges); the models' outlines are 96 corners round, their rows a fraction of a unit to 5 units apart; the dial's glow,
+straight across a triangle on the screen; the models' outlines are 96 corners round, their rows a fraction of a unit to 5 units apart; the dial's glow,
 the silt and the lightning's glow are worked out every 4 x 4 pixels; the lightning is drawn a column (or row) at a
 time and its glow goes by each line's distance, summed over the lines (a joint counted once), not a blurred drawing;
-its random choices are knob.txt's numbers, not the prototype's; the dial's frame is the stopped camera's (the
-prototype's turned with the camera on the way in); the ink lit from the click is a mix toward each number's colour
-that frame (the prototype's sum goes to white the same way); the cosines are the sines a quarter turn on, and the
+its random choices are knob.txt's numbers; the dial's frame is the stopped camera's; the ink lit from the click is a
+mix toward each number's colour that frame; the cosines are the sines a quarter turn on, and the
 lightning's angle is taken in hundredths of a pixel (the swarm's angle takes sizes under 100000).
 
 ## What was given up
 
-- **The prototype's smooth seabed, near.** The first 30 rows ahead are blocks a
-  unit square and two units a step, after Subnautica, not the prototype's smooth terrain; further out it is the
+- **A smooth seabed, near.** The first 30 rows ahead are blocks a
+  unit square and two units a step, after Subnautica, not smooth terrain; further out it is the
   map sampled at its rows, a unit apart, and between its columns along x (heights in tenths). Where the two meet
   the ground changes shape a little (up to two units); it sits in the fog, but a careful eye can see it sweep
   toward the camera as the dive goes on.
@@ -369,26 +363,25 @@ lightning's angle is taken in hundredths of a pixel (the swarm's angle takes siz
   4 x 4 grain painted on each face.
 - **A screen column's rays are marched from where the one below stopped.** A thin ridge seen past the side of
   another can be missed by a pixel or two.
-- **Rounded tables and fixed point** stand in for the prototype's floats: sines from a 60-step table, the caustics'
-  wavelengths 5, 6 and 7.5 units (the prototype's 4.8, 5.7 and 7.0), the fog as two straight pieces of
+- **Rounded tables and fixed point** stand in for floating point: sines from a 60-step table, the caustics'
+  wavelengths 5, 6 and 7.5 units, the fog as two straight pieces of
   0.85 (d / 70)^0.8, the god rays' up factor 0.94 for 0.9, the spots' and lips' glow in 32nds, the jellyfish's
   view direction from the bell's middle, their points no bigger than 3.1 pixels across.
-- **The far slope's light is one-sided** (the row before against the row hit, at the hit's x), not the prototype's
-  centred difference.
-- **Colour** is no longer given up: every channel is the machines' own 0..255, as the prototype's is.
-- **At 1536x768 (against the preview):** the fish are the atlas's nearest cell and size, each pixel its nearest texel
-  (the preview resampled smoothly); the swim phase goes by the fish's number, not by tracking it; the bells are the
-  atlas's, their canals don't turn with the jellyfish; tentacles and arms are 24 and 20 straight pieces (the arms
-  three strands where the preview had seven), a piece shorter than its width is left out; the halo is worked out
-  every 4 x 4 pixels; the fade-in counts from the first frame the dive shows a jellyfish, by its number (the
-  preview's matching by place on the screen sometimes started it again).
+- **The far slope's light is one-sided** (the row before against the row hit, at the hit's x), not a centred
+  difference.
+- **Colour** is no longer given up: every channel is the machines' own 0..255.
+- **At 1536x768:** the fish are the atlas's nearest cell and size, each pixel its nearest texel; the swim phase goes
+  by the fish's number, not by tracking it; the bells are the atlas's, their canals don't turn with the jellyfish;
+  tentacles and arms are 24 and 20 straight pieces (the arms three strands), a piece shorter than its width is left
+  out; the halo is worked out every 4 x 4 pixels; the fade-in counts from the first frame the dive shows a jellyfish,
+  by its number.
 - **Edges.** Points more than 100 pixels from the middle are not drawn, nor kelp blades whose tips fall more than
   100 pixels out; jellyfish further than 98 units are left out; a kelp clump's depth is kept in whole units, so
   two clumps within a unit of each other can overlap the wrong way.
 
 ## Development notes
 
-- **The map is the prototype's seabed, printed.** The march, the shading and the sprites are worked out on CARDIAC
+- **The map is the seabed formula, printed.** The march, the shading and the sprites are worked out on CARDIAC
   every frame, and so are the camera's path and where the creatures swim (`script.rs`).
 - **Long division past 500.** `dslope` first borrowed one five hundred at most, which is right for the rays (their
   forward part is at most 441) but not for the kelp's leaf lengths; it now borrows as needed and carries what is
@@ -403,12 +396,12 @@ lightning's angle is taken in hundredths of a pixel (the swarm's angle takes siz
 
 - `machines/`: the Rust machines and their compiled tapes.
 - `reference.rs`: the independent native Rust version, which every frame is checked against.
-- `data/map.txt`: the height map; `data/heightmap.rs` printed it from the prototype's formula and the rock's.
+- `data/map.txt`: the height map; `data/heightmap.rs` printed it from the seabed's formula and the rock's.
 - `script.rs`: each frame's numbers (camera, light, phases, creatures), against the train's operations.
 - `data/script.txt`, `data/make_script.py`: the lips and the creatures' fixed numbers the script starts from.
 - `reference_hd.rs`, `data/make_hd.py`, `data/hd.txt`: the creatures at 1536x768.
 - `reference_orca.rs`, `data/make_orca.py`, `data/orca_*.txt`: the orcas.
-- `reference_knob.rs`, `data/make_knob.py` (from the design, `prototypes/knob.py`), `data/knob_rock.txt`,
+- `reference_knob.rs`, `data/make_knob.py`, `data/knob_rock.txt`,
   `knob_plate.txt`, `knob_knob.txt`, `data/knob.txt`: the ending; `data/knob.bin` (the atlas) is built by
   make_knob.py and packed in `generated.tar.xz`.
 - Host: [`host/src/fx/deep.rs`](../../host/src/fx/deep.rs), [`host/src/fx/deep_hd.rs`](../../host/src/fx/deep_hd.rs).

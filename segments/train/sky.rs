@@ -1,4 +1,4 @@
-// The sky: a function of direction only (the prototype's sky_day and sky_dusk), worked out each frame on a map of
+// The sky: a function of direction only, worked out each frame on a map of
 // directions (azimuth by the ray's height part, a step of 5 thousandths each way), and looked up between its
 // entries for every ray that sees it: the sky itself, the water's and the glass's mirrors. What is too sharp for the
 // map (the setting sun's core, the far ridges' outline) is worked out at each pixel. Colours in R: 250 for 1.0, the
@@ -30,7 +30,7 @@ pub const ROUND_H: i64 = 21;
 /// make their own Env each frame: the sun going down, the light and the haze with it).
 /// `unit`: the light's colours (sun_col, amb, bounce, haze, low) are in R over this (1 for the ride; the night's, dim,
 /// in tenths: 10).
-/// `win`: how dark it is for the windows (the prototype's NIGHT, thousandths: lit ones come on with it), and
+/// `win`: how dark it is for the windows (thousandths: lit ones come on with it), and
 /// `win_k` what their light is times (thousandths: the night's beat).
 pub struct Env { pub day: bool, pub sun: [i64; 3], pub sun_col: [i64; 3], pub amb: [i64; 3], pub bounce: [i64; 3], pub haze: [i64; 3], pub fog: &'static str, pub low: [i64; 3], pub night: Option<SkyNight>, pub unit: i64, pub win: i64, pub win_k: i64 }
 

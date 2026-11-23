@@ -1,4 +1,4 @@
-//! Independent reference for the die and the Rubik's cube (the prototype's dierubik.py): the plain cube coming toward
+//! Independent reference for the die and the Rubik's cube: the plain cube coming toward
 //! us tumbling, going to a die (its faces to ivory, the pips fizzing in), splitting into a scrambled Rubik's cube that
 //! plays the rubik segment's 16-move solve while it tumbles, a pop, then roaming on tumbling, out to about twice the
 //! distance and back. 192x96 on black, written from the formulas in ordinary Rust (a frame buffer of 384x192
@@ -7,10 +7,10 @@
 //! prints the largest magnitude of each number to stderr.
 //!
 //! The view: the eye looks along z from 10 units in front of the cube's near place, 40 degrees high (264 subsamples
-//! a unit at unit distance, the prototype's 263.76). The cube's place (x, y in 200ths of a unit, its distance in
+//! a unit at unit distance, 263.76 rounded). The cube's place (x, y in 200ths of a unit, its distance in
 //! 70ths) is scaled so it is always 700 away: x 245 / distance; the cube's sizes likewise (98 x 500ths / distance), so
-//! a corner is the place plus the axes at those sizes, and seen at 2112 x / z eighths of a subsample. Where the
-//! prototype used a depth buffer, the faces are drawn far to near: on a box, only the faces that face the eye (a box is
+//! a corner is the place plus the axes at those sizes, and seen at 2112 x / z eighths of a subsample. Instead of a
+//! depth buffer, the faces are drawn far to near: on a box, only the faces that face the eye (a box is
 //! convex); on the die and each cubie, what sits on a hidden face first, then the body, then what sits on the faces
 //! shown; the cubies by their distance (the turning layer's far side first, as the rubik segment). A plate, sticker or
 //! pip is drawn only as far as it stands out of what it sits on (the rest can't be seen), so its sides cover the body's

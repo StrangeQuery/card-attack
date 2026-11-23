@@ -67,11 +67,9 @@ files the colours, the page's pixels and the mixed pairs where they go on the fr
 `pl_ring` 93M, `pl_wave` 68M, `pl_slant` 38M, `pl_rings` 32M, `paint16` 21M); the 1536x768 frames 150M for 30,
 nearly all `umix` (the glyphs' inks and the crossfade); the brag 0.1M.
 
-## Against the prototype
+## The crossfade
 
-The 16-colour plasma, the page (every frame of it, the cursor's blink included) and the brag are the prototype's to
-the pixel. The crossfade steps in 32nds, not 7ths (32 j / 7 rounded down, as the kit's covers), and rounds toward
-zero: within 8 of 255 of the prototype's, most within 3. The prototype is not in this repository.
+The crossfade steps in 32nds (32 j / 7 rounded down, as the kit's covers), and rounds toward zero.
 
 ## Numbers
 

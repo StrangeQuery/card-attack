@@ -50,8 +50,8 @@ HEARTBURN ran 4,553M CARDIAC instructions in 5.11 s here: about 0.9G instruction
   point, one hardware instruction for several pixels at once, and runs a couple of dozen whole-array operations in
   compiled C, so Python's own slowness is paid per operation, not per pixel. Given the same shortcut, Rust is 9x
   faster than NumPy; the counted square root alone is a factor of 20.
-- **That is why the prototypes are NumPy and can't be references:** the floating-point shortcuts are what make them
-  fast, and they aren't what a machine does.
+- **That is why a NumPy version can't be a reference:** the floating-point shortcuts are what make it fast, and
+  they aren't what a machine does.
 - **On this Mac's 28 workers** HEARTBURN puts out about 20 million plasma pixels a second: 192x96 at about 1,000
   frames a second, or 1536x768 at about 17, for pixels as costly as the plasma's. The film computes ahead of its
   frames, so the full-resolution segments only need to keep up on average. All of this is during the film: the

@@ -1,5 +1,5 @@
 // The tunnel's light: its lamps (on both walls every 12 m) and our headlights, as two maps worked out once at the
-// start (the prototype's tunnel_light at places through a lamp's 12 m, and ahead of the cab), looked up by each
+// start (at places through a lamp's 12 m, and ahead of the cab), looked up by each
 // pixel's place. R (250 for 1.0) before the colour and the exposure. Included after materials.rs.
 
 pub struct TunnelMaps { pub lamps: Tab, pub head: Tab }

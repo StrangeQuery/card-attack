@@ -2,10 +2,10 @@
 // into its screen, then the CGA tunnel at 320x200 with its brag, dithered out to black. Every frame at 1536x768, in
 // ordinary Rust, whole numbers throughout, every division rounded down (fl) as the machines round it.
 //
-// Units: lengths in tenths of a millimetre (the prototype's centimetres times 100), directions in ten-thousandths,
+// Units: lengths in tenths of a millimetre (the design's centimetres times 100), directions in ten-thousandths,
 // the spin's sine and cosine in thousandths (999 for one, from the printed table; 1000 exactly when it hasn't turned),
-// places on the screen in hundredths of a pixel from the middle, y down. The focal length is 2110 pixels (the
-// prototype's 40 degrees across).
+// places on the screen in hundredths of a pixel from the middle, y down. The focal length is 2110 pixels (40
+// degrees across).
 //
 // The scene is boxes, all turned together, so in their own frame every box is lo..hi on each axis. Each face that
 // faces the eye is cut where another box is inside it (a face's part in another box is never seen), into rectangles;
@@ -14,7 +14,7 @@
 // corner of another piece that lies on it, so pieces that meet share their edges exactly (no gaps between them on the
 // screen). Each piece's span on each row is the swarm's (the edges walked; a pixel is in if its middle is), and each
 // pixel shows the piece in front of all the others there. A pixel whose neighbour (left, right, up, down; across the
-// frame's edges to the other side, as the prototype's roll does) shows another face direction is an outline (24), and
+// frame's edges to the other side, as the roll does) shows another face direction is an outline (24), and
 // the empty pixels beside an object its rim (24, 24, 28).
 //
 // The screen is a quad in front of the case, in the bezel: its picture, the Mac's last (the cold open's tunnel

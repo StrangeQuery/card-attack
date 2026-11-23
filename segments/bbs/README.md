@@ -11,8 +11,7 @@ it, the [tumble](../tumble)'s cube (its frames 14..147), then [the die and the R
 comes back a die, splits into a Rubik's cube that solves itself tumbling, pops. The page crossfades into the
 [rotozoomer](../roto) behind the cube (eight frames), and the cube roams on in front of the rotozoomer. From the
 rotozoomer's 37th frame the picture wobbles: each row pushed sideways by up to 5 pixels, a wave 40 rows long rolling
-0.5 radians a frame, growing in over 15 frames. The prototypes were `bbs.py` and `fullcut.py`, which are not in
-this repository.
+0.5 radians a frame, growing in over 15 frames.
 
 It is two renders. `bbs` files `video_hd.rgb` (1536x768, 272 frames: 134 of the tumble, 130 of the die and the
 Rubik's cube, 8 of the crossfade) and `bbsroto` files `video.rgb` (192x96, 72 frames over the rotozoomer, its frames
@@ -61,13 +60,11 @@ The [turn](../turn) runs before it, and the degauss after it.
 177M; `ui_ease` and `ui_page` 2.5M); `bbsroto` 63M for 72 (`dr_key` 46M, the wobble's `rb_sine` 9M, `dr_clock` 7M and
 `dr_wobble` 0.7M).
 
-## Against the prototype
+## Details
 
-The tumble's frames over the page are the prototype's to the pixel, the page and the cursor's blink included. The
-die's and the Rubik's cube's are [theirs](../dierubik). The crossfade steps in 32nds, not 9ths, and rounds toward
-zero. The wobble's pushes are the prototype's (its float sine rounded, ours from the table rounded half away from
-zero; the same on every row of every frame). The bar's "³" is drawn as the prototype draws it: the font has no such
-character, and shows two dots (perhaps "│", CP437's 179, was meant).
+The die's and the Rubik's cube's frames are [theirs](../dierubik). The crossfade steps in 32nds and rounds toward
+zero. The wobble's pushes come from the sine table, rounded half away from zero. The bar's "³" shows two dots: the
+font has no such character (perhaps "│", CP437's 179, was meant).
 
 | Number | Largest | Margin |
 |---|---|---|

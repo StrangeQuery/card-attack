@@ -1,7 +1,6 @@
-// The party chat: the stream chat over the stadium party carrying the credits (prototypes/partychat.py, without its
-// emoji), as data, and the UI kit's groups of items each frame shows, given its numbers. Shared
+// The party chat: the stream chat over the stadium party carrying the credits (without emoji), as data, and the UI kit's groups of items each frame shows, given its numbers. Shared
 // by the host (which works the numbers out on CARDIAC: fx/partychat.rs) and the reference (ordinary Rust): nothing
-// here is worked out, only placed where the prototype draws it. Include with #[path] beside ui/scenes.rs (as
+// here is worked out, only placed where the design draws it. Include with #[path] beside ui/scenes.rs (as
 // `scenes`).
 #![allow(dead_code)]
 use super::scenes::*;

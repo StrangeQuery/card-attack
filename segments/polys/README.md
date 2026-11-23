@@ -87,7 +87,7 @@ the three waves' phases there (5x + 3y, 6z and 9y).
    step toward a unit; `polyspec` the highlight from a table of h^24, `polyrim` the rim from a table of
    (1 - |depth|)^3; `polydot` adds them up, in tenths of a step.
 10. The colours, exact (no bands, no palette, no dithering): `py_tone` gives each covered pixel its level, 40 plus
-    the light, at most 250 (two-hundredths: the light as it comes, not cut to the prototype's twentieths), and the
+    the light, at most 250 (two-hundredths, the light as it comes), and the
     highlight to add; `polydot` makes each channel, a part of the level plus the highlight: the first blob's
     grey-blue 0.75, 0.86, 0.86, the second's copper 0.86, 0.60, 0.45. The sky is where there's no blob. `polylay`
     lays the brag box over.
@@ -231,32 +231,29 @@ shadow is cut off; and on the screen inside 0..767 across, which the cross machi
 
 `polylift` never forms a sum past a card: it tests the value against 999 less the step first.
 
-## Against the prototype
+## Details
 
-- **Shading.** Per-pixel Phong, smooth: the prototype cut the level to twentieths (its 8-bit palette's bands); here
-  it keeps the light's tenths of a step, so the
+- **Shading.** Per-pixel Phong, smooth: the level keeps the light's tenths of a step, so the
   blobs shade without contour lines. Half the smooth normal and half the triangle's own. The
   smooth normals are the blob's own (worked out from the waves' slope) rather than the mesh's (its faces' normals
   summed), and the triangle's own is the mean of its corners' rather than its plane's: planes from whole-number
-  corners came out noisy on the fine mesh. At 20 to a few hundred triangles the facets are softer than the
-  prototype's (its brightest facet catches less light); from about a thousand they look the same.
+  corners came out noisy on the fine mesh.
 - **Unit normals** are one step toward a unit, (3 - |n|^2) / 2, not an exact square root: close for the fine mesh,
   a little dim on the first big triangles. The highlight's power comes from a table every 0.01, between its steps by
   a straight line.
-- **No caps:** the mesh has none, as the prototype's hasn't, so a pixel or two can see through a pole into the
+- **No caps:** the mesh has none, so a pixel or two can see through a pole into the
   inside (about one a frame, lit as the inside; on the coarse first meshes a bigger opening). The dark specks that
   sparkled over the blobs in an earlier version are gone: a split's half-edges cracking from the whole edge beside them,
   about one a frame, and a normal tipped past the blob's edge turned round whole and lit from the other side, a few
   a frame on the outline (see 7 and 9).
-- **The waves** are 5x + 3y, 6z and 9y 960ths of a turn (3.2x + 1.9y, 3.9z and 5.8y radians, where the prototype had
-  3x + 2y, 4z and 6y), and the amplitudes come out of 99-scale sines: the same kind of blob, not the same bumps.
+- **The waves** are 5x + 3y, 6z and 9y 960ths of a turn (3.2x + 1.9y, 3.9z and 5.8y radians),
+  and the amplitudes come out of 99-scale sines.
 - **The nebula** is the same three waves, mixed and squared in whole numbers; the stars come from demokit's random
-  numbers, so they're in other places.
+  numbers.
 - **No palette:** every colour is worked out (the blob's grey-blue from its level and highlight, the nebula's
   purple), so nothing was given up to one. The brag boxes are assets, RGB pictures made ahead of time by `data/bragbox.py`.
-- **The box shows the true count every frame.** The prototype showed 7800 for two frames after the 7801st triangle;
-  here the box hops and turns gold on the frame the count turns.
-- **The second blob, the orbit and the shadows** have no prototype: they were built on CARDIAC directly. The
+- **The box shows the true count every frame.** It hops and turns gold on the frame the count turns.
+- **The second blob, the orbit and the shadows** were built on CARDIAC directly. The
   shadow map is a pixel a place, so a shadow's edge steps a pixel at a time, and it is hard (no soft edge). The
   second blob's copper is worked out like the first's grey-blue. The two never touch (28 + 28 pixels apart, at most
   26 + 25 pushed out). At the top and bottom of the orbit a blob's bulges can touch the screen's edge.

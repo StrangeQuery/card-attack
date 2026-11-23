@@ -2,18 +2,18 @@
 // from the formulas, independently of the machines: the desk as desk.rs describes each frame (its places a window's
 // corner and a distance, added), the text by ui/text.rs from the atlas's Mac faces, the sprites (data/sprites.txt),
 // the zoom rects, the pointer's glides and straight moves; the game, the Wikipedia page's sphere and the Finnish flag
-// (reference_boom.rs), the game gone haywire (data/haywire.txt's schedule, the pixels moved as the prototype's numpy
-// moves them); then the one-bit tunnel at 128x86 blocks of 4x4 and the titles dissolving in over it. Writes the
+// (reference_boom.rs), the game gone haywire (data/haywire.txt's schedule, the pixels moved as the floating-point
+// design moves them); then the one-bit tunnel at 128x86 blocks of 4x4 and the titles dissolving in over it. Writes the
 // frames as RGB (black 0, white 255). Args: the demo folder.
 //
 // Whole numbers, rounded as the machines round:
 // - A zoom rect's edge at step j of n: from + (to - from) j / n, the product's size rounded down (toward `from`).
 // - The pointer's glide, step j of n from (x0, y0) by (dx, dy), m = n - j: c(v) = v m / n three times over, each
 //   toward zero (v (1 - u), u = 1 - (m / n)^3, the ease out); the bow b(v) = (c(v) - c(c(v))) 32 / 100 toward zero
-//   (0.32 u (1 - u) v); the point x0 + dx - c(dx) - b(dy), y0 + dy - c(dy) + b(dx). The prototype rounds the
-//   floating point to the nearest pixel: within a pixel or two of it.
+//   (0.32 u (1 - u) v); the point x0 + dx - c(dx) - b(dy), y0 + dy - c(dy) + b(dx). The floating-point design rounds
+//   to the nearest pixel: within a pixel or two of it.
 // - The pointer's straight move, step j of n from a to b: a + (b - a) j / n each way, the product's size rounded down
-//   (toward a), as a zoom rect's edge. The prototype rounds to the nearest (halves to even).
+//   (toward a), as a zoom rect's edge. The floating-point design rounds to the nearest (halves to even).
 // - The hall of mirrors at frame f (HAYWIRE to BOMB), from data/haywire.txt: a clean frame is the game's own; else
 //   the game's own picture with its first BANDS bands spoiled in order, band j by j mod 3: 0 the picture before
 //   (the one frame f - 1 showed) moved SHIFT columns right, wrapping; 1 the band's first column across it; 2 the
@@ -30,9 +30,9 @@
 //   or both odd, else dark.
 // - Atkinson's dither, row by row: each block's value (its shade, 256 white, plus what it was passed) is black under
 //   128; its error (value, or value less 256) over 8, toward zero, is passed to the next two along, the three under
-//   it and the one two under. The prototype's in floating point: the same picture, not the same dots.
+//   it and the one two under. The design's is in floating point: the same picture, not the same dots.
 // - The titles: a pixel of a card shows at j thirds when its turn (dissolve.bin) is under 85 j (exactly the
-//   prototype's r < j / 3); its rim black, its letters white.
+//   design's r < j / 3); its rim black, its letters white.
 use std::collections::HashMap;
 use std::io::Write;
 

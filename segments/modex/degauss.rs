@@ -1,4 +1,4 @@
-// The degauss (prototypes/degauss.py, made for Mode X's last frames; the film has it at the rotozoom's end), in whole
+// The degauss (designed for Mode X's last frames; the film has it at the rotozoom's end), in whole
 // numbers: a colour blotch creeps in where the
 // screen is lit, a monitor's DEGAUSS sign comes up, blinking, then the degauss: the picture jolts and wobbles, its
 // three colours land apart, a rainbow swirl washes round it, a brief brightening, all decaying over 16 frames; the sign
@@ -8,13 +8,13 @@
 // rotozoom's is 192x96, its own falloffs (data/gauss_roto.txt) and its middle on the angle's deck.
 //
 // Timing (frames of Mode X): the blotch from B0 = 114, its strength s = 32 (k - 114) / 20 32nds at frame k (the
-// prototype's creep over 24 frames in 20); the jolt at D0 = 134, step j = k - 134 of 16, s = 32 - 5 j there (none
-// from j = 7: the prototype's 1 - 2.5 t). The sign from 128: shown 128..130, not 131..133, then 134..145.
+// design's creep over 24 frames in 20); the jolt at D0 = 134, step j = k - 134 of 16, s = 32 - 5 j there (none
+// from j = 7: the design's 1 - 2.5 t). The sign from 128: shown 128..130, not 131..133, then 134..145.
 //
 // The blotch, per picture pixel (u, v) of colour (r, g, b) (the blotches are smooth enough to take at the picture's
 // size): the falloffs G1x[u] G1y[v] and G2x[u] G2y[v] in 32nds (data/gauss.txt or data/gauss_roto.txt), each blotch's amount A = ((s G y / 32) G x / 32) l / 32, l = (r + g + b) / 24 the light (a blotch
 // only shows where the screen is lit), and to each colour 70 A1 / 32 - 40 A2 / 32 (red), -50 A1 / 32 + 60 A2 / 32
-// (green), 80 A1 / 32 - 30 A2 / 32 (blue) added, held to 0..255. (The prototype adds them in floating point, and holds
+// (green), 80 A1 / 32 - 30 A2 / 32 (blue) added, held to 0..255. (The design adds them in floating point, and holds
 // them to 0..255 only after the jolt.)
 //
 // The sign, on the 1536x768 frame over the blotched picture: the box (489..1046 across, 72..227 down) taken toward
@@ -22,10 +22,10 @@
 // from (519, 96)) yellow and black, the word (ui/pages.rs's DEGAUSS) bright green.
 //
 // The jolt, at step j (E = decay.txt's 999 exp(-j / 4), Fl its 999 exp(-j / 2)): its size a10 = 460 E / 999 tenths
-// of a pixel (the prototype's 46 exp(-4 t)), a10 / 2, 3 a10 / 20 (0.15 a); the swirl's strength 60 E / 999, the flash
+// of a pixel (the design's 46 exp(-4 t)), a10 / 2, 3 a10 / 20 (0.15 a); the swirl's strength 60 E / 999, the flash
 // 8 Fl / 999 32nds. The angles are the clock machine's (dr_clock: counts times rates, data/rates.txt, rounded to a
 // tenth of a degree), each place's angle and the frame's phase taken apart and added (the turn machine's), the phase
-// the prototype's at its frame p = 48 + j; their sines are the sine machine's (rb_sine). Per row y: the two waves'
+// the design's at its frame p = 48 + j; their sines are the sine machine's (rb_sine). Per row y: the two waves'
 // sines s1 (y / 37, then 2.1 p) and s2 (y / 11, then -3.57 p), q = s1 / 2 + s2 / 4, the row's push 2 a10 q / 999
 // tenths, the three colours' pushes across it the push plus a10 / 2, plus 0, less a10 / 2, over 10 (whole pixels).
 // Per column x: s3 (x / 90, then 2.73 p), its push a10 (7 s3 / 20) / 999 tenths, the colours' pushes down it that

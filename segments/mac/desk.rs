@@ -1,5 +1,5 @@
 // The Mac cold open as data: the System 6 desk, what each frame of it shows, and the script that runs it (the
-// prototype macdoom.py's, then macdesk.py's launch, frame for frame). Shared by the host (fx/mac.rs, which works every
+// game's, then the desk's launch, frame for frame). Shared by the host (fx/mac.rs, which works every
 // frame out on CARDIAC) and the reference (which draws them in ordinary Rust). Nothing here is worked out: every place
 // is a corner of a window (or of the screen) and a distance from it, as the Mac's own resources gave a window's parts
 // in its own coordinates, and the machines add them up; the pointer's glides, the zoom rects and the tunnel are given
@@ -43,7 +43,7 @@ pub enum Align { Start, Centre, End }
 /// A line of text on its baseline. `black`: its ink (white otherwise). `back`: a box behind it, filled black or
 /// white, its edges from the line's ends and baseline (left of the start, above the baseline (negative), right of the
 /// end, below it). `glyphs`: whether its glyphs are drawn (a box laid first, the line again later, in the
-/// prototype's order). `caret`: the insertion point after its last glyph.
+/// design's order). `caret`: the insertion point after its last glyph.
 #[derive(Clone, Debug)]
 pub struct Text { pub pieces: Vec<Piece>, pub x: At, pub y: At, pub align: Align, pub black: bool, pub back: Option<([i16; 4], bool)>, pub glyphs: bool, pub caret: bool }
 
@@ -98,7 +98,7 @@ pub fn code(c: char) -> u32 {
     match c { '\u{3c0}' => 185, c if (c as u32) < 128 => c as u32, c => panic!("no MacRoman code for {}", c) }
 }
 
-/// The pointer's glides, in frames each, as the prototype times them (1.5 + the distance / 110, rounded, at least
+/// The pointer's glides, in frames each, as the design times them (1.5 + the distance / 110, rounded, at least
 /// 2: about 3 across a window, 5 across the screen): the script's timing.
 pub const GLIDES: [i16; 6] = [2, 5, 2, 2, 5, 3];
 
@@ -222,7 +222,7 @@ pub fn window(w: &Win, active: bool) -> Vec<Item> {
         }
         Content::Code(scroll) => {
             // bsp_tree.c at three times the size, from line `scroll`: a line every 33 rows, its baseline 36 down from
-            // the first, cut off at the foot of the 94 rows of 3 that fit (the prototype's canvas, tripled)
+            // the first, cut off at the foot of the 94 rows of 3 that fit (the design's canvas, tripled)
             for k in 0..CODE_SHOWN {
                 let i = scroll + k;
                 if i < CODE_LINES.len() && !CODE_LINES[i].is_empty() {

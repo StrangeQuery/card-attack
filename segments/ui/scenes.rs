@@ -2,8 +2,7 @@
 // CARDIAC: fx/ui.rs) and the reference (which draws it in ordinary Rust): nothing here is worked out, a frame is only
 // a list of groups of items, at places in the layer, with the values that move given as eases (from, to, step j of
 // n) for the machines to work out. A scene is a layer for the cut's `over` line: W x H at X, Y of the 1536x768 frame.
-// The layouts are the prototypes' (notify.py and wifi_gag.py, not in this repository;
-// accel.py's menu and brag), in the layer's own pixels.
+// The layouts (the notifications, the Wi-Fi gag, the accel segment's menu and brag) are in the layer's own pixels.
 
 /// A number of the scene: a constant, or eased from one to another, step j of n (smooth: smoothstep, else straight).
 #[derive(Clone, Copy, Debug)]

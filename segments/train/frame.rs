@@ -100,7 +100,7 @@ pub fn reach<O: Ops>(o: &mut O, tb: &Tb, r: &V, liz: &V) -> V {
     t
 }
 
-/// The ground's kinds, as the prototype's ground(): the deck at y = 0 where it is (the line's half width by stretch:
+/// The ground's kinds: the deck at y = 0 where it is (the line's half width by stretch:
 /// the viaduct, the cutting, the tunnel, the bridge), else the street in the city, else the land at -1.5 m: the
 /// embankment beside the line, the river's water and banks, the paddies.
 /// `town0`: past this place along the line (cm) the land is the town's streets, not paddies (the night's).
@@ -206,7 +206,7 @@ pub fn ground<O: Ops>(o: &mut O, w: &World, cam: &Cam, ray: &[V; 3], g: &mut GBu
     }
 }
 
-/// x / 100 cut toward zero (centimetres to metres, as the prototype's int()), on the machines: below 0, the quotient
+/// x / 100 cut toward zero (centimetres to metres), on the machines: below 0, the quotient
 /// of x + 99.
 pub fn metres<O: Ops>(o: &mut O, cm: i64) -> i64 {
     let x = if cm < 0 { kl(o, &[(cm, None), (99, None)]) } else { cm };
@@ -253,7 +253,7 @@ pub fn cull_bounds<O: Ops>(o: &mut O, sc: &Scene) -> Cull {
 /// The mirrors' bound on each of the world's triangles, zlo - 450 (metres).
 pub fn mirror_bounds<O: Ops>(o: &mut O, sc: &Scene) -> V { o.sum(&[(v(&sc.zlo), 1)], -450) }
 
-/// Which of the world's triangles a frame considers, as the prototype's visible(): ahead within 2.6 km; from the
+/// Which of the world's triangles a frame considers: ahead within 2.6 km; from the
 /// city and the tunnel's first half only what's this side of the hill; through the exit only what the portal frames;
 /// small things only within 900 m; trees as their full model within 260 m, one crown beyond. Those reaching 800 m on
 /// or more are counted far (centimetres). By the bounds worked out at the start against the camera's place along (cz,
@@ -351,7 +351,7 @@ pub fn world_depth<O: Ops>(o: &mut O, g: &GBuf, ground_iz: &[i64], refs: &[(u8, 
 pub struct Cut<'a> { pub w: &'a World, pub cam: &'a Cam, pub ray: &'a [V; 3], pub mirror_h: Option<i64>, pub nlq7: &'a [i64] }
 
 /// The depth test: each pixel's pieces (what the buffer has first, then the lists' in order), the nearest kept. With
-/// the foliage cut out (the prototype's): where the nearest is a leaf, it stays only where the leaves' noise at its
+/// the foliage cut out: where the nearest is a leaf, it stays only where the leaves' noise at its
 /// place passes a threshold rising toward the crown's outline (seen edge on); else it's dropped and the nearest of the
 /// rest taken, and so on.
 pub fn resolve<O: Ops>(o: &mut O, g: &mut GBuf, lists: &[(u8, &Drawn, &Mesh)], cut: Option<Cut>) {

@@ -10,8 +10,7 @@ a second, the cube a little bigger and settling), which plays a real 16-move sol
 it tumbles (F R2 D' L2 D U2 F D' F D' F D F U' B2 R', each turn eased, the first taking six frames and the last
 three), then pops (6% bigger and back, spinning faster for a moment), solved. Then it roams on, tumbling: out to about
 twice the distance and back on two rhythms, across and up and down, wider the further it is. 192x96 on black, 210
-frames. The prototype is `prototypes/dierubik.py` (its tail is the roam), in the timing of
-`fullcut.py`, which is not in this repository.
+frames.
 
 It has no line of its own in the [cut](../cut). The [BBS](../bbs) lays its frames 0 to 137 over the message page and
 138 to 209 over the rotozoomer; of those last 72, the cut shows the first 36 and the [degauss](../rotodg) the next 28,
@@ -35,8 +34,7 @@ so the film shows frames 0 to 201. The screenshot is the BBS's frame 172, the di
   and its distance at 13 can't both be a card in the same units.
 - **The cube roams to the side,** so a corner's x on the screen in 8ths of a subsample runs past a card (pixel 160 is
   1028 8ths from the middle).
-- **No depth buffer:** the prototype drew boxes into a depth buffer (the plastic body, the thin plates, stickers and
-  pips standing out of it). Here every face is drawn in painter's order.
+- **No depth buffer:** every face is drawn in painter's order.
 - **The timeline's numbers are the machines':** the tumble's angles (rates in radians a second), the place eased toward
   us and the roam's cosines, the turns' easing, the pop's sine, the fades.
 
@@ -50,9 +48,9 @@ shows, which move is turning and where each part starts, by counting frames; a s
 make each shape, and which of the printed sizes each corner is made of), in the same file, shared with the reference,
 as the UI kit shares its scenes.
 
-**The view and the scale.** The eye looks along z, 40 degrees high: 264 subsamples a unit at unit distance (the
-prototype's 263.76). The cube's place is x, y in 200ths of a unit and its distance in 70ths; everything is scaled so
-the cube's middle is always 700 away: the place across and up is 245 x / distance (`dr_muldiv`), and each size the
+**The view and the scale.** The eye looks along z, 40 degrees high: 264 subsamples a unit at unit distance. The
+cube's place is x, y in 200ths of a unit and its distance in 70ths; everything is scaled so the cube's
+middle is always 700 away: the place across and up is 245 x / distance (`dr_muldiv`), and each size the
 corners are made of (the die's 1.0, 1.02, 0.98, 1.05, 0.55 and 0.17; the cubies' 0.68, 0.33, 0.35, 0.28 and 0.34) is
 98 times its 500ths over the distance (`dr_muldiv`, after the scale for the split and the pop). So a corner is the
 place plus the axes at those sizes, a sum of cards, and its depth stays 476..944.
@@ -74,7 +72,7 @@ place plus the axes at those sizes, a sum of cards, and its depth stays 476..944
    out of what it sits on (the rest is hidden however it turns), so its sides cover the body's edge exactly where a
    depth buffer's would. The cubies go far to near by their distance squared from the eye (2 P.c + |c|^2, `rb_sum`,
    `rb_dot`), the turning layer's far side first (`rb_sum` and the rubik folder's `rb_order`).
-6. The colours: per face direction its light, the prototype's 0.62 + 0.38 n.l + 0.08 toward the eye, at half size
+6. The colours: per face direction its light, 0.62 + 0.38 n.l + 0.08 toward the eye, at half size
    since it reaches 1.08 (`rb_dot`, `rb_hold`); per material, twice the base times it, held at 255. The die's faces go
    from the tumble's colours to ivory on `ui_ease`.
 7. Every corner (`rb_sum`), seen (`dr_persp`: 2112 v / depth, 33 additions carrying the depth, then six binary places;
@@ -88,25 +86,18 @@ place plus the axes at those sizes, a sum of cards, and its depth stays 476..944
 **Before the first frame** the rubik folder's `rb_turn` and `rb_pocket` work out the cube after the scramble and after
 each move of the solve, from `data/moves.txt`.
 
-## Against the prototype
+## Details
 
-- **The near place is 5.64 units away, not 5.5** (the prototype follows): with the die held three seconds there it
-  tumbles through turns where one of its long edges ran to 1007 eighths of a subsample, past a card; at 5.64 the
-  longest is 975. The die and the Rubik's cube are 2.5% smaller there.
-
-Blurred over 4 x 4 pixels the frames are 0.65 of 255 apart on average (0.87 pixel by pixel, at most 1.7 a frame): the
-edges' subsamples, a corner a fraction of a subsample away.
-
+- **The near place is 5.64 units away:** at 5.5, with the die held three seconds there, it tumbles through turns
+  where one of its long edges runs to 1007 eighths of a subsample, past a card; at 5.64 the longest is 975.
 - **Painter's order** instead of the depth buffer; the same picture wherever the cubies' order by distance is the
   depth buffer's.
-- **The lens** is 264 subsamples a unit, 0.09% longer than the prototype's 263.76.
 - **The light** is 310 / 999 + 190 / 999 n.l + 40 / 999 toward the eye, doubled: 0.6206, 0.3804 and 0.0801, each
   colour an even number before the mean.
 - **The places and sizes** are whole numbers as above: a corner within about a third of a subsample. The roam's up
-  and down is 0.5996 z where the prototype's is 0.6 z.
-- **The fades** round down toward where they go (the prototype's int() rounds down), the mean of four subsamples is
-  rounded (the prototype's cut down).
-- **The tumble's cube to the die:** as the prototype, the plain cube starts where the tumble's cube is (frame 147) but
+  and down is 0.5996 z.
+- **The fades** round down toward where they go, and the mean of four subsamples is rounded.
+- **The tumble's cube to the die:** the plain cube starts where the tumble's cube is (frame 147) but
   not in its turn: its turn jumps at the join.
 
 ## How big the numbers get

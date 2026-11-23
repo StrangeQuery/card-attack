@@ -8,7 +8,7 @@ Other people's work that Card Attack uses, to thank in the release notes and the
   Macintosh. The bitmaps come from **joshua stein**'s [classic-mac-fonts](https://github.com/jcs/classic-mac-fonts),
   exported from System 6 with Font/DA Mover and converted to BDF with fondu; Chicago and Geneva are in the UI kit's atlas
   (`segments/ui/data/make_atlas.py`) for the Mac cold open (`segments/mac`). The cold open's icons, pointers and window
-  parts are redrawn after System 6's (`prototypes/macdesk.py`).
+  parts are redrawn after System 6's.
 - **IBM CGA 8x8** (the PC's brag in the cold open; the CompuServe and Usenet pages): **VileR**'s
   [Ultimate Oldschool PC Font Pack](https://int10h.org/oldschool-pc-fonts/) (`Px437_IBM_CGA`, and `Px437_IBM_VGA_8x16` for
   the VGA brag), rasterised into the UI kit's atlas (`segments/ui/data/make_atlas.py`), licensed
@@ -20,8 +20,7 @@ Other people's work that Card Attack uses, to thank in the release notes and the
 - **Impact** (designed by **Geoffrey Lee**, Stephenson Blake, 1965) and **DIN Condensed** (after the DIN 1451 lettering;
   Apple's digitisation): the copies that come with macOS, set in Python ahead of time into the stadium party's pictures
   (`pictures.bin`: the demos' captions on the screens and flags, the shirts' prints, THANK YOU / SAUL FINGERMAN and
-  D. W. HAGELBARGER, the airship's DEMOSPLASH 0x10) by `segments/stadium/data/make_data.py` through
-  `prototypes/stadium.py`. CARDIAC places and lights those pictures.
+  D. W. HAGELBARGER, the airship's DEMOSPLASH 0x10) by `segments/stadium/data/make_data.py`. CARDIAC places and lights those pictures.
 
 ## Demos
 
@@ -77,25 +76,23 @@ The 8 demos whose clips play on the stadium's screens (cleared by a licence audi
 ## Models
 
 - **Killer Whale** (the pair of orcas passing far out in the dive's haze at 1536x768, `segments/deep/data/orca_*.txt`
-  by `make_orca.py`; the design, `prototypes/orca.py`): by
+  by `make_orca.py`): by
   **Poly by Google**, from [Poly Pizza](https://poly.pizza/m/7pqZEQ9b_E-) (636 triangles, glTF), licensed
   [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Scaled up, given a swim (12 bent phases), drawn only as its outline.
-- **The advertising airship** (the train's night arrival): our own Blender model
-  (`prototypes/models/build_night_models.py`, `blimp()`), after the advertising airship in *Blade Runner* (1982).
+- **The advertising airship** (the train's night arrival): our own Blender model, after the advertising airship in *Blade Runner* (1982).
   Modelled from reference photos of the studio-scale replica in Golden Armor's
   [Blade Runner blimp gallery](http://goldenarmor.com/bladerunner-blimp/2023/2/16/blade-runner-offworld-airshipblimp-project.html);
   that page credits Cristofer Adrian, Jerris Hof, John Bullock, Sean Homer, Rod France, Kikutake Yuji and Randy
   Neubert. None of their images are used.
 - **Man** (two of them), **Man in Long Sleeves**, **Woman Casual**, **Woman in Tank Top** (the dancers in the stadium
-  party, `segments/stadium`; the design, `prototypes/stadium.py`, posed by `prototypes/audience/pose_people.py`): by
+  party, `segments/stadium`): by
   **Quaternius**, from Poly Pizza ([Man](https://poly.pizza/m/HMnuH5geEG), [Man](https://poly.pizza/m/fjHyMd5Wxw),
   [Man in Long Sleeves](https://poly.pizza/m/DLptRuewTn), [Woman Casual](https://poly.pizza/m/jpKRgGDxhk),
   [Woman in Tank Top](https://poly.pizza/m/XqzeZGB7iU); 1,850-2,860 triangles each, rigged glTF), licensed
   [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (no attribution required; credited as a courtesy).
   Posed by new procedural dance moves on their own rigs (the models' Sitting clip used as a base for two moves); seen
   only from behind, as silhouettes.
-- **The people in the dorm and the screening hall** (`segments/rooms`; built and rendered ahead of time in Blender by
-  `prototypes/dorm3d/room.py` and `hall.py`): [MakeHuman](http://www.makehumancommunity.org) characters made with
+- **The people in the dorm and the screening hall** (`segments/rooms`; built and rendered ahead of time in Blender): [MakeHuman](http://www.makehumancommunity.org) characters made with
   **MPFB 2.0.18** (the MakeHuman plugin for Blender, GPL; a tool, nothing of it is in the demo), with the
   **MakeHuman system assets** (bodies, skins, hair, clothes, shoes; © Data Collection AB, Joel Palmius, Jonas
   Hauquier, released as [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) in September 2020). Poses from

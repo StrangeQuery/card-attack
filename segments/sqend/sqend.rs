@@ -1,5 +1,5 @@
 // The ending's SQ: a hard cut from the CARDIAC on the giant screen to a big SQ in silver chrome,
-// extruded and seen from the ground, low and to the left, close (prototypes/ending_sq.py), STRANGE QUERY spaced out
+// extruded and seen from the ground, low and to the left, close, STRANGE QUERY spaced out
 // under it materialising: each of its pixels, at its turn, a white sparkle for two frames, then its chrome.
 //
 // Written once against the train's operations (segments/train/ops.rs). Once, on CARDIAC (the start): every chrome

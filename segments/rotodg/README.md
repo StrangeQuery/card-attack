@@ -20,14 +20,14 @@ shows all of them, between the BBS and the VGA:
     seg rotodg rotodg/video_hd.rgb 0 36 1536x768
     seg vga vga/video.rgb 8 22 192x96
 
-The degauss is the one [Mode X](../modex) was designed with (`prototypes/degauss.py`). It moved here when the
+The degauss is the one [Mode X](../modex) was designed with. It moved here when the
 dorm's pull-back came to show Mode X's monitor small, and it runs as if these were Mode X's frames 114 to 149: the
 blotch from the first frame (creeping in over 20), the sign from the 15th (blinking three frames on and three off),
 the jolt from the 21st (16 frames, the sign steady until it goes at the 33rd), the cut to the plasma at the 29th.
 
 ## Why it's hard on CARDIAC
 
-- **The degauss's curves are floating point** in the prototype: sines of every row and column, an atan2 of every
+- **The degauss's curves are floating point:** sines of every row and column, an atan2 of every
   pixel, exponentials, products of three fractions.
 - **A card can't hold the products.** 70 x 30 or 460 x 999 passes 999, so every product is taken by adding, as many
   times as the smaller number says, with the divisor carried out as the sum fills.
@@ -84,10 +84,10 @@ All of them are other folders' machines.
 21M, `dg_atan` 14M, `umix` 10M, `dg_mix` 6M, `dg_push` 2M, the rest 1M.
 `card-attack rotodg refs/rotodg_ref` says identical 36/36.
 
-## Against the prototype
+## In whole numbers
 
-The degauss is the prototype's in whole numbers: the amounts in 32nds, each tint
-rounded down, the creep 20 frames for the prototype's 24, the jolt's size in tenths of a pixel, the sines from the
+The degauss is worked in whole numbers: the amounts in 32nds, each tint
+rounded down, the creep over 20 frames, the jolt's size in tenths of a pixel, the sines from the
 table of whole degrees read between. Here the blotch is worked at 192x96, the picture's own pixels.
 
 ## Files

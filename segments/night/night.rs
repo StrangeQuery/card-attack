@@ -1,9 +1,9 @@
 // The night arrival (the train's ending): the ride carries on past its last frame into the night, every number
 // through the train's operations (segments/train/ops.rs), on its renderer. This file: the timeline, the night's
-// world (data/scene.bin), the light of each frame (the prototype's set_light), the beat. Included after the train's
+// world (data/scene.bin), the light of each frame, the beat. Included after the train's
 // files; path.rs, nframe.rs, nmat.rs and npost.rs after it.
 
-/// The night's material kinds (the prototype's 41..56, from 61; its platform is the train's).
+/// The night's material kinds (from 61; its platform is the train's).
 pub mod nkind {
     pub const LED: i64 = 61; pub const NAV: i64 = 62; pub const DRONE: i64 = 63; pub const TUBE: i64 = 64; pub const SCREEN: i64 = 65;
     pub const TIER: i64 = 66; pub const PITCH: i64 = 67; pub const FENCE: i64 = 68; pub const STADWALL: i64 = 69; pub const EMITX: i64 = 70;
@@ -37,12 +37,12 @@ pub const NCH: i64 = 368;
 pub const XFADE: i64 = 24;
 pub const DISSOLVE: i64 = 44;
 
-// ---- the layout (the prototype's, centimetres; the film's frame, unbent unless said) ------------------------------
+// ---- the layout (centimetres; the film's frame, unbent unless said) ------------------------------------------
 
 /// The ride's last frame's cab, plus a frame; the S-curve's shift (everything here is 70 m over).
 pub const Z0: i64 = 120_400;
 pub const BX: i64 = 7000;
-/// The cab's eye stopped (the braking's end, as the prototype rounds it), our nose's tip, the platforms, the town's
+/// The cab's eye stopped (the braking's end, rounded), our nose's tip, the platforms, the town's
 /// edge.
 pub const ZS: i64 = 168_456;
 pub const TIP: i64 = ZS + 640;
@@ -348,7 +348,7 @@ pub fn expn<O: Ops>(o: &mut O, tb: &Tb, x: &V) -> V {
     o.tab(tb.t("expn"), v(&x))
 }
 
-// ---- the light: the sun going down, the dark coming (the prototype's set_light) ------------------------------------
+// ---- the light: the sun going down, the dark coming -----------------------------------------------------------------
 
 /// The sun's elevation at frame 0 (hundred-thousandths of a radian: asin 0.0945) and its fall a frame (stopped,
 /// slower).

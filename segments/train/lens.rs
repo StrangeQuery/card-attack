@@ -1,4 +1,4 @@
-// The lens, after the blur and the wires, as the prototype's render() ends: the sun's ghosts (flare) and the glow of
+// The lens, after the blur and the wires, at the end of the frame: the sun's ghosts (flare) and the glow of
 // what's too bright (bloom), as light to add, which the tone curve takes with the rest (shade.rs's finish; the
 // vignette is in its table). Included after wires.rs.
 
@@ -83,7 +83,7 @@ pub fn flare<O: Ops>(o: &mut O, w: &World, cam: &Cam, env: &Env, g: &GBuf, add: 
     touched
 }
 
-/// A box blur of radius r along each row (or column) of a w x h grid, as the prototype's box_blur: each place the
+/// A box blur of radius r along each row (or column) of a w x h grid: each place the
 /// mean of the places within r, as many as there are (running sums; the mean by logarithms).
 pub fn box_blur<O: Ops>(o: &mut O, tb: &Tb, a: &V, gw: usize, gh: usize, r: i64, rows: bool) -> V {
     let (n_lines, len) = if rows { (gh, gw) } else { (gw, gh) };
@@ -141,8 +141,8 @@ pub fn upsample<O: Ops>(o: &mut O, a: &V, gw: usize, gh: usize) -> V {
 }
 
 /// The glow: what passes 1.3 (in twentieths of R) of the frame's 4x4 blocks (each block's four samples), blurred
-/// with a radius of 4 blocks twice along rows and columns (about the prototype's 3 three times), that blurred again
-/// with a radius of 14 twice (about the prototype's 12 three times from the start), 0.2 of each (four times, back in R), up to the
+/// with a radius of 4 blocks twice along rows and columns, that blurred again
+/// with a radius of 14 twice, 0.2 of each (four times, back in R), up to the
 /// full size between the blocks' middles: made fine as its square root (a card, the table glow_enc; glow_dec back).
 /// Light added (R) to `add`, which holds the flare's at the pixels it touched.
 pub fn bloom<O: Ops>(o: &mut O, w: &World, col: &[V; 3], hot: &[V; 3], add: &mut [V; 3], touched: &[usize]) {

@@ -78,7 +78,7 @@ pub fn flags<O: Ops>(o: &mut O, t: &Tables, sc: &Scene, cam: &Cam, cube: &Cube, 
         } }
     }
     let cloth = draw(o, t, &cv, &vals, &tris, &ids, false);
-    // the poles: a quad along x, 5 cm wide, from 0.65 m to 3.25 m (its middle at 3.25 m less... as the prototype:
+    // the poles: a quad along x, 5 cm wide, from 0.65 m to 3.25 m (given as
     // centre 3.25 m, 2.6 m tall), lit from the probe facing -y
     let mut ptri = vec![];
     let mut pid = vec![];
@@ -115,7 +115,7 @@ impl Tables {
 /// The balloons in the air this frame: let go at their times, rising (2.3 m + v (t - t0), under 75 m), drifting
 /// (x + 1.2 sin(0.6 t + ph) + 0.15 (t - t0), y + 0.8 cos(0.5 t + ph)); each a quad facing the camera (2 r by 2.4 r),
 /// cut to a disc when shaded. Within 220 m, in front. Values carried: the place on the quad, -1000..1000 across and
-/// up (thousandths of the prototype's u_ and v_). And each one's centre and light (its own cube, turned to the
+/// up (thousandths). And each one's centre and light (its own cube, turned to the
 /// camera's axes: across, up, toward the eye).
 pub struct Balloons { pub d: Drawn, pub which: Vec<usize>, pub faces: Cube }
 

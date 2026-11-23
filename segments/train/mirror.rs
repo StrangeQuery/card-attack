@@ -1,4 +1,4 @@
-// Mirrors (the prototype's mirror_pass): what stands above the water, flipped below its level and drawn from the
+// Mirrors: what stands above the water, flipped below its level and drawn from the
 // same camera, so the paddies and the river can show it, shifted by their ripples, where it is behind the water's
 // surface. Included after lens.rs.
 

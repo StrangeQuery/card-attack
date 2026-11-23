@@ -1,6 +1,6 @@
 // The shading of what each pixel sees: the stadium's surfaces (lit at their corners by their probes' cubes), the
 // lit windows and edges, the LED skin, the screens' pictures, the impostors (lit per pixel from their probes' cubes
-// turned to face the eye, with the rim), the near dancers. Colours in ten-thousandths of the prototype's linear
+// turned to face the eye, with the rim), the near dancers. Colours in ten-thousandths of linear
 // light. Included after crowd.rs.
 
 /// The probes' cubes turned to face the eye: each probe's faces across (+, -), up (+, -) and toward the eye (+, -),
