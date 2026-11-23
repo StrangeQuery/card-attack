@@ -1,0 +1,27 @@
+[package]
+name = "card-attack"
+version = "0.1.0"
+edition = "2021"
+description = "The host for Card Attack: its segments and timeline, on the cardiac-host runtime, which runs the CARDIAC machines and files the frames."
+
+[dependencies]
+demokit = { path = "../demokit" }    # the tables, shared with the machines and the references
+cardiac-host = { path = "runtime" }   # running machines, dealing decks, counting, shadow and native runs, checking, video
+winit = "0.30"                        # the player's fullscreen window and keys
+softbuffer = "0.4"                    # ... and its pixels, put there by the CPU
+fontdue = "0.9"                       # the player's HUD: text rasterised at the screen's own size
+cpal = "0.15"                         # the player's sound output
+lubdub = { git = "https://github.com/StrangeQuery/lubdub", rev = "f654f6dcae88c484ecf74aea608ca9bb30022785" }   # the CARDIACs that decode the soundtrack
+heartburn = "0.1"                     # ... and the reader for the cards in its tracks
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSProcessInfo", "NSString"] }   # keep the player out of App Nap
+
+[workspace]
+members = ["runtime"]
+
+[profile.release]
+opt-level = 3
+codegen-units = 1
+lto = true
+panic = "abort"

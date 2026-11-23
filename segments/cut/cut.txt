@@ -1,0 +1,27 @@
+seg openers openers/video.rgb 0 191 192x96
+seg mac mac/video_hd.rgb 0 377 1536x768
+over turn/bezel.rgba 1536x768 0 0 0 377
+seg turn turn/video_hd.rgb 0 143 1536x768
+seg bbs bbs/video_hd.rgb 0 272 1536x768
+seg bbsroto bbs/video.rgb 0 36 192x96
+seg rotodg rotodg/video_hd.rgb 0 36 1536x768
+seg vga vga/video.rgb 8 22 192x96
+seg vga vga/video_hd.rgb 0 30 1536x768
+seg vga vga/video.rgb 30 14 192x96
+seg plasma plasma/video.rgb 104 100 192x96
+over vga/brag.rgba 704x192 64 528 0 42
+seg modex modex/video_hd.rgb 0 66 1536x768
+seg rooms rooms/video_hd.rgb 0 118 1536x768
+seg polys polys/video.rgb 234 140 192x96
+seg accel accel/video.rgb 0 113 192x96
+over ui/videoopts.rgba 1197x628 339 140 66 47
+gap 5
+seg accel accel/video_hd.rgb 0 59 1536x768
+seg rooms rooms/video_hd.rgb 118 231 1536x768
+seg deep deep/video_hd.rgb 48 305 1536x768
+seg train train/video_hd.rgb 0 256 1536x768
+seg night night/video_hd.rgb 0 329 1536x768
+seg stadium stadium/video_hd.rgb 0 539 1536x768
+over partychat/chat.rgba 512x768 1024 0 44 495
+seg qr qr/video_hd.rgb 0 1 1536x768
+seg sqend sqend/video_hd.rgb 0 36 1536x768

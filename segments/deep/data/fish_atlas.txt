@@ -1,0 +1,8 @@
+# the dive's fish atlas: see make_fish_atlas.py
+cell 128 64
+length_px 112 length_units 1.1
+anchor middle
+yaws -90 -75 -60 -45 -30 -15 0 15 30 45 60 75 90
+elevations 0 30
+phases 8
+layout row = elevation * yaws + yaw; column = phase

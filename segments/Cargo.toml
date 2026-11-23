@@ -1,0 +1,1473 @@
+# Card Attack's machines, as one Cargo package: each machine is a binary target, built for CARDIAC with
+# `cargo cardiac build` (rust-cardiac's cargo subcommand), never with `cargo build`. A new machine needs a [[bin]] here.
+[package]
+name = "card-attack-machines"
+version = "0.1.0"
+edition = "2021"
+publish = false
+autobins = false
+
+[dependencies]
+demokit = { path = "../demokit" }
+
+
+# cube
+[[bin]]
+name = "comp"
+path = "cube/machines/comp.rs"
+[[bin]]
+name = "esort"
+path = "cube/machines/esort.rs"
+[[bin]]
+name = "fshade"
+path = "cube/machines/fshade.rs"
+[[bin]]
+name = "fspan"
+path = "cube/machines/fspan.rs"
+[[bin]]
+name = "gather"
+path = "cube/machines/gather.rs"
+[[bin]]
+name = "palette"
+path = "cube/machines/palette.rs"
+[[bin]]
+name = "project"
+path = "cube/machines/project.rs"
+[[bin]]
+name = "solid"
+path = "cube/machines/solid.rs"
+[[bin]]
+name = "tm_turn"
+path = "cube/machines/tm_turn.rs"
+[[bin]]
+name = "tm_axis"
+path = "cube/machines/tm_axis.rs"
+[[bin]]
+name = "tm_path"
+path = "cube/machines/tm_path.rs"
+[[bin]]
+name = "tm_levels"
+path = "cube/machines/tm_levels.rs"
+[[bin]]
+name = "vtx"
+path = "cube/machines/vtx.rs"
+
+# cut
+[[bin]]
+name = "dissolve"
+path = "cut/machines/dissolve.rs"
+[[bin]]
+name = "blockmean"
+path = "cut/machines/blockmean.rs"
+
+# deep
+[[bin]]
+name = "orca_ahead"
+path = "deep/machines/orca_ahead.rs"
+[[bin]]
+name = "orca_keep"
+path = "deep/machines/orca_keep.rs"
+[[bin]]
+name = "hd_walk"
+path = "deep/machines/hd_walk.rs"
+[[bin]]
+name = "hd_cover"
+path = "deep/machines/hd_cover.rs"
+[[bin]]
+name = "hd_fcol"
+path = "deep/machines/hd_fcol.rs"
+[[bin]]
+name = "hd_rows"
+path = "deep/machines/hd_rows.rs"
+[[bin]]
+name = "hd_bub"
+path = "deep/machines/hd_bub.rs"
+[[bin]]
+name = "hd_jelly"
+path = "deep/machines/hd_jelly.rs"
+[[bin]]
+name = "hd_eadd"
+path = "deep/machines/hd_eadd.rs"
+[[bin]]
+name = "hd_gauss"
+path = "deep/machines/hd_gauss.rs"
+[[bin]]
+name = "hd_hamt"
+path = "deep/machines/hd_hamt.rs"
+[[bin]]
+name = "hd_mix256"
+path = "deep/machines/hd_mix256.rs"
+[[bin]]
+name = "dadd"
+path = "deep/machines/dadd.rs"
+[[bin]]
+name = "damp"
+path = "deep/machines/damp.rs"
+[[bin]]
+name = "dbase"
+path = "deep/machines/dbase.rs"
+[[bin]]
+name = "dbbox"
+path = "deep/machines/dbbox.rs"
+[[bin]]
+name = "dbehind"
+path = "deep/machines/dbehind.rs"
+[[bin]]
+name = "dbell"
+path = "deep/machines/dbell.rs"
+[[bin]]
+name = "dbox"
+path = "deep/machines/dbox.rs"
+[[bin]]
+name = "dcaption"
+path = "deep/machines/dcaption.rs"
+[[bin]]
+name = "dcos"
+path = "deep/machines/dcos.rs"
+[[bin]]
+name = "dcross"
+path = "deep/machines/dcross.rs"
+[[bin]]
+name = "dcull"
+path = "deep/machines/dcull.rs"
+[[bin]]
+name = "ddot"
+path = "deep/machines/ddot.rs"
+[[bin]]
+name = "dfall"
+path = "deep/machines/dfall.rs"
+[[bin]]
+name = "dfar"
+path = "deep/machines/dfar.rs"
+[[bin]]
+name = "dfine"
+path = "deep/machines/dfine.rs"
+[[bin]]
+name = "dgauss"
+path = "deep/machines/dgauss.rs"
+[[bin]]
+name = "dglint"
+path = "deep/machines/dglint.rs"
+[[bin]]
+name = "dhang"
+path = "deep/machines/dhang.rs"
+[[bin]]
+name = "dindex"
+path = "deep/machines/dindex.rs"
+[[bin]]
+name = "dinner"
+path = "deep/machines/dinner.rs"
+[[bin]]
+name = "dinside"
+path = "deep/machines/dinside.rs"
+[[bin]]
+name = "djfade"
+path = "deep/machines/djfade.rs"
+[[bin]]
+name = "dleafv"
+path = "deep/machines/dleafv.rs"
+[[bin]]
+name = "dlimit"
+path = "deep/machines/dlimit.rs"
+[[bin]]
+name = "dlin"
+path = "deep/machines/dlin.rs"
+[[bin]]
+name = "dlip"
+path = "deep/machines/dlip.rs"
+[[bin]]
+name = "dlook"
+path = "deep/machines/dlook.rs"
+[[bin]]
+name = "dspillmix"
+path = "deep/machines/dspillmix.rs"
+[[bin]]
+name = "dnorm"
+path = "deep/machines/dnorm.rs"
+[[bin]]
+name = "dorder"
+path = "deep/machines/dorder.rs"
+[[bin]]
+name = "dpart"
+path = "deep/machines/dpart.rs"
+[[bin]]
+name = "dphase"
+path = "deep/machines/dphase.rs"
+[[bin]]
+name = "dphase2"
+path = "deep/machines/dphase2.rs"
+[[bin]]
+name = "dpix"
+path = "deep/machines/dpix.rs"
+[[bin]]
+name = "dpow"
+path = "deep/machines/dpow.rs"
+[[bin]]
+name = "dput"
+path = "deep/machines/dput.rs"
+[[bin]]
+name = "dratio"
+path = "deep/machines/dratio.rs"
+[[bin]]
+name = "drays"
+path = "deep/machines/drays.rs"
+[[bin]]
+name = "dring"
+path = "deep/machines/dring.rs"
+[[bin]]
+name = "droot"
+path = "deep/machines/droot.rs"
+[[bin]]
+name = "dsample"
+path = "deep/machines/dsample.rs"
+[[bin]]
+name = "dscale"
+path = "deep/machines/dscale.rs"
+[[bin]]
+name = "dseed"
+path = "deep/machines/dseed.rs"
+[[bin]]
+name = "dshaft"
+path = "deep/machines/dshaft.rs"
+[[bin]]
+name = "dsine"
+path = "deep/machines/dsine.rs"
+[[bin]]
+name = "dslice"
+path = "deep/machines/dslice.rs"
+[[bin]]
+name = "dslope"
+path = "deep/machines/dslope.rs"
+[[bin]]
+name = "dsnow"
+path = "deep/machines/dsnow.rs"
+[[bin]]
+name = "dspanrow"
+path = "deep/machines/dspanrow.rs"
+[[bin]]
+name = "dspeck"
+path = "deep/machines/dspeck.rs"
+[[bin]]
+name = "dspill"
+path = "deep/machines/dspill.rs"
+[[bin]]
+name = "dspot"
+path = "deep/machines/dspot.rs"
+[[bin]]
+name = "dsteps"
+path = "deep/machines/dsteps.rs"
+[[bin]]
+name = "dstrip"
+path = "deep/machines/dstrip.rs"
+[[bin]]
+name = "dsum"
+path = "deep/machines/dsum.rs"
+[[bin]]
+name = "dsway"
+path = "deep/machines/dsway.rs"
+[[bin]]
+name = "dswing"
+path = "deep/machines/dswing.rs"
+[[bin]]
+name = "dswirl"
+path = "deep/machines/dswirl.rs"
+[[bin]]
+name = "dtenth"
+path = "deep/machines/dtenth.rs"
+[[bin]]
+name = "dtenths"
+path = "deep/machines/dtenths.rs"
+[[bin]]
+name = "dtip"
+path = "deep/machines/dtip.rs"
+[[bin]]
+name = "dtwice"
+path = "deep/machines/dtwice.rs"
+[[bin]]
+name = "dneg"
+path = "deep/machines/dneg.rs"
+[[bin]]
+name = "dwalks"
+path = "deep/machines/dwalks.rs"
+[[bin]]
+name = "dwater"
+path = "deep/machines/dwater.rs"
+[[bin]]
+name = "dwave"
+path = "deep/machines/dwave.rs"
+[[bin]]
+name = "dwide"
+path = "deep/machines/dwide.rs"
+[[bin]]
+name = "dwidth"
+path = "deep/machines/dwidth.rs"
+[[bin]]
+name = "dwiggle"
+path = "deep/machines/dwiggle.rs"
+[[bin]]
+name = "ualong"
+path = "deep/machines/ualong.rs"
+[[bin]]
+name = "ucap"
+path = "deep/machines/ucap.rs"
+[[bin]]
+name = "uedge"
+path = "deep/machines/uedge.rs"
+[[bin]]
+name = "ubeam"
+path = "deep/machines/ubeam.rs"
+[[bin]]
+name = "ublocks"
+path = "deep/machines/ublocks.rs"
+[[bin]]
+name = "ucolumn"
+path = "deep/machines/ucolumn.rs"
+[[bin]]
+name = "ucorner"
+path = "deep/machines/ucorner.rs"
+[[bin]]
+name = "ugrain"
+path = "deep/machines/ugrain.rs"
+[[bin]]
+name = "ulamp"
+path = "deep/machines/ulamp.rs"
+[[bin]]
+name = "upick"
+path = "deep/machines/upick.rs"
+[[bin]]
+name = "uplace"
+path = "deep/machines/uplace.rs"
+[[bin]]
+name = "udescend"
+path = "deep/machines/udescend.rs"
+[[bin]]
+name = "urocky"
+path = "deep/machines/urocky.rs"
+[[bin]]
+name = "uside"
+path = "deep/machines/uside.rs"
+[[bin]]
+name = "ustrata"
+path = "deep/machines/ustrata.rs"
+[[bin]]
+name = "utop"
+path = "deep/machines/utop.rs"
+[[bin]]
+name = "ucoral"
+path = "deep/machines/ucoral.rs"
+[[bin]]
+name = "uriser"
+path = "deep/machines/uriser.rs"
+[[bin]]
+name = "ucrest"
+path = "deep/machines/ucrest.rs"
+[[bin]]
+name = "ufar"
+path = "deep/machines/ufar.rs"
+[[bin]]
+name = "uface"
+path = "deep/machines/uface.rs"
+[[bin]]
+name = "uglow"
+path = "deep/machines/uglow.rs"
+[[bin]]
+name = "ulit"
+path = "deep/machines/ulit.rs"
+[[bin]]
+name = "umix"
+path = "deep/machines/umix.rs"
+[[bin]]
+name = "uray"
+path = "deep/machines/uray.rs"
+[[bin]]
+name = "ureach"
+path = "deep/machines/ureach.rs"
+[[bin]]
+name = "ushade"
+path = "deep/machines/ushade.rs"
+[[bin]]
+name = "uspan"
+path = "deep/machines/uspan.rs"
+[[bin]]
+name = "ustep"
+path = "deep/machines/ustep.rs"
+[[bin]]
+name = "uturn"
+path = "deep/machines/uturn.rs"
+
+# drive
+[[bin]]
+name = "dalong"
+path = "drive/machines/dalong.rs"
+[[bin]]
+name = "dcam"
+path = "drive/machines/dcam.rs"
+[[bin]]
+name = "dcarx"
+path = "drive/machines/dcarx.rs"
+[[bin]]
+name = "dface"
+path = "drive/machines/dface.rs"
+[[bin]]
+name = "dhit"
+path = "drive/machines/dhit.rs"
+[[bin]]
+name = "dlamp"
+path = "drive/machines/dlamp.rs"
+[[bin]]
+name = "dlat"
+path = "drive/machines/dlat.rs"
+[[bin]]
+name = "dmul"
+path = "drive/machines/dmul.rs"
+[[bin]]
+name = "dpick"
+path = "drive/machines/dpick.rs"
+[[bin]]
+name = "dturn"
+path = "drive/machines/dturn.rs"
+[[bin]]
+name = "dz"
+path = "drive/machines/dz.rs"
+
+# listing
+[[bin]]
+name = "lrow"
+path = "listing/machines/lrow.rs"
+[[bin]]
+name = "lsel"
+path = "listing/machines/lsel.rs"
+[[bin]]
+name = "ltex"
+path = "listing/machines/ltex.rs"
+
+# modex
+[[bin]]
+name = "mx_bounce"
+path = "modex/machines/mx_bounce.rs"
+[[bin]]
+name = "mx_compose"
+path = "modex/machines/mx_compose.rs"
+[[bin]]
+name = "mx_hit"
+path = "modex/machines/mx_hit.rs"
+[[bin]]
+name = "mx_norm"
+path = "modex/machines/mx_norm.rs"
+[[bin]]
+name = "mx_place"
+path = "modex/machines/mx_place.rs"
+[[bin]]
+name = "mx_row"
+path = "modex/machines/mx_row.rs"
+[[bin]]
+name = "mx_span"
+path = "modex/machines/mx_span.rs"
+[[bin]]
+name = "dg_angle"
+path = "modex/machines/dg_angle.rs"
+[[bin]]
+name = "dg_anglew"
+path = "modex/machines/dg_anglew.rs"
+[[bin]]
+name = "dg_atan"
+path = "modex/machines/dg_atan.rs"
+[[bin]]
+name = "dg_lum"
+path = "modex/machines/dg_lum.rs"
+[[bin]]
+name = "dg_mix"
+path = "modex/machines/dg_mix.rs"
+[[bin]]
+name = "dg_scale"
+path = "modex/machines/dg_scale.rs"
+[[bin]]
+name = "dg_turn"
+path = "modex/machines/dg_turn.rs"
+[[bin]]
+name = "dg_push"
+path = "modex/machines/dg_push.rs"
+
+# openers
+[[bin]]
+name = "op_fade"
+path = "openers/machines/op_fade.rs"
+[[bin]]
+name = "qr_line"
+path = "qr/machines/qr_line.rs"
+[[bin]]
+name = "op_ink"
+path = "openers/machines/op_ink.rs"
+[[bin]]
+name = "op_tint"
+path = "openers/machines/op_tint.rs"
+
+# overlays
+[[bin]]
+name = "big"
+path = "overlays/machines/big.rs"
+
+# plasma
+[[bin]]
+name = "rt_sway"
+path = "ray/machines/rt_sway.rs"
+[[bin]]
+name = "rt_hop"
+path = "ray/machines/rt_hop.rs"
+[[bin]]
+name = "pl_tilt"
+path = "plasma/machines/pl_tilt.rs"
+[[bin]]
+name = "pl_clock"
+path = "plasma/machines/pl_clock.rs"
+[[bin]]
+name = "pl_ring"
+path = "plasma/machines/pl_ring.rs"
+[[bin]]
+name = "pl_slant"
+path = "plasma/machines/pl_slant.rs"
+[[bin]]
+name = "pl_rings"
+path = "plasma/machines/pl_rings.rs"
+[[bin]]
+name = "pl_wave"
+path = "plasma/machines/pl_wave.rs"
+[[bin]]
+name = "pl_paint"
+path = "plasma/machines/pl_paint.rs"
+[[bin]]
+name = "pl_tone"
+path = "plasma/machines/pl_tone.rs"
+[[bin]]
+name = "pl_row"
+path = "plasma/machines/pl_row.rs"
+
+# polys
+[[bin]]
+name = "polyangle"
+path = "polys/machines/polyangle.rs"
+[[bin]]
+name = "polybulge"
+path = "polys/machines/polybulge.rs"
+[[bin]]
+name = "polycross"
+path = "polys/machines/polycross.rs"
+[[bin]]
+name = "polydepth"
+path = "polys/machines/polydepth.rs"
+[[bin]]
+name = "polydot"
+path = "polys/machines/polydot.rs"
+[[bin]]
+name = "polyface"
+path = "polys/machines/polyface.rs"
+[[bin]]
+name = "polygrid"
+path = "polys/machines/polygrid.rs"
+[[bin]]
+name = "polylay"
+path = "polys/machines/polylay.rs"
+[[bin]]
+name = "polylift"
+path = "polys/machines/polylift.rs"
+[[bin]]
+name = "polymix"
+path = "polys/machines/polymix.rs"
+[[bin]]
+name = "polynebula"
+path = "polys/machines/polynebula.rs"
+[[bin]]
+name = "polyphase"
+path = "polys/machines/polyphase.rs"
+[[bin]]
+name = "polyrim"
+path = "polys/machines/polyrim.rs"
+[[bin]]
+name = "polyroot"
+path = "polys/machines/polyroot.rs"
+[[bin]]
+name = "polyrows"
+path = "polys/machines/polyrows.rs"
+[[bin]]
+name = "polysine"
+path = "polys/machines/polysine.rs"
+[[bin]]
+name = "polyspec"
+path = "polys/machines/polyspec.rs"
+[[bin]]
+name = "polysquare"
+path = "polys/machines/polysquare.rs"
+[[bin]]
+name = "polystar"
+path = "polys/machines/polystar.rs"
+[[bin]]
+name = "polystars"
+path = "polys/machines/polystars.rs"
+[[bin]]
+name = "polyunitize"
+path = "polys/machines/polyunitize.rs"
+[[bin]]
+name = "polywalk"
+path = "polys/machines/polywalk.rs"
+[[bin]]
+name = "py_cell"
+path = "polys/machines/py_cell.rs"
+[[bin]]
+name = "py_tone"
+path = "polys/machines/py_tone.rs"
+[[bin]]
+name = "py_near"
+path = "polys/machines/py_near.rs"
+[[bin]]
+name = "py_test"
+path = "polys/machines/py_test.rs"
+
+# ray
+[[bin]]
+name = "compose"
+path = "ray/machines/compose.rs"
+[[bin]]
+name = "rt_path"
+path = "ray/machines/rt_path.rs"
+
+# roto
+[[bin]]
+name = "r4_clock"
+path = "roto/machines/r4_clock.rs"
+[[bin]]
+name = "rotor4"
+path = "roto/machines/rotor4.rs"
+[[bin]]
+name = "rzrow"
+path = "roto/machines/rzrow.rs"
+
+# rubik
+[[bin]]
+name = "rb_dot"
+path = "rubik/machines/rb_dot.rs"
+[[bin]]
+name = "rb_edge"
+path = "rubik/machines/rb_edge.rs"
+[[bin]]
+name = "rb_hold"
+path = "rubik/machines/rb_hold.rs"
+[[bin]]
+name = "rb_order"
+path = "rubik/machines/rb_order.rs"
+[[bin]]
+name = "rb_piece"
+path = "rubik/machines/rb_piece.rs"
+[[bin]]
+name = "rb_pixel"
+path = "rubik/machines/rb_pixel.rs"
+[[bin]]
+name = "rb_pocket"
+path = "rubik/machines/rb_pocket.rs"
+[[bin]]
+name = "rb_sine"
+path = "rubik/machines/rb_sine.rs"
+[[bin]]
+name = "rb_span"
+path = "rubik/machines/rb_span.rs"
+[[bin]]
+name = "rb_start"
+path = "rubik/machines/rb_start.rs"
+[[bin]]
+name = "rb_sum"
+path = "rubik/machines/rb_sum.rs"
+[[bin]]
+name = "rb_turn"
+path = "rubik/machines/rb_turn.rs"
+[[bin]]
+name = "rb_walk"
+path = "rubik/machines/rb_walk.rs"
+
+# shared
+[[bin]]
+name = "paint16"
+path = "shared/machines/paint16.rs"
+[[bin]]
+name = "paint9"
+path = "shared/machines/paint9.rs"
+
+# titles
+[[bin]]
+name = "tt_role"
+path = "titles/machines/tt_role.rs"
+
+# tumble
+[[bin]]
+name = "cover"
+path = "tumble/machines/cover.rs"
+[[bin]]
+name = "facing"
+path = "tumble/machines/facing.rs"
+[[bin]]
+name = "gather4"
+path = "tumble/machines/gather4.rs"
+[[bin]]
+name = "path"
+path = "tumble/machines/path.rs"
+[[bin]]
+name = "persp"
+path = "tumble/machines/persp.rs"
+[[bin]]
+name = "project4"
+path = "tumble/machines/project4.rs"
+[[bin]]
+name = "raster4"
+path = "tumble/machines/raster4.rs"
+
+# swarm
+[[bin]]
+name = "sw_qi"
+path = "swarm/machines/sw_qi.rs"
+[[bin]]
+name = "sw_qp"
+path = "swarm/machines/sw_qp.rs"
+[[bin]]
+name = "sw_lsum"
+path = "swarm/machines/sw_lsum.rs"
+[[bin]]
+name = "sw_abs"
+path = "swarm/machines/sw_abs.rs"
+[[bin]]
+name = "sw_divd"
+path = "swarm/machines/sw_divd.rs"
+[[bin]]
+name = "sw_join"
+path = "swarm/machines/sw_join.rs"
+[[bin]]
+name = "sw_floor"
+path = "swarm/machines/sw_floor.rs"
+[[bin]]
+name = "sw_ang"
+path = "swarm/machines/sw_ang.rs"
+[[bin]]
+name = "sw_sin"
+path = "swarm/machines/sw_sin.rs"
+[[bin]]
+name = "sw_order"
+path = "swarm/machines/sw_order.rs"
+[[bin]]
+name = "sw_atan1"
+path = "swarm/machines/sw_atan1.rs"
+[[bin]]
+name = "sw_atan2"
+path = "swarm/machines/sw_atan2.rs"
+[[bin]]
+name = "sw_quad"
+path = "swarm/machines/sw_quad.rs"
+[[bin]]
+name = "sw_esub"
+path = "swarm/machines/sw_esub.rs"
+[[bin]]
+name = "sw_erows"
+path = "swarm/machines/sw_erows.rs"
+[[bin]]
+name = "sw_eclip"
+path = "swarm/machines/sw_eclip.rs"
+[[bin]]
+name = "sw_eend"
+path = "swarm/machines/sw_eend.rs"
+[[bin]]
+name = "sw_mag"
+path = "swarm/machines/sw_mag.rs"
+[[bin]]
+name = "sw_shift"
+path = "swarm/machines/sw_shift.rs"
+[[bin]]
+name = "sw_floor3"
+path = "swarm/machines/sw_floor3.rs"
+[[bin]]
+name = "sw_sign"
+path = "swarm/machines/sw_sign.rs"
+[[bin]]
+name = "sw_isqrt"
+path = "swarm/machines/sw_isqrt.rs"
+[[bin]]
+name = "sw_isqrt2"
+path = "swarm/machines/sw_isqrt2.rs"
+[[bin]]
+name = "sw_hund"
+path = "swarm/machines/sw_hund.rs"
+[[bin]]
+name = "sw_term"
+path = "swarm/machines/sw_term.rs"
+[[bin]]
+name = "sw_qis"
+path = "swarm/machines/sw_qis.rs"
+[[bin]]
+name = "sw_tall"
+path = "swarm/machines/sw_tall.rs"
+[[bin]]
+name = "sw_card"
+path = "swarm/machines/sw_card.rs"
+[[bin]]
+name = "sw_wide2"
+path = "swarm/machines/sw_wide2.rs"
+[[bin]]
+name = "sw_add"
+path = "swarm/machines/sw_add.rs"
+[[bin]]
+name = "sw_short"
+path = "swarm/machines/sw_short.rs"
+[[bin]]
+name = "sw_ewalk"
+path = "swarm/machines/sw_ewalk.rs"
+[[bin]]
+name = "sw_ecross"
+path = "swarm/machines/sw_ecross.rs"
+[[bin]]
+name = "sw_epix"
+path = "swarm/machines/sw_epix.rs"
+
+# ui
+[[bin]]
+name = "ui_corner"
+path = "ui/machines/ui_corner.rs"
+[[bin]]
+name = "ui_cycle"
+path = "ui/machines/ui_cycle.rs"
+[[bin]]
+name = "ui_digits"
+path = "ui/machines/ui_digits.rs"
+[[bin]]
+name = "ui_ease"
+path = "ui/machines/ui_ease.rs"
+[[bin]]
+name = "ui_cube"
+path = "ui/machines/ui_cube.rs"
+[[bin]]
+name = "ui_cover"
+path = "ui/machines/ui_cover.rs"
+[[bin]]
+name = "ui_page"
+path = "ui/machines/ui_page.rs"
+[[bin]]
+name = "ui_panel"
+path = "ui/machines/ui_panel.rs"
+[[bin]]
+name = "ui_shadow"
+path = "ui/machines/ui_shadow.rs"
+[[bin]]
+name = "ui_text"
+path = "ui/machines/ui_text.rs"
+[[bin]]
+name = "ui_circle"
+path = "ui/machines/ui_circle.rs"
+[[bin]]
+name = "ui_fade"
+path = "ui/machines/ui_fade.rs"
+
+# mac
+[[bin]]
+name = "mac_place"
+path = "mac/machines/mac_place.rs"
+[[bin]]
+name = "mac_glide"
+path = "mac/machines/mac_glide.rs"
+[[bin]]
+name = "mac_arc"
+path = "mac/machines/mac_arc.rs"
+[[bin]]
+name = "mac_cross"
+path = "mac/machines/mac_cross.rs"
+[[bin]]
+name = "mac_across"
+path = "mac/machines/mac_across.rs"
+[[bin]]
+name = "mac_first"
+path = "mac/machines/mac_first.rs"
+[[bin]]
+name = "mac_pick"
+path = "mac/machines/mac_pick.rs"
+[[bin]]
+name = "mac_wall"
+path = "mac/machines/mac_wall.rs"
+[[bin]]
+name = "mac_fidx"
+path = "mac/machines/mac_fidx.rs"
+[[bin]]
+name = "mac_fdot"
+path = "mac/machines/mac_fdot.rs"
+[[bin]]
+name = "mac_ball"
+path = "mac/machines/mac_ball.rs"
+[[bin]]
+name = "mac_bdot"
+path = "mac/machines/mac_bdot.rs"
+[[bin]]
+name = "mac_flag"
+path = "mac/machines/mac_flag.rs"
+[[bin]]
+name = "mac_xor"
+path = "mac/machines/mac_xor.rs"
+[[bin]]
+name = "mac_offset"
+path = "mac/machines/mac_offset.rs"
+[[bin]]
+name = "mac_slope"
+path = "mac/machines/mac_slope.rs"
+[[bin]]
+name = "mac_reach"
+path = "mac/machines/mac_reach.rs"
+[[bin]]
+name = "mac_angle"
+path = "mac/machines/mac_angle.rs"
+[[bin]]
+name = "mac_turn"
+path = "mac/machines/mac_turn.rs"
+[[bin]]
+name = "mac_twist"
+path = "mac/machines/mac_twist.rs"
+[[bin]]
+name = "mac_trow"
+path = "mac/machines/mac_trow.rs"
+[[bin]]
+name = "mac_dither"
+path = "mac/machines/mac_dither.rs"
+[[bin]]
+name = "mac_thirds"
+path = "mac/machines/mac_thirds.rs"
+[[bin]]
+name = "mac_dissolve"
+path = "mac/machines/mac_dissolve.rs"
+[[bin]]
+name = "dr_clock"
+path = "dierubik/machines/dr_clock.rs"
+[[bin]]
+name = "dr_muldiv"
+path = "dierubik/machines/dr_muldiv.rs"
+[[bin]]
+name = "dr_persp"
+path = "dierubik/machines/dr_persp.rs"
+[[bin]]
+name = "dr_column"
+path = "dierubik/machines/dr_column.rs"
+[[bin]]
+name = "dr_key"
+path = "dierubik/machines/dr_key.rs"
+[[bin]]
+name = "dr_wobble"
+path = "dierubik/machines/dr_wobble.rs"
+[[bin]]
+name = "tn_edge"
+path = "turn/machines/tn_edge.rs"
+[[bin]]
+name = "tn_twist"
+path = "turn/machines/tn_twist.rs"
+[[bin]]
+name = "tn_cga"
+path = "turn/machines/tn_cga.rs"
+[[bin]]
+name = "tn_walk"
+path = "turn/machines/tn_walk.rs"
+[[bin]]
+name = "tn_step"
+path = "turn/machines/tn_step.rs"
+[[bin]]
+name = "tn_macturn"
+path = "turn/machines/tn_macturn.rs"
+[[bin]]
+name = "adim"
+path = "accel/machines/adim.rs"
+[[bin]]
+name = "aray"
+path = "accel/machines/aray.rs"
+[[bin]]
+name = "acam"
+path = "accel/machines/acam.rs"
+[[bin]]
+name = "aphase"
+path = "accel/machines/aphase.rs"
+[[bin]]
+name = "aswerve"
+path = "accel/machines/aswerve.rs"
+[[bin]]
+name = "alane"
+path = "accel/machines/alane.rs"
+[[bin]]
+name = "anear"
+path = "accel/machines/anear.rs"
+[[bin]]
+name = "athree"
+path = "accel/machines/athree.rs"
+[[bin]]
+name = "amz"
+path = "accel/machines/amz.rs"
+[[bin]]
+name = "amx"
+path = "accel/machines/amx.rs"
+
+# mesh
+[[bin]]
+name = "mesh_mix"
+path = "mesh/machines/mesh_mix.rs"
+[[bin]]
+name = "mesh_depth"
+path = "mesh/machines/mesh_depth.rs"
+[[bin]]
+name = "mesh_front"
+path = "mesh/machines/mesh_front.rs"
+[[bin]]
+name = "mesh_half"
+path = "mesh/machines/mesh_half.rs"
+[[bin]]
+name = "mesh_tone"
+path = "mesh/machines/mesh_tone.rs"
+[[bin]]
+name = "mesh_walk"
+path = "mesh/machines/mesh_walk.rs"
+[[bin]]
+name = "amoff"
+path = "accel/machines/amoff.rs"
+[[bin]]
+name = "amrow"
+path = "accel/machines/amrow.rs"
+[[bin]]
+name = "afine"
+path = "accel/machines/afine.rs"
+[[bin]]
+name = "amul"
+path = "accel/machines/amul.rs"
+[[bin]]
+name = "amlamp"
+path = "accel/machines/amlamp.rs"
+[[bin]]
+name = "ampool"
+path = "accel/machines/ampool.rs"
+[[bin]]
+name = "amrows"
+path = "accel/machines/amrows.rs"
+[[bin]]
+name = "amlerp"
+path = "accel/machines/amlerp.rs"
+[[bin]]
+name = "amnum"
+path = "accel/machines/amnum.rs"
+[[bin]]
+name = "asrow"
+path = "accel/machines/asrow.rs"
+[[bin]]
+name = "asdash"
+path = "accel/machines/asdash.rs"
+[[bin]]
+name = "around"
+path = "accel/machines/around.rs"
+[[bin]]
+name = "asgap"
+path = "accel/machines/asgap.rs"
+[[bin]]
+name = "asmat"
+path = "accel/machines/asmat.rs"
+[[bin]]
+name = "ascov"
+path = "accel/machines/ascov.rs"
+[[bin]]
+name = "aswide"
+path = "accel/machines/aswide.rs"
+[[bin]]
+name = "aslong"
+path = "accel/machines/aslong.rs"
+[[bin]]
+name = "ascut"
+path = "accel/machines/ascut.rs"
+[[bin]]
+name = "amix"
+path = "accel/machines/amix.rs"
+[[bin]]
+name = "akover"
+path = "accel/machines/akover.rs"
+[[bin]]
+name = "adither"
+path = "accel/machines/adither.rs"
+[[bin]]
+name = "asedge"
+path = "accel/machines/asedge.rs"
+[[bin]]
+name = "awq"
+path = "accel/machines/awq.rs"
+[[bin]]
+name = "awfar"
+path = "accel/machines/awfar.rs"
+[[bin]]
+name = "awprep"
+path = "accel/machines/awprep.rs"
+[[bin]]
+name = "awx"
+path = "accel/machines/awx.rs"
+[[bin]]
+name = "awtf"
+path = "accel/machines/awtf.rs"
+[[bin]]
+name = "awte"
+path = "accel/machines/awte.rs"
+[[bin]]
+name = "aweight"
+path = "accel/machines/aweight.rs"
+[[bin]]
+name = "awfoot"
+path = "accel/machines/awfoot.rs"
+[[bin]]
+name = "awalk"
+path = "accel/machines/awalk.rs"
+[[bin]]
+name = "awup"
+path = "accel/machines/awup.rs"
+[[bin]]
+name = "awtex"
+path = "accel/machines/awtex.rs"
+[[bin]]
+name = "awblend"
+path = "accel/machines/awblend.rs"
+[[bin]]
+name = "awcol"
+path = "accel/machines/awcol.rs"
+[[bin]]
+name = "awbay"
+path = "accel/machines/awbay.rs"
+[[bin]]
+name = "awclip"
+path = "accel/machines/awclip.rs"
+[[bin]]
+name = "acarz"
+path = "accel/machines/acarz.rs"
+[[bin]]
+name = "athx"
+path = "accel/machines/athx.rs"
+[[bin]]
+name = "ay8"
+path = "accel/machines/ay8.rs"
+[[bin]]
+name = "athvis"
+path = "accel/machines/athvis.rs"
+[[bin]]
+name = "afog"
+path = "accel/machines/afog.rs"
+[[bin]]
+name = "apost1"
+path = "accel/machines/apost1.rs"
+[[bin]]
+name = "apost2"
+path = "accel/machines/apost2.rs"
+[[bin]]
+name = "apost3"
+path = "accel/machines/apost3.rs"
+[[bin]]
+name = "apcol"
+path = "accel/machines/apcol.rs"
+[[bin]]
+name = "ashade"
+path = "accel/machines/ashade.rs"
+[[bin]]
+name = "apaint"
+path = "accel/machines/apaint.rs"
+[[bin]]
+name = "aarm"
+path = "accel/machines/aarm.rs"
+[[bin]]
+name = "alamp"
+path = "accel/machines/alamp.rs"
+[[bin]]
+name = "apshade"
+path = "accel/machines/apshade.rs"
+[[bin]]
+name = "asamp"
+path = "accel/machines/asamp.rs"
+[[bin]]
+name = "a810"
+path = "accel/machines/a810.rs"
+[[bin]]
+name = "acarxy"
+path = "accel/machines/acarxy.rs"
+[[bin]]
+name = "alin"
+path = "accel/machines/alin.rs"
+[[bin]]
+name = "apair"
+path = "accel/machines/apair.rs"
+[[bin]]
+name = "aadd2"
+path = "accel/machines/aadd2.rs"
+[[bin]]
+name = "atwth"
+path = "accel/machines/atwth.rs"
+[[bin]]
+name = "asum"
+path = "accel/machines/asum.rs"
+[[bin]]
+name = "ahalf"
+path = "accel/machines/ahalf.rs"
+[[bin]]
+name = "apost4"
+path = "accel/machines/apost4.rs"
+[[bin]]
+name = "agparam"
+path = "accel/machines/agparam.rs"
+[[bin]]
+name = "aamt"
+path = "accel/machines/aamt.rs"
+[[bin]]
+name = "agtab"
+path = "accel/machines/agtab.rs"
+[[bin]]
+name = "agaxis"
+path = "accel/machines/agaxis.rs"
+[[bin]]
+name = "agpt"
+path = "accel/machines/agpt.rs"
+[[bin]]
+name = "agsum"
+path = "accel/machines/agsum.rs"
+[[bin]]
+name = "ajk"
+path = "accel/machines/ajk.rs"
+[[bin]]
+name = "ajflags"
+path = "accel/machines/ajflags.rs"
+[[bin]]
+name = "abthr"
+path = "accel/machines/abthr.rs"
+[[bin]]
+name = "abox"
+path = "accel/machines/abox.rs"
+[[bin]]
+name = "abmix"
+path = "accel/machines/abmix.rs"
+[[bin]]
+name = "abadd"
+path = "accel/machines/abadd.rs"
+[[bin]]
+name = "aflp"
+path = "accel/machines/aflp.rs"
+[[bin]]
+name = "aflv"
+path = "accel/machines/aflv.rs"
+[[bin]]
+name = "afway"
+path = "accel/machines/afway.rs"
+[[bin]]
+name = "aflax"
+path = "accel/machines/aflax.rs"
+[[bin]]
+name = "afsq"
+path = "accel/machines/afsq.rs"
+[[bin]]
+name = "aflrow"
+path = "accel/machines/aflrow.rs"
+[[bin]]
+name = "aghc"
+path = "accel/machines/aghc.rs"
+[[bin]]
+name = "aghu"
+path = "accel/machines/aghu.rs"
+[[bin]]
+name = "aghs"
+path = "accel/machines/aghs.rs"
+[[bin]]
+name = "apart"
+path = "accel/machines/apart.rs"
+[[bin]]
+name = "aghg"
+path = "accel/machines/aghg.rs"
+[[bin]]
+name = "aavg4"
+path = "accel/machines/aavg4.rs"
+[[bin]]
+name = "ashu"
+path = "accel/machines/ashu.rs"
+[[bin]]
+name = "ashk"
+path = "accel/machines/ashk.rs"
+[[bin]]
+name = "asaxis"
+path = "accel/machines/asaxis.rs"
+[[bin]]
+name = "asfade"
+path = "accel/machines/asfade.rs"
+[[bin]]
+name = "ageq"
+path = "accel/machines/ageq.rs"
+[[bin]]
+name = "aflabs"
+path = "accel/machines/aflabs.rs"
+[[bin]]
+name = "asrow4"
+path = "accel/machines/asrow4.rs"
+[[bin]]
+name = "asg4"
+path = "accel/machines/asg4.rs"
+[[bin]]
+name = "asrun"
+path = "accel/machines/asrun.rs"
+[[bin]]
+name = "asql"
+path = "accel/machines/asql.rs"
+[[bin]]
+name = "asqp"
+path = "accel/machines/asqp.rs"
+
+# train
+[[bin]]
+name = "tr_addc"
+path = "train/machines/tr_addc.rs"
+[[bin]]
+name = "tr_carry"
+path = "train/machines/tr_carry.rs"
+[[bin]]
+name = "tr_comb"
+path = "train/machines/tr_comb.rs"
+[[bin]]
+name = "tr_cross"
+path = "train/machines/tr_cross.rs"
+[[bin]]
+name = "tr_dwrap"
+path = "train/machines/tr_dwrap.rs"
+[[bin]]
+name = "tr_ldiff"
+path = "train/machines/tr_ldiff.rs"
+[[bin]]
+name = "tr_lt"
+path = "train/machines/tr_lt.rs"
+[[bin]]
+name = "tr_max"
+path = "train/machines/tr_max.rs"
+[[bin]]
+name = "tr_min"
+path = "train/machines/tr_min.rs"
+[[bin]]
+name = "tr_mix"
+path = "train/machines/tr_mix.rs"
+[[bin]]
+name = "tr_mixa"
+path = "train/machines/tr_mixa.rs"
+[[bin]]
+name = "tr_near"
+path = "train/machines/tr_near.rs"
+[[bin]]
+name = "tr_pct"
+path = "train/machines/tr_pct.rs"
+[[bin]]
+name = "tr_pctb"
+path = "train/machines/tr_pctb.rs"
+[[bin]]
+name = "tr_phase4"
+path = "train/machines/tr_phase4.rs"
+[[bin]]
+name = "tr_phase5"
+path = "train/machines/tr_phase5.rs"
+[[bin]]
+name = "tr_qa"
+path = "train/machines/tr_qa.rs"
+[[bin]]
+name = "tr_qb"
+path = "train/machines/tr_qb.rs"
+[[bin]]
+name = "tr_qp"
+path = "train/machines/tr_qp.rs"
+[[bin]]
+name = "tr_rcp"
+path = "train/machines/tr_rcp.rs"
+[[bin]]
+name = "tr_row"
+path = "train/machines/tr_row.rs"
+[[bin]]
+name = "tr_runsum"
+path = "train/machines/tr_runsum.rs"
+[[bin]]
+name = "tr_seg"
+path = "train/machines/tr_seg.rs"
+[[bin]]
+name = "tr_shift1"
+path = "train/machines/tr_shift1.rs"
+[[bin]]
+name = "tr_shift2"
+path = "train/machines/tr_shift2.rs"
+[[bin]]
+name = "tr_shift3"
+path = "train/machines/tr_shift3.rs"
+[[bin]]
+name = "tr_sum"
+path = "train/machines/tr_sum.rs"
+[[bin]]
+name = "tr_tone1"
+path = "train/machines/tr_tone1.rs"
+[[bin]]
+name = "tr_push1"
+path = "train/machines/tr_push1.rs"
+[[bin]]
+name = "tr_push2"
+path = "train/machines/tr_push2.rs"
+[[bin]]
+name = "tr_walk_down"
+path = "train/machines/tr_walk_down.rs"
+[[bin]]
+name = "tr_walk_up"
+path = "train/machines/tr_walk_up.rs"
+[[bin]]
+name = "tr_wrap"
+path = "train/machines/tr_wrap.rs"
+[[bin]]
+name = "tr_lit16"
+path = "train/machines/tr_lit16.rs"
+[[bin]]
+name = "tr_up4"
+path = "train/machines/tr_up4.rs"
+[[bin]]
+name = "tr_ends"
+path = "train/machines/tr_ends.rs"
+[[bin]]
+name = "tr_vel"
+path = "train/machines/tr_vel.rs"
+[[bin]]
+name = "tr_lsum"
+path = "train/machines/tr_lsum.rs"
+[[bin]]
+name = "tr_absl"
+path = "train/machines/tr_absl.rs"
+[[bin]]
+name = "tr_walka"
+path = "train/machines/tr_walka.rs"
+[[bin]]
+name = "tr_add"
+path = "train/machines/tr_add.rs"
+[[bin]]
+name = "tr_walkc"
+path = "train/machines/tr_walkc.rs"
+[[bin]]
+name = "k_lift"
+path = "deep/machines/k_lift.rs"
+[[bin]]
+name = "k_index"
+path = "deep/machines/k_index.rs"
+[[bin]]
+name = "k_sum"
+path = "deep/machines/k_sum.rs"
+[[bin]]
+name = "k_ahead"
+path = "deep/machines/k_ahead.rs"
+[[bin]]
+name = "k_lit"
+path = "deep/machines/k_lit.rs"
+[[bin]]
+name = "k_seg"
+path = "deep/machines/k_seg.rs"
+[[bin]]
+name = "mesh_near"
+path = "mesh/machines/mesh_near.rs"
+[[bin]]
+name = "k_ink"
+path = "deep/machines/k_ink.rs"
+[[bin]]
+name = "k_mix256"
+path = "deep/machines/k_mix256.rs"
+[[bin]]
+name = "pc_wrap"
+path = "partychat/machines/pc_wrap.rs"
+[[bin]]
+name = "pc_place"
+path = "partychat/machines/pc_place.rs"
+[[bin]]
+name = "pc_stack"
+path = "partychat/machines/pc_stack.rs"

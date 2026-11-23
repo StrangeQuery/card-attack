@@ -1,0 +1,23 @@
+materials 334 444 555 666 112 986 887 888 889 222 323 444 444 111 775 776 777 677 222 433 553 554 886 777 444 333
+sky_low 324
+sky_top 11
+post 555
+lamp 987
+glare 998
+glass 223
+tail 944
+head 998
+head2 998
+tyre 111
+plate 888
+jet 556
+tip_red 944
+tip_green 496
+strobe 999
+caption 999
+black 0
+white 999
+red 722
+red_dark 511
+bodies 368 884 888 476 757 722
+darks 135 662 666 253 525 511

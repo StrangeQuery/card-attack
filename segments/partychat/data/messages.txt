@@ -1,0 +1,21 @@
+# the party chat's messages: the frame each posts at | handle | text (make_data.py)
+0|perantie|this party is the best!
+23|strangequery|CARD ATTACK by Strange Query
+46|strangequery|Written and directed by Jason Whittington
+69|eradicator|FINNISH PRIDE
+92|gozerfest|aren't they Americans?
+115|CLODD|code: Claude (Anthropic)
+138|fbg_tick|CARDIAC (1968) by David Hagelbarger & Saul Fingerman, Bell Labs
+160|whitehorn|on CARDBOARD??
+183|eradicator|every pixel computed by CARDIACs on HEARTBURN
+206|rash_mashner|Chicago & Geneva by Susan Kare (bitmaps via joshua stein)
+229|elaborateheist|65,536 of us lets gooo
+252|Meggs|PC fonts: VileR's Ultimate Oldschool PC Font Pack
+275|perantie|crowd: Quaternius (CC0)
+298|Meggs|that blimp tho
+320|Viele|orcas: Poly by Google (CC BY)
+343|fbg_tick|airship after Blade Runner, from Golden Armor's replica photos
+366|eradicator|floppy grinds: MausolfB · sound effects: Pixabay
+389|rash_mashner|greetings to Future Crew, Complex, Farbrausch, ASD, Conspiracy, Mercury, Spaceballs, Sanity, Booze Design, Oxyron, CRTC, Hornet & everyone on the screens
+412|elaborateheist|and to the Demosplash 0x10 crew
+435|cprucha|@strangequery please mow the lawn. TODAY.

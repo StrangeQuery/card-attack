@@ -1,0 +1,3 @@
+# git dependencies (lubdub) are fetched with the git command
+[net]
+git-fetch-with-cli = true

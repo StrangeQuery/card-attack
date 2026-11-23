@@ -1,0 +1,7 @@
+# the waves' rates: quarter turns, tenths, thousandths; 1/37, 1/11, 1/90 rad a row or column, 2.1, -3.57, 2.73 rad a frame: see make_data.py
+0 15 485
+0 52 87
+0 6 366
+1 303 211
+1 654 541
+1 664 175

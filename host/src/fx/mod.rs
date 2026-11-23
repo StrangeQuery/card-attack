@@ -1,0 +1,34 @@
+//! The segments. Each loads its machines, sequences their decks frame by frame, files the frames and checks them
+//! against its independent reference renderer.
+pub mod night;
+pub mod partychat;
+pub mod cut;
+pub mod deep;
+pub mod degauss;
+pub mod deep_hd;
+pub mod listing;
+pub mod openers;
+pub mod plasma;
+pub mod polys;
+pub mod ray;
+pub mod modex;
+pub mod accel;
+pub mod accel_hd;
+pub mod accel_jump;
+pub mod roto4;
+pub mod swarm_calc;
+pub mod tumble;
+pub mod turn;
+pub mod ui;
+pub mod text;
+pub mod vga;
+pub mod mac;
+pub mod mesh;
+pub mod train;
+pub mod stadium;
+pub mod rooms;
+pub mod rotodg;
+pub mod sqend;
+pub mod qr;
+pub mod dierubik;
+pub mod bbs;

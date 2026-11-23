@@ -1,0 +1,89 @@
+# the hall of mirrors' schedule: see make_data.py
+band 0 131 14
+band 1 263 13
+band 2 35 40
+band 3 73 38
+band 4 194 20
+band 5 106 17
+band 6 6 44
+band 7 125 20
+band 8 348 18
+band 9 270 42
+band 10 348 42
+band 11 310 53
+band 12 348 65
+band 13 299 22
+band 14 3 61
+band 15 325 69
+band 16 183 69
+band 17 315 49
+band 18 214 60
+band 19 13 30
+band 20 266 12
+band 21 267 21
+band 22 342 15
+band 23 21 24
+band 24 262 53
+band 25 184 12
+band 26 165 15
+band 27 258 20
+band 28 402 47
+band 29 42 62
+band 30 30 51
+band 31 330 29
+band 32 116 67
+band 33 304 63
+band 34 52 43
+band 35 310 33
+band 36 100 19
+band 37 99 14
+band 38 234 67
+band 39 6 40
+band 40 115 52
+band 41 274 25
+band 42 220 22
+band 43 362 17
+band 44 177 34
+band 45 258 21
+band 46 277 45
+band 47 297 22
+tear 40 37
+tear 96 -52
+tear 150 61
+tear 188 -29
+frame 32 1 1 6 0 -
+frame 33 0 1 7 0 -
+frame 34 0 1 9 0 -
+frame 35 1 1 11 0 -
+frame 36 1 1 12 0 -
+frame 37 0 1 14 0 -
+frame 38 1 2 16 0 -
+frame 39 0 2 17 0 -
+frame 40 0 3 19 0 -
+frame 41 0 4 21 0 -
+frame 42 1 4 22 0 -
+frame 43 1 5 24 0 -
+frame 44 0 6 26 0 999
+frame 45 0 7 27 0 0
+frame 46 0 8 29 0 512
+frame 47 0 9 31 0 666
+frame 48 0 10 32 0 999
+frame 49 0 11 34 0 0
+frame 50 0 13 36 0 512
+frame 51 0 14 37 0 666
+frame 52 0 15 39 0 999
+frame 53 0 17 41 0 0
+frame 54 0 18 42 1 512
+frame 55 0 20 44 1 666
+frame 56 0 22 46 1 999
+frame 57 0 24 47 1 0
+frame 58 0 26 49 2 512
+frame 59 0 28 51 2 666
+frame 60 0 30 52 2 999
+frame 61 0 32 54 2 0
+frame 62 0 34 56 3 512
+frame 63 0 36 57 3 666
+frame 64 0 38 59 3 999
+frame 65 0 41 61 3 0
+frame 66 0 43 62 4 512
+frame 67 0 46 64 4 666

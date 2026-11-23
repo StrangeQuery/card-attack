@@ -1,0 +1,27 @@
+# Card Attack credits, as stream-chat messages over the stadium party.
+# One message per line: handle | text  (emoji welcome; keep each short enough to read in passing).
+# Lines starting with ^ are replies: posted straight after the line above.
+
+strangequery | CARD ATTACK by Strange Query 🃏
+strangequery | Written and directed by Jason Whittington
+CLODD | code: Claude (Anthropic) 🤖
+fbg_tick | CARDIAC (1968) by David Hagelbarger & Saul Fingerman, Bell Labs ❤️
+eradicator | every pixel computed by CARDIACs on HEARTBURN 🔥
+rash_mashner | Chicago & Geneva by Susan Kare 🍎 (bitmaps via joshua stein)
+Meggs | PC fonts: VileR's Ultimate Oldschool PC Font Pack 💾
+perantie | crowd: Quaternius (CC0) 🕺
+Viele | orcas: Poly by Google (CC BY) 🐋
+fbg_tick | airship after Blade Runner, from Golden Armor's replica photos 🎈
+eradicator | floppy grinds: MausolfB 💽  ·  sound effects: Pixabay
+rash_mashner | greetings to Future Crew, Complex, Farbrausch, ASD, Conspiracy, Mercury, Spaceballs, Sanity, Booze Design, Oxyron, CRTC, Hornet & everyone on the screens 🙌
+elaborateheist | and to the Demosplash 0x10 crew 🎉
+
+# Hype lines between them :
+perantie | this party is the best!
+eradicator | FINNISH PRIDE 🇫🇮
+^ gozerfest | aren't they Americans? 🤔
+whitehorn | on CARDBOARD??
+Viele | 🔥🔥🔥
+elaborateheist | 65,536 of us lets gooo
+Meggs | that blimp tho 🎈
+cprucha | @strangequery please mow the lawn. TODAY.

@@ -1,0 +1,8 @@
+[package]
+name = "cardiac-host"
+version = "0.1.0"
+edition = "2021"
+description = "What a demo on CARDIAC needs from its host, whatever the demo: loading machines and their phases, dealing decks, counting instructions, shadow and native runs, checking frames against a reference, writing video."
+
+[dependencies]
+cargo-cardiac = "0.2.5"   # rust-cardiac, from crates.io: the CARDIAC emulator and assembler

@@ -1,0 +1,56 @@
+# built
+host/target/
+refs/
+# raw frames the host writes (each effect's video.rgb; the cut's alone is 43 MB); they rebuild from the machines
+*.rgb
+# renders, and videos and animations of any kind, are never kept: the repository is source; except data the
+# machines are dealt
+*.mp4
+*.gif
+!segments/polys/data/boxes.rgb
+demokit/target/
+# what cargo cardiac build writes beside each machine: its decks (NAME.cqb, NAME.2.cqb ...), their slots, its panic
+# map, and with --emit its listings and assembly; the host loads the decks
+segments/**/*.cqb
+segments/**/*.cqb.meta
+segments/**/*.map
+segments/**/*.cq
+segments/**/machines/*.asm
+# cargo cardiac build's own builds of the machines
+segments/target/
+# the test cut's layer (segments/cut/test/make_layer.py makes it) and what the test cut and its dry run write
+*.rgba
+segments/cut/test/hd.txt
+segments/cut/test/costs.txt
+segments/cut/tally.txt
+# generated data the film reads, kept packed in each segment's generated.tar.xz (build.sh unpacks it); below, each
+# file's generator
+# the dive's HD creatures' atlases (segments/deep/data/make_hd.py makes them)
+segments/deep/data/hd_*.bin
+segments/deep/data/knob.bin
+segments/accel/data/traffic.bin
+# the train's scene and tables (segments/train/data/make_data.py, make_tables.py)
+segments/train/data/scene.bin
+segments/train/data/tables.bin
+# the night's scene and footage (segments/night/data/make_data.py)
+segments/night/data/scene.bin
+segments/night/data/clips.bin
+segments/night/data/tables.bin
+# the stadium party's scene and pictures (segments/stadium/data/make_data.py)
+segments/stadium/data/scene.bin
+segments/stadium/data/pictures.bin
+segments/rooms/data/rooms.bin
+segments/sqend/data/sqend.bin
+# the dorm's 3D renders (prototypes/dorm3d/room.py makes them)
+segments/rooms/data/dorm3d/
+__pycache__/
+# the host's other cargo builds (native, PGO)
+host/target-*/
+# generated data, rebuilt by their make_*.py (see the segments' READMEs)
+segments/train/data/tables_h.bin
+# the soundtrack's mix, which the tracks are made from (made outside this repository; the player and render play the tracks)
+segments/music/soundtrack.s16
+# the soundtrack's tracks (packed in segments/music/generated.tar.xz)
+segments/music/*.track
+# the generators' Python (requirements.txt)
+.venv/

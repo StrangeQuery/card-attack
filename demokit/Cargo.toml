@@ -1,0 +1,8 @@
+[package]
+name = "demokit"
+version = "0.1.0"
+edition = "2021"
+description = "Integer-only building blocks for small demos: colour, tables, arithmetic, random numbers. no_std, no floats, nothing CARDIAC-specific."
+
+[lib]
+path = "src/lib.rs"

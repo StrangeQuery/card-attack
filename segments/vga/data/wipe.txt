@@ -1,0 +1,2 @@
+# the wipe to 256 colours: each frame's first row in 16 colours (white), see make_data.py
+16 32 48 64 80 96

@@ -1,0 +1,12 @@
+seg plasma plasma/video.rgb 0 40 192x96
+repeat 3 2 1 2
+over ui/notify.rgba 669x200 867 8 10 12
+over cut/test/layer.rgba 480x144 1008 584 6 30
+seg swarm swarm/video_hd.rgb 40 30 1536x768
+freeze 0 6
+unpixelate 6 6 6
+over cut/test/layer.rgba 480x144 48 48 20 16
+seg ending ending/video_hd.rgb 108 12 1536x768
+seg ending ending/video.rgb 0 24 192x96
+hold 6
+over cut/test/layer.rgba 480x144 528 312 4 26

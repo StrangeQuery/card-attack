@@ -1,0 +1,20 @@
+# the sound cues: frame (12 a second), seconds, what (macboomcrash.py --marks)
+0 0.00 the game: the soundtrack starts
+0 0.00 footsteps while running (to the door, and again through it at frame 22)
+7 0.58 gunshot
+15 1.25 the door rises: door-open sound (about 0.8 s)
+32 2.67 haywire starts: a glitch now and then, worse and worse over 3 s; the music starts to stutter
+44 3.67 gunshot
+50 4.17 gunshot
+68 5.67 the system error: the bomb box (the music stops dead)
+82 6.83 Resume clicked: the game dies; back in THINK C's editor
+106 8.83 the code scrolled: two clicks on the down arrow
+106 8.83 the Alarm Clock goes off: beeps with each flash (4)
+118 9.83 the reminder: alert chime
+150 12.50 close bsp_tree.c: mouse click
+161 13.42 close Gouraud shading - Wikipedia: mouse click
+174 14.50 close Learn to Speak Finnish: mouse click
+184 15.33 floppy in: insert clunk, then a read grind (14 frames)
+212 17.67 double-click the disk: mouse clicks; seek clicks as its window opens
+240 20.00 launch: a long read grind under the zoom and the watch (to the tunnel)
+269 22.42 the tunnel starts (the drive stops)

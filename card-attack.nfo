@@ -1,0 +1,121 @@
+CARD ATTACK
+A Strange Query demo for Demosplash 2026
+CARDIAC on macOS on Apple Silicon
+
+--------------------------------------------------------------------------------
+
+Every pixel and every sample of sound is computed live on CARDIACs, the
+1968 Bell Labs cardboard computer, emulated by HEARTBURN on every core. Every
+machine is written in Rust and compiled to CARDIAC with rust-cardiac.  
+See https://strangequery.com/cardiac/demos/card-attack after the shows
+for more information. 
+
+PLATFORM
+--------
+CARDIAC / macOS (HEARTBURN emulator running on macOS) 
+
+TECHNIQUE
+---------
+This demo shows off the CARDIAC cardboard computer's ability to run a compo.
+100% of the audio and video in this demo runs on CARDIAC. Most of the code 
+was written in Rust that was compiled via Strange Query's rust-cardiac 
+into cardiac instructions. A few critical machines are hand-tuned
+CARDIAC assembly for space / performance reasons. HEARTBURN on a Mac
+runs about five billion times faster than a human on each core, and it 
+uses ~28 cores on the Mac Studio being used to present. It should be
+possible to run on other hardware but CARD ATTACK is very computationally
+demanding, so no guarantees the demo will successfully render in real-time. 
+
+Audio is shipped via two CARDIAC tracks (left.track and right.track) that were 
+rendered by the "stage" program in Strange Query's "lubdub" project. These 
+tracks are rendered in real time into stereo audio via two CARDIACs, using the 
+decoder from Strange Query's "lubdub" project. 
+
+All of this is managed by a host program whose only job is shuttling inputs 
+and outputs between machines. The diagram below gives the rough architecture.
+
+ PICTURES: 12 frames a second
+
+   decks         +---------+   +---------+          +---------+
+   (programs --> | CARDIAC |   | CARDIAC |   ....   | CARDIAC |  28 workers,
+    + data)      +---------+   +---------+          +---------+  one HEARTBURN
+                   |    ^        |    ^               |    ^     on each
+                   v    |        v    |               v    |
+                 +--------------------------------------------+
+                 |  host: deals cards in, collects cards out, |
+                 |  passes each machine's output to the next  |
+                 +--------------------------------------------+
+                                      |
+                                      v
+                 +--------------------------------------------+
+                 |  composer CARDIACs: put together each      |
+                 |  frame of the cut                          |
+                 +--------------------------------------------+
+                                      |
+                                      v
+                                  pixels out
+
+ SOUND: 48,000 samples a second
+
+   left.track   --> [ CARDIAC: lubdub decoder ] --> left  --+
+                                                            +--> stereo out
+   right.track  --> [ CARDIAC: lubdub decoder ] --> right --+
+
+Useful links: 
+* https://lab.strangequery.com/cardiac/
+* https://lab.strangequery.com/heartburn/
+* https://lab.strangequery.com/rust-cardiac/
+* https://lab.strangequery.com/rust-cardiac/demo/voxel/
+* https://lab.strangequery.com/rust-cardiac/demo/ray/
+* https://github.com/StrangeQuery/lubdub/blob/main/docs/AUDIO.md
+* https://strangequery.com/cardiac/demos/card-attack  (goes live after the show)
+
+GENERATIVE AI CONTENT
+---------------------
+Yes. Claude Code was used to help write the Rust code for the various effects
+and as a research assistant to help dig up things like Michael Abrash's hints
+on how to use VGA Mode X. Claude was also used to help build the supporting
+tools:  the HEARTBURN runtime, the rust-cardiac compiler, and the lubdub project
+for generating audio. Claude also helped create Blender models, most notably
+the Stadium and Blimp models at the end.
+
+UNIQUE PROPERTIES
+-----------------
+This is the largest CARDIAC application ever created and it's not even close.
+It shows that even a tiny computer is capable of great things.  So far as I 
+know it marks the first time CARDIAC has been used to generate audio or 
+video output. 
+
+RUNNING IT
+----------
+Open Terminal in this folder and run `./card-attack play`
+Sound goes to the Mac's current output device (System Settings > Sound >
+Output). Escape quits. README.txt lists the options.
+
+CREDITS
+-------
+Written and directed by Jason Whittington (Strange Query)
+Code: Jason Whittington and Claude (Anthropic)
+Music: Jason Whittington and Claude (Anthropic)
+Music: Sample from Dope by Complex 
+  (https://files.scene.org/view/demos/groups/complex/clx_dope.zip)
+
+CARDIAC (1968): David Hagelbarger & Saul Fingerman, Bell Labs
+Mac Fonts: Chicago & Geneva by Susan Kare. Bitmaps via joshua stein
+PC fonts: VileR's Ultimate Oldschool PC Font Pack
+Crowd: Quaternius (CC0)
+Orcas: Poly by Google (CC BY)
+A few screencaps from the Facts of Life dance party (Witan, Assembly '92)
+Airship after Blade Runner, from Golden Armor's replica photos
+Floppy grinds: MausolfB
+Other Miscellaneous Sound effects: Pixabay
+"I don't get it I'm bored" / other dorm room chatter: Contributors asked to 
+be credited anonymously.
+Train arrival japanese announcer: Asked to be credited anonymously
+
+GREETINGS
+---------
+CARD ATTACK was heavily inspired by demos from the greats that came before us:
+Future Crew, Witan, Complex, Farbrausch, ASD, Conspiracy, Mercury, Spaceballs,
+Sanity, Booze Design, Oxyron, CRTC, Hornet, NoooN, everyone on the screens, 
+and the Demosplash 0x10 crew.

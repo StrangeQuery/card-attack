@@ -1,0 +1,2 @@
+# the sound cues: frame of Mode X (12 a second), seconds, what: see make_data.py
+134 11.17 the degauss: a thunk as the picture jolts, then a hum dying away with the wobble (16 frames, to 149)
