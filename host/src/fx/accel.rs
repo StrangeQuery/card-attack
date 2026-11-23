@@ -56,8 +56,10 @@ pub fn render(demo: &Path, refbin: &str) {
     let shadow_at: std::collections::HashSet<usize> = shadowed.iter().copied().collect();
     let keys: Vec<(u32, Option<()>)> = lettered.iter().map(|&i| (at(i), shadow_at.contains(&i).then_some(()))).collect();
     let fading = if calls { kit.steps(&mut host, 32, &(HELD + 1..GONE).map(|k| ((GONE - k) as i32, 12)).collect::<Vec<_>>()) } else { vec![] };
+    // the drive's frames HD0..END, one to each of the video's
+    let drive: Vec<i32> = (HD0 as i32..END as i32).collect();
     for k in live::frames(frames) {
-        let px = hd.frame(&mut host, (HD0 + k) as i32);
+        let px = hd.frame(&mut host, drive[k]);
         let pic = hd.rgb565(&mut host, &px);
         let frame = &mut big.buf[k * text::HW * text::HH * 3..][..text::HW * text::HH * 3];
         for i in 0..text::HW * text::HH { let p = at(i) as usize; frame[3 * i..3 * i + 3].copy_from_slice(&pic[3 * p..3 * p + 3]); }

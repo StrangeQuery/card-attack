@@ -64,17 +64,19 @@ pub fn smap_raster<O: Ops>(o: &mut O, tb: &Tb, m: &mut SMap, corners: &[[i64; 3]
     let mut eidx: std::collections::HashMap<(usize, usize), usize> = Default::default();
     let mut edges: Vec<(usize, usize)> = vec![];
     for t in tris { for e in 0..3 { let (a, b) = (at[&t[e]], at[&t[(e + 1) % 3]]); let k = (a.min(b), a.max(b)); eidx.entry(k).or_insert_with(|| { edges.push(k); edges.len() - 1 }); } }
-    let ends: Vec<([i64; 2], [i64; 2])> = edges.iter().map(|&(a, b)| if y[b] < y[a] { ([x[b], y[b]], [x[a], y[a]]) } else { ([x[a], y[a]], [x[b], y[b]]) }).collect();
+    // each edge's upper end, on the machines
+    let (ya, yb): (V, V) = edges.iter().map(|&(a, b)| (y[a], y[b])).unzip();
+    let ups = o.lt(v(&yb), v(&ya));
+    let ends: Vec<([i64; 2], [i64; 2])> = edges.iter().enumerate().map(|(i, &(a, b))| if ups[i] == 1 { ([x[b], y[b]], [x[a], y[a]]) } else { ([x[a], y[a]], [x[b], y[b]]) }).collect();
     let rows = (-m.h / 2, m.h / 2);
     let cr = edge_rows(o, tb, &ends, rows);
     let (mut ta, mut tb_, mut tn) = (vec![], vec![], vec![]);
     for (i, &(a, b)) in edges.iter().enumerate() {
         if cr[i].1.is_empty() { continue; }
-        let (top, bot) = if y[b] < y[a] { (b, a) } else { (a, b) };
+        let (top, bot) = if ups[i] == 1 { (b, a) } else { (a, b) };
         ta.push(key[top]); tb_.push(key[bot]); tn.push(cr[i].0);
     }
-    let n1: V = tn.iter().map(|&r| r + 1).collect();
-    let sl = slopes(o, tb, &ta, &tb_, &n1);
+    let sl = slopes_rows(o, tb, &ta, &tb_, &tn);
     let wl = walk_from(o, &ta, &sl, &tn);
     let mut on_rows: Vec<Vec<(i64, i64, i64)>> = vec![vec![]; edges.len()];
     let mut wat = 0;
@@ -83,25 +85,33 @@ pub fn smap_raster<O: Ops>(o: &mut O, tb: &Tb, m: &mut SMap, corners: &[[i64; 3]
         for &(row, pxl, j) in &cr[i].1 { on_rows[i].push((row, pxl, wl[wat + j as usize])); }
         wat += cr[i].0 as usize;
     }
-    let mut spans = vec![];
-    let mut sw = vec![];
+    let mut met: Vec<(i64, [(i64, i64); 2])> = vec![];
     for t in tris {
         let mut by_row: std::collections::BTreeMap<i64, Vec<(i64, i64)>> = Default::default();
         for e in 0..3 {
             let (a, b) = (at[&t[e]], at[&t[(e + 1) % 3]]);
             for &(row, pxl, z) in &on_rows[eidx[&(a.min(b), a.max(b))]] { by_row.entry(row).or_default().push((pxl, z)); }
         }
-        for (row, mut c) in by_row {
+        for (row, c) in by_row {
             assert_eq!(c.len(), 2);
-            if c[1].0 < c[0].0 { c.swap(0, 1); }
-            if c[0].0 == c[1].0 { continue; }
-            spans.push((row, c[0].0, c[1].0));
-            sw.push((c[0].1, c[1].1, c[0].0, c[1].0));
+            met.push((row, [c[0], c[1]]));
         }
     }
-    let (za, zb): (V, V) = (sw.iter().map(|s| s.0).collect(), sw.iter().map(|s| s.1).collect());
-    // the spans' lengths on the machines
-    let zn = { let (pa, pb): (V, V) = (sw.iter().map(|s| s.2).collect(), sw.iter().map(|s| s.3).collect()); o.lin(&[(v(&pb), None), (v(&pa), Some(K(-1)))]) };
+    // the second crossing's texel less the first's on the machines: its sign says which end is the left, its size
+    // (the second sum where it is below 0) the span's length
+    let d = { let (pa, pb): (V, V) = met.iter().map(|m| (m.1[0].0, m.1[1].0)).unzip(); o.lin(&[(v(&pb), None), (v(&pa), Some(K(-1)))]) };
+    let back: Vec<usize> = (0..met.len()).filter(|&i| d[i] < 0).collect();
+    let nd = o.sum(&[(v(&back.iter().map(|&i| d[i]).collect()), -1)], 0);
+    let mut len = d.clone();
+    for (j, &i) in back.iter().enumerate() { len[i] = nd[j]; }
+    let mut spans = vec![];
+    let (mut za, mut zb, mut zn) = (vec![], vec![], vec![]);
+    for (i, &(row, c)) in met.iter().enumerate() {
+        if len[i] == 0 { continue; }
+        let (l, r) = if d[i] < 0 { (c[1], c[0]) } else { (c[0], c[1]) };
+        spans.push((row, l.0, r.0));
+        za.push(l.1); zb.push(r.1); zn.push(len[i]);
+    }
     let sl = slopes(o, tb, &za, &zb, &zn);
     let vals = walk_from(o, &za, &sl, &zn);
     // the pieces, by texel, the nearest kept (the depth test; ties keep the first)
@@ -116,12 +126,16 @@ pub fn smap_raster<O: Ops>(o: &mut O, tb: &Tb, m: &mut SMap, corners: &[[i64; 3]
             at_ += 1;
         }
     }
+    // (the map's depths turned on the machines to be weighed with the pieces, and the winning pieces' turned back)
     let texels: Vec<usize> = per.keys().copied().collect();
-    let mut groups: Vec<Vec<i64>> = texels.iter().map(|t| { let mut g = vec![-m.d[*t]]; g.extend(&per[t]); g }).collect();
-    
+    let held: V = texels.iter().map(|t| m.d[*t]).collect();
+    let turned = o.sum(&[(v(&held), -1)], 0);
+    let groups: Vec<Vec<i64>> = texels.iter().enumerate().map(|(i, t)| { let mut g = vec![turned[i]]; g.extend(&per[t]); g }).collect();
     let refs: Vec<&[i64]> = groups.iter().map(|g| g.as_slice()).collect();
     let win = o.nearest(&refs);
-    for (i, &t) in texels.iter().enumerate() { m.d[t] = -groups[i][win[i]]; }
+    let new: Vec<usize> = (0..texels.len()).filter(|&i| win[i] > 0).collect();
+    let back = o.sum(&[(v(&new.iter().map(|&i| groups[i][win[i]]).collect()), -1)], 0);
+    for (j, &i) in new.iter().enumerate() { m.d[texels[i]] = back[j]; }
 }
 
 pub struct Shadows { pub day: SMap, pub dusk: SMap, pub depart: SMap }

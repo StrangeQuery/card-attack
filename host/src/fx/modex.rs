@@ -8,12 +8,13 @@
 //! again, and only its last 32 are filed). Per tile row: the row machine (mx_row) gives the floor's points (with the
 //! shadow), the span machine (mx_span) the ball's pixels, and for each the normal (mx_norm), the bounce (mx_bounce)
 //! and, for a ray that reaches the floor, the hit (mx_hit) give its look and the floor point it shows; the compose
-//! machine (mx_compose) lays the ball's looks, u and v over the floor's, and the plasma's machines paint the row.
+//! machine (mx_compose) lays the ball's looks, u and v over the floor's, and the plasma's machines paint the row. On
+//! the sign's rows the compose machine runs once more, laying 1s for the ball over 0s: where the ball covers them.
 //!
 //! The sign (in place of the setup's listing; modex/data/sign.txt, made by make_data.py): where a
 //! lettered pixel isn't the ball's it is white, and black on its outline, as the titles of an earlier cut had:
 //! the pixels within 3 of a letter, found once by the titles' role machine (tt_role) outlining the mask three
-//! times over, each pass's outline and letters the next pass's mask. The ball falls
+//! times over, each pass's outline and letters the next pass's mask (dealt a card each above, here and below). The ball falls
 //! from the frame's top at frame 0 (modex/data/entrance.txt), the ray's script carried on from its 22nd frame.
 //!
 //! It files video.rgb, the 150 frames at 320x240 (the ray's 120-frame script and 30 more, carried on from its start:
@@ -75,8 +76,7 @@ pub fn render(demo: &Path, refbin: &str) {
             for &x0 in &ROLE_AT {
                 let mut deck = vec![1, 0];   // outlined, no shadow
                 for x in x0 as i32 - 1..x0 as i32 + 193 {
-                    deck.push(100 * on(x, y - 1) as i32 + 10 * on(x, y) as i32 + on(x, y + 1) as i32);
-                    deck.push(7);
+                    deck.extend([on(x, y - 1) as i32, on(x, y) as i32, on(x, y + 1) as i32, 7]);
                 }
                 let out = host.go1(&role, &[&deck], 2 * 192);
                 for i in 0..192 { if out[2 * i] > 0 { grown[y as usize * MW + x0 + i] = true; } }
@@ -94,12 +94,12 @@ pub fn render(demo: &Path, refbin: &str) {
     let mut rays = 0;
     for f in live::frames(FRAMES) {
         let [sx, sy, _, _] = script[(f + SCRIPT_AT) % SCRIPT];
-        let times = host.go1(&clock, &[&[(PLASMA + f) as i32]], 5);
+        let times = host.go1(&clock, &[&[f as i32, PLASMA as i32]], 5);
         let ball = host.go1(&path, &[&[f as i32, sx, sy], &arcs], 4);
         let (bx, radius, dark) = (ball[0], ball[2], ball[3]);
         let placed = host.go1(&place, &[&[ball[0], ball[1]]], 4);
         let (cx, cy, centre, across) = (placed[0], placed[1], placed[2], placed[3]);
-        let mut ball_at: Vec<Option<(i32, i32)>> = vec![None; MH];   // the ball's pixels across each row, from and to
+        let mut covered = vec![0; MW * SIGN_ROWS];   // 1 where the ball covers a pixel of the sign's rows (mx_compose)
         for y in 0..MH as i32 {
             for &tx in &TILES {
                 let floor = host.go1(&row, &[&[y, tx, bx, radius, dark]], 3 * W);
@@ -115,17 +115,22 @@ pub fn render(demo: &Path, refbin: &str) {
                         if p[0] < 0 { p = host.go1(&hit, &[&[p[1], rx, rz, a, c, across]], 3); }
                         for k in 0..3 { seen[k].push(p[k]); }
                     }
-                    // each background card, and after it the ball's where the ball covers it
-                    (0..3).map(|k| {
-                        let back = third(&floor, k);
-                        let mut deck = vec![x0, n];
-                        for (x, &v) in back.iter().enumerate() {
-                            deck.push(v);
-                            let i = x as i32 - x0;
-                            if i >= 0 && i < n { deck.push(seen[k][i as usize]); }
-                        }
+                    // each background card with the ball's card there: the ball's cards laid in the row from where its
+                    // span starts, 0 where it isn't
+                    let mut lay = |back: &[i32], ball: &[i32]| {
+                        let mut on = vec![0; W];
+                        on[x0 as usize..][..n as usize].copy_from_slice(ball);
+                        let deck: Vec<i32> = [x0, n].into_iter().chain(back.iter().zip(&on).flat_map(|(&b, &v)| [b, v])).collect();
                         host.go1(&compose, &[&deck], W)
-                    }).collect()
+                    };
+                    let looks = (0..3).map(|k| lay(&third(&floor, k), &seen[k])).collect();
+                    // on the sign's rows, where the ball covers it: 1 for the ball over 0
+                    if (y as usize) < SIGN_ROWS {
+                        let flags = lay(&[0; W], &vec![1; n as usize]);
+                        let skip = if tx == 224 { 64 } else { 0 };
+                        covered[y as usize * MW + tx as usize + skip..][..W - skip].copy_from_slice(&flags[skip..]);
+                    }
+                    looks
                 } else {
                     (0..3).map(|k| third(&floor, k)).collect()
                 };
@@ -134,30 +139,30 @@ pub fn render(demo: &Path, refbin: &str) {
                 let skip = if tx == 224 { 64 } else { 0 };
                 let to = ((f * MH + y as usize) * MW + tx as usize + skip) * 3;
                 for (i, &v) in rgb[skip * 3..].iter().enumerate() { video.buf[to + i] = v as u8; }
-                if n > 0 {                                     // the ball's run across the row, over the tiles
-                    let (a, b) = (tx + x0, tx + x0 + n);
-                    ball_at[y as usize] = Some(match ball_at[y as usize] { Some((a0, b0)) => (a0.min(a), b0.max(b)), None => (a, b) });
-                }
             }
         }
         // the sign: white letters, their outline black, where the ball doesn't cover them
         for &(x, y, c) in &sign {
-            if let Some((a, b)) = ball_at[y] { if (x as i32) >= a && (x as i32) < b { continue; } }
+            if covered[y * MW + x] == 1 { continue; }
             let to = ((f * MH + y) * MW + x) * 3;
             video.buf[to..to + 3].fill(c);
         }
 
-        // at 1536x768: the frame (blotched, near the end) blitted, the degauss's sign and jolt
-        let blotched = if DEGAUSS { degauss.strength(&mut host, f).map(|s| degauss.blotch(&mut host, s, video.frame(f))) } else { None };
+        // at 1536x768: the frame (blotched, near the end) blitted, the degauss's sign and jolt (by the degauss's frame,
+        // from the blotch's start)
+        let t = (DEGAUSS && degauss::touched(f)).then(|| f - degauss::B0);
+        let blotched = t.and_then(|t| degauss.strength(&mut host, t)).map(|s| degauss.blotch(&mut host, s, video.frame(f)));
         let pic = blotched.as_deref().unwrap_or(video.frame(f));
         let frame = &mut hd.buf[f * text::HW * text::HH * 3..][..text::HW * text::HH * 3];
         for (i, &p) in at.iter().enumerate() {
             if p != text::NONE { frame[3 * i..3 * i + 3].copy_from_slice(&pic[3 * p as usize..3 * p as usize + 3]); }
         }
-        if DEGAUSS && degauss::sign_shown(f) { degauss.lay_sign(&mut host, &kit, frame, &at, pic); }
-        if DEGAUSS && (degauss::D0..degauss::D0 + degauss::DN).contains(&f) {
-            let jolted = degauss.jolt(&mut host, f - degauss::D0, frame, &at);
-            frame.copy_from_slice(&jolted);
+        if let Some(t) = t {
+            if degauss::sign_shown(t) { degauss.lay_sign(&mut host, &kit, frame, &at, pic); }
+            if degauss::jolting(t) {
+                let jolted = degauss.jolt(&mut host, t, frame, &at);
+                frame.copy_from_slice(&jolted);
+            }
         }
     }
     host.done();

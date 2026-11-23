@@ -10,7 +10,8 @@
 //! frame chooses). The host deals the lists, carries what one machine punches to the next, and sorts cards by numbers
 //! machines punched, as a card sorter would: the cubies into drawing order, an edge's bounds into rows, the pieces of
 //! polygons onto their pixels. What it decides itself is the timeline (dierubik/scene.rs): which shape a frame shows,
-//! its steps, which move is turning; and which boxes make the shapes (the same file).
+//! which move is turning, where each part starts (the sum machine works out a step from the frame and that); and
+//! which boxes make the shapes (the same file).
 //!
 //! Per frame: the tumble's three angles (clock), their sines (sine) and the matrix Ry Rx Rz (dot); the turning
 //! layer's turn (ease, clock, sine) and its matrix (dot); the place: eased toward us (ease) or roaming (clock, sine,
@@ -29,11 +30,11 @@ use scene::*;
 /// A value with its negative, as the dot machine punches them.
 type Signed = (i32, i32);
 
-/// Sort records of `width` cards by the first `keys` cards of each, keeping their order otherwise, as a card sorter
-/// does, column by column.
+/// Sort records of `width` cards by the first `keys` cards of each, keeping their order otherwise, on the card
+/// sorter (the last key card's columns first).
 fn sort(cards: &[i32], width: usize, keys: usize) -> Vec<i32> {
     let mut records: Vec<&[i32]> = cards.chunks(width).collect();
-    records.sort_by(|a, b| a[..keys].cmp(&b[..keys]));
+    sorter::sort(&mut records, &vec![sorter::CARD; keys], |r| r[..keys].iter().map(|&c| c as i64).collect::<Vec<_>>());
     records.concat()
 }
 
@@ -69,6 +70,13 @@ impl Ctx<'_> {
     fn dot(&mut self, g: Groups) -> Vec<Signed> { let out = self.host.gon(&self.m.dot, &[&g.end()]); out.chunks(2).map(|c| (c[0], c[1])).collect() }
     fn dot1(&mut self, pairs: &[(i32, i32)]) -> Signed { let mut g = Groups::new(); g.add(&[pairs.len() as i32]); for &(x, y) in pairs { g.add(&[x, y]); } self.dot(g)[0] }
     fn sum(&mut self, g: Groups) -> Vec<i32> { self.host.gon(&self.m.sum, &[&g.end()]) }
+    /// A step of the timeline: as it is, or counted from its part's start (first + f - at, on the sum machine).
+    fn step(&mut self, s: Step) -> i32 {
+        match s {
+            Step::Is(n) => n,
+            Step::Since { first, at, f } => { let mut g = Groups::new(); g.add(&[3, 1, first, 1, f, -1, at]); self.sum(g)[0] }
+        }
+    }
     /// Each value held between least and most (groups of at most 999).
     fn hold(&mut self, values: &[i32], least: i32, most: i32) -> Vec<i32> {
         let mut deck = vec![];
@@ -97,8 +105,9 @@ impl Ctx<'_> {
 
     /// The tumble's matrix, Ry Rx Rz, [row][column].
     fn tumble(&mut self, f: &Frame) -> [[Signed; 3]; 3] {
+        let extra = self.step(f.extra);
         let r = &self.d.rates;
-        let angles: Vec<Vec<(i32, Vec<i32>)>> = (0..3).map(|k| vec![(f.i, r[k].clone()), (f.extra, r[3 + k].clone())]).collect();
+        let angles: Vec<Vec<(i32, Vec<i32>)>> = (0..3).map(|k| vec![(f.i, r[k].clone()), (extra, r[3 + k].clone())]).collect();
         let a = self.clock(&angles);
         let [(sy, cy), (sx, cx), (sz, cz)] = [0, 1, 2].map(|k| self.sine(a[k]));
         let mut g = Groups::new();
@@ -122,6 +131,7 @@ impl Ctx<'_> {
             Place::Approach(k) => { let v = self.ease(&[(true, -246, 0, k, 18), (true, 89, 0, k, 18), (true, 910, 395, k, 18)]); (v[0], v[1], v[2]) }
             Place::Still => (0, 0, 395),
             Place::Roam(k) => {
+                let k = self.step(k);
                 let angles: Vec<Vec<(i32, Vec<i32>)>> = (0..4).map(|i| vec![(k, self.d.rates[6 + i].clone())]).collect();
                 let a = self.clock(&angles);
                 let [(_, ca), (_, cb), (sc, _), (sd, _)] = [0, 1, 2, 3].map(|i| self.sine(a[i]));
@@ -154,6 +164,7 @@ fn shape(cx: &mut Ctx, f: &Frame, which: Shape, pockets: &[Vec<i32>]) -> Vec<i32
     let mut turning = None;
     if let Some(Rubik { turn: Some((mv, j, n)), .. }) = rubik {
         let [a, s, q] = d.moves[16 + mv];
+        let j = cx.step(j);
         let e = cx.ease(&[(true, 0, 900, j, n)])[0];
         let angle = cx.clock(&[(0..q.abs()).map(|_| (1, vec![0, e, 0])).collect()])[0];
         let (sn, cs) = cx.sine(angle);
@@ -187,8 +198,9 @@ fn shape(cx: &mut Ctx, f: &Frame, which: Shape, pockets: &[Vec<i32>]) -> Vec<i32
         None | Some(Scale::One) => d.sizes.clone(),
         Some(scale) => {
             let s500 = match scale {
-                Scale::Split(j) => cx.ease(&[(false, 540, 500, j, 7)])[0],
+                Scale::Split(j) => { let j = cx.step(j); cx.ease(&[(false, 540, 500, j, 7)])[0] }
                 Scale::Pop(k) => {
+                    let k = cx.step(k);
                     let k = cx.hold(&[k], 0, 6)[0];
                     let angle = cx.clock(&[vec![(k, d.rates[12].clone())]])[0];
                     let (s, _) = cx.sine(angle);
@@ -201,7 +213,7 @@ fn shape(cx: &mut Ctx, f: &Frame, which: Shape, pockets: &[Vec<i32>]) -> Vec<i32
     };
     let mut sz = cx.muldiv(&base.iter().map(|&a| (a, 98, z70)).collect::<Vec<_>>());
     let pips = die.and_then(|dd| dd.pips);
-    sz.push(match pips { Some(j) => cx.ease(&[(false, 0, sz[S017], j, 4)])[0], None => 0 });
+    sz.push(match pips { Some(j) => { let j = cx.step(j); cx.ease(&[(false, 0, sz[S017], j, 4)])[0] } None => 0 });
     // each group's axes at each size, [group][axis][size][part]; the place's depth along each axis
     let mut g = Groups::new();
     for gm in &groups { for b in 0..3 { for &s in &sz { for k in 0..3 { g.add(&[1, gm[k][b].0, s]); } } } }
@@ -262,7 +274,7 @@ fn shape(cx: &mut Ctx, f: &Frame, which: Shape, pockets: &[Vec<i32>]) -> Vec<i32
         for m in middles.chunks(3) { g.add(&[9, c[0], m[0], c[0], m[0], c[1], m[1], c[1], m[1], c[2], m[2], c[2], m[2], m[0], m[0], m[1], m[1], m[2], m[2]]); }
         let keys = cx.dot(g);
         let mut drawing: Vec<usize> = (0..cubies.len()).collect();
-        drawing.sort_by_key(|&n| (later[n], keys[n].1));
+        sorter::sort(&mut drawing, &[sorter::CARD, sorter::CARD], |&n| [later[n] as i64, keys[n].1 as i64]);
         let made: Vec<(Bx, Vec<(usize, Vec<Bx>)>)> = drawing.iter().map(|&n| {
             let (p, grp) = cubies[n];
             cubie_boxes(p, grp, &|fc| { let v = pocket[pocket_index(p, fc)]; (v >= 0).then_some(v as usize) })
@@ -299,7 +311,8 @@ fn shape(cx: &mut Ctx, f: &Frame, which: Shape, pockets: &[Vec<i32>]) -> Vec<i32
     wanted.dedup();
     let die_faces: Vec<[i32; 3]> = match die {
         Some(dd) => {
-            let items: Vec<(bool, i32, i32, i32, i32)> = (0..6).flat_map(|fc| (0..3).map(move |ch| (fc, ch))).map(|(fc, ch)| (false, d.colours[PLAIN + fc][ch], d.colours[IVORY][ch], dd.colour, 8)).collect();
+            let j = cx.step(dd.colour);
+            let items: Vec<(bool, i32, i32, i32, i32)> = (0..6).flat_map(|fc| (0..3).map(move |ch| (fc, ch))).map(|(fc, ch)| (false, d.colours[PLAIN + fc][ch], d.colours[IVORY][ch], j, 8)).collect();
             cx.ease(&items).chunks(3).map(|c| [c[0], c[1], c[2]]).collect()
         }
         None => vec![],
@@ -429,6 +442,7 @@ pub fn render(demo: &Path, refbin: &str) {
             Shape::Split(die, rubik, j) => {
                 let a = shape(&mut cx, &f, Shape::Die(die), &pockets);
                 let b = shape(&mut cx, &f, Shape::Rubik(rubik), &pockets);
+                let j = cx.step(j);
                 let cover = cx.ease(&[(false, 0, 32, j, 7)])[0];
                 let mut out = Vec::with_capacity(a.len());
                 for (pa, pb) in a.chunks(333).zip(b.chunks(333)) {

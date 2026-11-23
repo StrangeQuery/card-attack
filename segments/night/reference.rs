@@ -43,7 +43,7 @@ fn main() {
         return;
     }
     if a.get(2).map(|s| s.as_str()) == Some("--cameras") {
-        for f in 0..F_HAND { let c = night_cam(&mut o, &nw, 10 * design_f(&nw, f), false); writeln!(out, "{f} {} {} {} {} {} {} {}", c.eye[0], c.eye[1], c.eye[2], c.b[2][0], c.b[2][1], c.b[2][2], c.f2).unwrap(); }
+        for f in 0..F_HAND { let df = design_f(&mut o, &nw, f); let c = night_cam(&mut o, &nw, 10 * df, false); writeln!(out, "{f} {} {} {} {} {} {} {}", c.eye[0], c.eye[1], c.eye[2], c.b[2][0], c.b[2][1], c.b[2][2], c.f2).unwrap(); }
         return;
     }
     let only: Option<Vec<i64>> = a.get(2).map(|s| s.split(',').map(|v| v.parse().unwrap()).collect());

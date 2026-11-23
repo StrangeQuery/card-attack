@@ -53,8 +53,8 @@ time, as the reference's formulas say step for step:
   when it hasn't turned or has turned once: the machines' flags say), the eye and the basis turned back into the
   boxes' frame;
 - the morph: each box's lo and hi on each axis and its colour, a + (b - a) m / 1000;
-- the order: every pair of the numbers on each axis (the boxes' and the eye's) compared (their difference's sign):
-  the sorter's order of them;
+- the order: every pair of the numbers on each axis (the boxes' and the eye's) compared (their difference's sign,
+  `sw_sign`);
 - the light: per face way, 0.62 + 0.38 (n . light) + 0.08 (toward us), held to 0 and up, in ten-thousandths, and each
   piece's colour, its box's times that, held to 255;
 - the corners on the screen: each axis's (value less the eye's) times the basis (a product per distinct value), summed
@@ -62,36 +62,41 @@ time, as the reference's formulas say step for step:
   length 2110 pixels: 40 degrees across);
 - the screen's grid (below), and the polygons' tall edges cut, as the swarm's.
 
-**The pieces.** The hidden-surface work is the host's, done by comparing the ranks the machines' comparisons give
-each number on each axis; the host forms no number of its own. From those ranks the host works out each box's faces
-that face the eye, and cuts each face where another box is inside it into rectangles (a face's part inside another box
-can never be seen: the strip below the other box, the strip above, then the parts left and right), taking the larger
-and smaller of ranked ends as it goes. It puts into each piece's edges every corner of another piece that lies on
-them (so pieces that meet share their edges exactly and leave no gap of a pixel between them). The pieces then never
-cross, and the host decides which of two pieces is in front: the one on the eye's side of an axis's plane that parts
-them. There is no depth per pixel and no division.
+**The pieces.** The hidden-surface choices are `tn_front`'s, made from the signs `sw_sign` punched for each pair of
+numbers on each axis; the host deals the signs and reads the flags it punches, a batch a frame. `tn_front` says
+which boxes are solid and which faces face the eye, which boxes are cut into each face, and for each rectangle of a
+face and each box cut into it whether the two meet and which of the four parts round the box are left (a face's part
+inside another box can never be seen: the strip below the other box, the strip above, then the parts left and right);
+the same answers pick the ends each part takes. It says which way each piece's edge runs and which corners of other
+pieces lie between its ends; the host puts them in, sorted along the edge by their number that way on the card
+sorter (so pieces that meet share their edges exactly and leave no gap of a pixel between them). The pieces then
+never cross, and for each two pieces `tn_front` says whether the first is in front: the one on the eye's side of the
+first axis's plane that parts them. There is no depth per pixel and no division.
 
-**The pixels.** The swarm's edge machines walk each piece's edges down the rows (`sw_esub` .. `sw_epix`; a flat edge
-that meets one row takes no step, which would pass a long). On each row the host sorts the ends of the pieces' spans
-the machines punched, finds at each cut between them the pieces whose spans cover it by comparing their ends, and
-picks the one in front of the others by its own front test above. `tn_edge` marks the outline: the row cut where it or
-the rows above and below change, each piece's first, middle and last pixels marked when a neighbour (left, right,
-above, below, across the frame's edges to the other side, as the prototype's roll does) shows another face's way
-(an object's: the outline, grey 24) or an object beside nothing (the rim, 24, 24, 28). The host fills each run with
-its colour (computed) or the screen's texels.
+**The pixels.** The swarm's edge machines walk each piece's edges down the rows (`sw_order` says which end is the top,
+then `sw_esub` .. `sw_epix`; a flat edge that meets one row takes no step, which would pass a long). Each piece's
+crossings on a row are sorted on the card sorter, the first and the last its span. On each row the card sorter sorts
+the ends of the pieces' spans; going across, each end brings its piece in or takes it out, and between two ends the
+row shows the piece in front of the others in there. `tn_edge` marks the outline: the row cut where it or the rows
+above and below change (the runs' starts sorted on the card sorter), each piece's first, middle and last pixels marked
+when a neighbour (left, right, above, below, across the frame's edges to the other side, as the prototype's roll
+does) shows another face's way (an object's: the outline, grey 24) or an object beside nothing (the rim, 24, 24, 28).
+The host fills each run with its colour (computed) or the screen's texels.
 
 **The screen's picture** is placed exactly at a grid of points 20 pixels apart over the screen's box: where the eye's
 ray meets the screen's plane (in the boxes' frame the ray's way is X r + Y u + 21100 f; across in thousands, along the
 screen's normal in ten-thousands), the ratio of the two in hundred-thousandths (or, for a ray nearly along the
 plane, ten-thousandths; held at the edge when it's along it), times the eye's depth from the plane, from the screen's
-corner: its place on the picture in thousandths of a texel. Between the points, straight lines: `tn_step` works out a
-twentieth of the change between two points (a whole and a rest in twentieths), `tn_walk` steps down each grid column to
-the rows the screen is on, then across each row a cell at a time, punching each pixel's texel; the host fetches the
+corner: its place on the picture in thousandths of a texel (the grid's points' places on the frame are printed in
+`data/grid.txt`). Between the points, straight lines: `tn_step` works out a twentieth of the change between two
+points (a whole and a rest in twentieths), `tn_walk` steps down each grid column to the rows the screen is on, then
+across each row a cell at a time (`tn_cells` cuts each of the screen's runs at the cells), punching each pixel's
+texel; the host fetches the
 texel by that index (the pictures padded 240 texels round with their edges, so a grid point off the edge keeps its
 place). The Mac's picture until the morph is half way, then the CGA tunnel's frame.
 
 **The Mac's picture** is the cold open's (`segments/mac`) running on, as the prototype's `mac_screen` does: its one-bit
-tunnel at its frames 108 + f (a picture every third frame, to picture 48), CARD ATTACK over it all the way in, the
+tunnel at its frames 108 + f (a picture every third frame, to picture 48; `data/mac.txt` prints each frame's picture), CARD ATTACK over it all the way in, the
 screen's rounded corners; made on the cold open's own machines and tables (`mac_offset`, `mac_slope`, `mac_angle`,
 `mac_reach` once; `mac_twist`, `mac_trow`, `mac_dither`, `mac_dissolve` each picture) with its sine table run on
 (`data/mac.txt`) for `tn_macturn`, the cold open's `mac_turn` taking the longer table. So the cut from the cold open's
@@ -99,7 +104,8 @@ last frame to the turn's first is the tunnel's next picture, as in the prototype
 
 **The CGA tunnel.** Once: each pixel's distance from the middle squared (the rows 1.2 times as tall), against the
 dither's two thresholds for its place in the 4x4 Bayer matrix (`data/cga.txt`, a table printed ahead of time in
-Python: the prototype's level, 2 ((r - 6) / 110)^1.2, past 1 + t or t): a check, colour 1 or black. For a check, on
+Python: the prototype's level, 2 ((r - 6) / 110)^1.2, past 1 + t or t, and each column's and row's place from the
+middle): a check, colour 1 or black. For a check, on
 the swarm's machines: its depth 1500 over the square root (thousandths), its place along (depth / 3.5, in
 fifth-hundredths of a ring, wrapped to two rings), its depth in hundredths, and its angle round (atan, sixteen checks:
 fifth-hundredths of a check, two checks); worked out for a quarter of the picture; the other three quarters' angles
@@ -108,7 +114,8 @@ are worked out on the swarm's machines from the same atan, turned, and the host 
 (2.2 t) on the swarm's machines; `tn_twist` the turn at every depth (the depth times the factor over 100000, added a
 depth at a time, plus the turn); `tn_cga` each row: a check is colour 3 when its places round (turned at its depth)
 and along (travelled) are in the same half of their two, else 2; the brag's pixels laid over (its box 0, its ink 3),
-and fading, black where the pixel's dither (6 b + 3) is under eight times the step. The host fetches each index's
+and fading, black where the pixel's dither (6 b + 3, printed) is under eight times the step; the fading frames' time
+a frame on, on the calculator. The host fetches each index's
 colour from the second's palette. The brag is the text kit's `CGA_BRAG` page (`ui/pages.rs`, face 10, the IBM CGA 8x8
 font, drawn on CARDIAC by the kit), each of its pixels 2x2 on the picture, its box from (8, 143).
 
@@ -116,7 +123,7 @@ font, drawn on CARDIAC by the kit), each of its pixels 2x2 on the picture, its b
 1024x768 at (256, 0), so the join is seamless.
 
 **The bezel for the cold open:** the turn also files `bezel.rgba`, its frame 0 as a layer for the cut, covering all
-but the cold open's screen (1024x684 at 256, 42). In the cut, `over turn/bezel.rgba 1536x768 0 0 0 377` on the cold
+but the cold open's screen (1024x684 at 256, 42): frame 0's pixels, the cover `tn_walk`'s runs of 32 and 0. In the cut, `over turn/bezel.rgba 1536x768 0 0 0 377` on the cold
 open's `seg mac mac/video_hd.rgb 0 377 1536x768` shows the whole cold open in the Mac's bezel, as the prototype's join does,
 and the turn follows.
 
@@ -125,8 +132,10 @@ screen), kept for every block.
 
 | Machine | Cells | What it does |
 |---|---|---|
+| `tn_front` | 88 | The hidden surfaces' tests: solid boxes, faces toward the eye, the cuts, the edges' corners, which piece is in front |
 | `tn_edge` | 89 | Per row: each piece's pixels marked by their neighbours (the outline, the rim) |
 | `tn_step` | 69 | A twentieth of the change between two grid points |
+| `tn_cells` | 71 | A run of the screen's pixels cut at the grid's cells |
 | `tn_walk` | 92 | Down a grid column or across a cell: each pixel's place, or its texel |
 | `tn_twist` | 73 | Per frame: the tunnel's turn at each depth |
 | `tn_cga` | 95 | Per row per frame: the tunnel's colours, the brag over, the fade |

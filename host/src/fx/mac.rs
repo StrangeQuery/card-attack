@@ -69,12 +69,14 @@ use desk::*;
 use desk::{W, H};
 
 pub const FRAMES: usize = 377;
+/// The ordered dither's rows from a phase on: row (phase + j) mod 4 at [phase][j].
+const TURNED: [[usize; 4]; 4] = [[0, 1, 2, 3], [1, 2, 3, 0], [2, 3, 0, 1], [3, 0, 1, 2]];
 /// Where the screen goes on the 1536x768 frame, at 2x.
 pub const HD_X: usize = 256;
 pub const HD_Y: usize = 42;
 
 /// The machines: the cold open's, the swarm's arithmetic's (for the game's numbers).
-const MACHINES: &[&str] = &["mac_place", "mac_glide", "mac_arc", "mac_xor", "mac_turn", "mac_twist", "mac_trow", "mac_dither", "mac_dissolve", "mac_thirds",
+const MACHINES: &[&str] = &["mac_place", "mac_glide", "mac_arc", "mac_xor", "mac_turn", "mac_twist", "mac_trow", "mac_dither", "mac_dissolve", "mac_fill", "mac_thirds",
     "mac_cross", "mac_across", "mac_first", "mac_pick", "mac_wall", "mac_fidx", "mac_fdot", "mac_ball", "mac_bdot", "mac_flag",
     "sw_qis", "sw_qp", "sw_lsum", "sw_term", "sw_mag", "sw_shift", "sw_divd", "sw_join", "sw_floor3", "sw_sign", "sw_ang", "sw_sin", "sw_short", "sw_hund", "sw_isqrt", "sw_isqrt2"];
 
@@ -525,7 +527,7 @@ impl Mac {
             assert!(card(&c2, d.step) >= 0);
             let ph = card(&c2, d.phase) as usize;
             let mut v = vec![top, card(&c2, d.texel), card(&c2, d.part), card(&c2, d.step), card(&c2, d.step_part)];
-            for j in 0..4 { v.push(self.data.thresh[e][BAYER[(ph + j) % 4][d.x % 4]] as i32); }
+            for j in 0..4 { v.push(self.data.thresh[e][BAYER[TURNED[ph][j]][d.x % 4]] as i32); }
             let tex = &self.data.tex[d.kind];
             for r in 0..64 { v.push(tex[r * 64 + u] as i32); }
             v
@@ -638,7 +640,7 @@ impl Mac {
         let (unit, less, over) = BALL_DITHER;
         let zero = c.num(0);
         let steps: Vec<(N, N, Arg)> = (0..16).map(|k| {
-            let kn = c.num(2 * k + 1);
+            let kn = { let k = c.num(k); let k2 = c.mulk(k, 2); c.addk(k2, 1) };
             let u = c.num(unit);
             let l = c.num(less);
             let m = c.lin(&[(l, None, false), (u, Some(kn), true)]);
@@ -722,16 +724,23 @@ impl Mac {
                 edges.push(c.neg(q));
             }
         }
+        // its last column and row
+        let (rn, bn) = (c.addk(fw, -1), c.addk(ch, -1));
         self.eval(host, &mut c);
         let (w, h) = (card(&c, fw), card(&c, ch));
+        let (r, b) = (card(&c, rn), card(&c, bn));
         let mut deck = vec![w, h];
         deck.extend(edges.iter().map(|&e| card(&c, e)));
         let dots = host.go1(&self.m["mac_flag"], &[&deck], (w * h) as usize);
         let (w, h) = (w as usize, h as usize);
         let mut px: Vec<bool> = dots.iter().map(|&d| d == 1).collect();
-        // its frame: the first and last rows and columns
-        for x in 0..w { px[x] = true; px[(h - 1) * w + x] = true; }
-        for y in 0..h { px[y * w] = true; px[y * w + w - 1] = true; }
+        // its frame, the first and last rows and columns, black from the fill machine
+        let sides = [[0, r, 0, 0], [0, r, b, b], [0, 0, 0, b], [r, r, 0, b]];
+        let mut deck = vec![4];
+        for sd in &sides { deck.push(1); deck.extend(sd); }
+        let black = host.gon(&self.m["mac_fill"], &[&deck]);
+        let mut at = 0;
+        for [l, r, t, b] in sides { for y in t..=b { for x in l..=r { px[y as usize * w + x as usize] = black[at] == 1; at += 1; } } }
         (w, px)
     }
 
@@ -832,21 +841,50 @@ impl Mac {
         };
         assert_eq!(placed.at, placed.v.len());
 
+        // the boxes of one colour (the filled rectangles, the outlines' four sides, the text boxes' backs), in the
+        // items' order, each clipped to the screen: their pixels from the fill machine
+        let mut boxes: Vec<(bool, i32, i32, i32, i32)> = vec![];
+        let mut k = 0;
+        for layer in &shot.layers {
+            for item in &layer.items {
+                let p = &places[k];
+                match item {
+                    Item::Fill(.., v) => boxes.push((*v, p[0], p[1], p[2], p[3])),
+                    Item::Frame(..) => {
+                        let (l, t, r, b) = (p[0], p[1], p[2], p[3]);
+                        boxes.extend([(true, l, t, r, t), (true, l, b, r, b), (true, l, t, l, b), (true, r, t, r, b)]);
+                    }
+                    Item::Text(tx) => if let Some((_, v)) = tx.back {
+                        let g = &set[2 * starts[texts[k].unwrap()]..2 * starts[texts[k].unwrap() + 1]];
+                        let n = g.len() / 2 - 1 - tx.caret as usize;
+                        boxes.push((v, g[0], g[1], g[2 * n], g[2 * n + 1]));
+                    },
+                    _ => {}
+                }
+                k += 1;
+            }
+        }
+        let clipped: Vec<[i32; 4]> = boxes.iter().map(|&(_, l, t, r, b)| [l.max(0), r.min(W as i32 - 1), t.max(0), b.min(H as i32 - 1)]).collect();
+        let mut deck = vec![boxes.len() as i32];
+        for (bx, c) in boxes.iter().zip(&clipped) { deck.push(bx.0 as i32); deck.extend(c); }
+        let filled = host.gon(&self.m["mac_fill"], &[&deck]);
+        let (mut next_box, mut next_px) = (0, 0);
+
         // the picture: the desktop's grey, the items in order
-        let mut s: Vec<bool> = (0..W * H).map(|i| (i % W + i / W) % 2 == 0).collect();
-        let fill = |s: &mut Vec<bool>, l: i32, t: i32, r: i32, b: i32, v: bool| {
-            for y in t.max(0)..=b.min(H as i32 - 1) { for x in l.max(0)..=r.min(W as i32 - 1) { s[y as usize * W + x as usize] = v; } }
+        let mut s = vec![false; W * H];
+        self.sprite(&mut s, W, H, "desktop", 0, 0);
+        let mut fill = |s: &mut Vec<bool>| {
+            let [l, r, t, b] = clipped[next_box];
+            next_box += 1;
+            for y in t..=b { for x in l..=r { s[y as usize * W + x as usize] = filled[next_px] == 1; next_px += 1; } }
         };
         let mut k = 0;
         for layer in &shot.layers {
             for item in &layer.items {
                 let p = &places[k];
                 match item {
-                    Item::Fill(.., v) => fill(&mut s, p[0], p[1], p[2], p[3], *v),
-                    Item::Frame(..) => {
-                        let (l, t, r, b) = (p[0], p[1], p[2], p[3]);
-                        fill(&mut s, l, t, r, t, true); fill(&mut s, l, b, r, b, true); fill(&mut s, l, t, l, b, true); fill(&mut s, r, t, r, b, true);
-                    }
+                    Item::Fill(..) => fill(&mut s),
+                    Item::Frame(..) => { for _ in 0..4 { fill(&mut s); } }
                     Item::Sprite(name, ..) => self.sprite(&mut s, W, H, name, p[0], p[1]),
                     Item::Clip(name, ..) => self.sprite(&mut s, W, (p[2] + 1) as usize, name, p[0], p[1]),
                     Item::Picture(pic, ..) => {
@@ -863,9 +901,8 @@ impl Mac {
                         let line = texts[k].unwrap();
                         let g = &set[2 * starts[line]..2 * starts[line + 1]];
                         let mut at = 0;
-                        if let Some((_, v)) = tx.back {
-                            let n = g.len() / 2 - 1 - tx.caret as usize;
-                            fill(&mut s, g[0], g[1], g[2 * n], g[2 * n + 1], v);
+                        if tx.back.is_some() {
+                            fill(&mut s);
                             at = 1;
                         }
                         if tx.glyphs {
@@ -884,14 +921,19 @@ impl Mac {
             }
         }
 
-        // the zoom rects: each outline's pixels turned over on the XOR machine, one rect after another
+        assert_eq!(next_px, filled.len());
+
+        // the zoom rects: each outline's pixels (its top and bottom rows and its sides, each pixel once) turned over
+        // on the XOR machine, one rect after another
+        let mut on = vec![false; W * H];
         for z in 0..ends.len() {
             let e = &edges[4 * z..4 * z + 4];
             let (l, t, r, b) = (e[0].max(0), e[1].max(0), e[2].min(W as i32 - 1), e[3].min(H as i32 - 1));
-            let mut px: Vec<usize> = (l..=r).map(|x| t as usize * W + x as usize).collect();
-            if b != t { px.extend((l..=r).map(|x| b as usize * W + x as usize)); }
-            px.extend((t + 1..b).map(|y| y as usize * W + l as usize));
-            if r != l { px.extend((t + 1..b).map(|y| y as usize * W + r as usize)); }
+            let mut px: Vec<usize> = vec![];
+            let sides = (l..=r).map(|x| t as usize * W + x as usize).chain((l..=r).map(|x| b as usize * W + x as usize))
+                .chain((t + 1..b).map(|y| y as usize * W + l as usize)).chain((t + 1..b).map(|y| y as usize * W + r as usize));
+            for i in sides { if !on[i] { on[i] = true; px.push(i); } }
+            for &i in &px { on[i] = false; }
             for part in px.chunks(999) {
                 let deck: Vec<i32> = part.iter().map(|&i| s[i] as i32).collect();
                 let flipped = host.go1(&self.m["mac_xor"], &[&[part.len() as i32], &deck], part.len());

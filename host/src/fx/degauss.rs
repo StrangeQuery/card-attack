@@ -26,13 +26,23 @@ use crate::*;
 use std::collections::HashMap;
 use std::path::Path;
 
+/// Mode X's frames: the blotch's first, the jolt's first, the jolt's length; the sign's first and the first without it.
 pub const B0: usize = 114;
 pub const D0: usize = 134;
 pub const DN: usize = 16;
 const CREEP: i32 = 20;
 const SIGN_ON: usize = 128;
 const SIGN_OFF: usize = 146;
+/// The same counted from the blotch's first frame, as the functions below take a frame (t): the jolt's first, the
+/// sign's first and the first without it. The sign blinks once before the jolt: on BLINK frames, off until the jolt.
+pub const JOLT: usize = D0 - B0;
+const SIGN: usize = SIGN_ON - B0;
+const GONE: usize = SIGN_OFF - B0;
+const BLINK: usize = 3;
+/// The jolt's phase: PHASE0 steps of the waves' rates at its first frame, a step a frame; at frame t that is t steps
+/// and PHASE_T more.
 const PHASE0: i32 = 48;
+const PHASE_T: i32 = PHASE0 - JOLT as i32;
 const BOX: (usize, usize, usize, usize) = (489, 72, 1047, 228);
 const ICON: (usize, usize) = (519, 96);
 const YELLOW: [u8; 3] = [255, 255, 85];
@@ -43,10 +53,12 @@ const HH: usize = text::HH;
 const W: usize = 320;
 const H: usize = 240;
 
-/// Whether the sign shows at frame k: blinking (3 frames on, 3 off) before the jolt, then on.
-pub fn sign_shown(k: usize) -> bool { (SIGN_ON..D0).contains(&k) && (k - SIGN_ON) % 6 < 3 || (D0..SIGN_OFF).contains(&k) }
-/// Whether frame k is touched at all.
+/// Whether the sign shows at frame t: on, off (its blink) before the jolt, then on.
+pub fn sign_shown(t: usize) -> bool { (SIGN..SIGN + BLINK).contains(&t) || (JOLT..GONE).contains(&t) }
+/// Whether Mode X's frame k is touched at all.
 pub fn touched(k: usize) -> bool { k >= B0 && k < D0 + DN }
+/// Whether frame t is the jolt's.
+pub fn jolting(t: usize) -> bool { (JOLT..JOLT + DN).contains(&t) }
 
 fn rows(p: &Path) -> Vec<Vec<i32>> {
     std::fs::read_to_string(p).unwrap().lines().filter(|l| !l.starts_with('#') && !l.trim().is_empty())
@@ -136,10 +148,11 @@ impl Degauss {
     /// 999 sin of an angle, on the sine machine.
     fn sine(&self, host: &mut Host, (q, r): (i32, i32)) -> i32 { host.go1(&self.m["rb_sine"], &[&[q, r], &self.table, &self.table], 2)[0] }
 
-    /// The blotch's strength at frame k (32nds), on the scale machine; None where there is none.
-    pub fn strength(&self, host: &mut Host, k: usize) -> Option<i32> {
-        let s = if (B0..D0).contains(&k) { self.scale(host, &[[0, (k - B0) as i32, 32, CREEP]])[0] }
-            else if (D0..D0 + DN).contains(&k) { self.scale(host, &[[32, (k - D0) as i32, -5, 1]])[0] } else { return None };
+    /// The blotch's strength at frame t (32nds), on the scale machine: 32 t / CREEP as it creeps in, then from 32 at
+    /// the jolt's start down 5 a frame (32 + 5 JOLT - 5 t); None where there is none.
+    pub fn strength(&self, host: &mut Host, t: usize) -> Option<i32> {
+        let s = if t < JOLT { self.scale(host, &[[0, t as i32, 32, CREEP]])[0] }
+            else if jolting(t) { self.scale(host, &[[32 + 5 * JOLT as i32, t as i32, -5, 1]])[0] } else { return None };
         (s > 0).then_some(s)
     }
 
@@ -200,7 +213,7 @@ impl Degauss {
         }
         let (x0, y0, x1, y1) = BOX;
         let mut cells: Vec<u32> = (y0..y1).flat_map(|y| (x0..x1).map(move |x| at[y * HW + x])).collect();
-        cells.sort(); cells.dedup();
+        sorter::distinct(&mut cells, &[sorter::up(7)], |&p| [p as i64]);
         let dark = kit.mix(host, &cells.iter().flat_map(|&p| (0..3).map(move |c| [pic[3 * p as usize + c] as i32, 0, 24])).collect::<Vec<_>>());
         let darkened: HashMap<u32, usize> = cells.iter().enumerate().map(|(n, &p)| (p, n)).collect();
         for y in y0..y1 { for x in x0..x1 {
@@ -225,7 +238,7 @@ impl Degauss {
                 sides.extend(o.chunks(4).map(|s| [s[0], s[1], s[2], s[3]]));
             }
             let mut order: Vec<[i32; 3]> = sides.iter().map(|s| [s[1], s[2], s[3]]).collect();
-            order.sort(); order.dedup();
+            sorter::distinct(&mut order, &[sorter::CARD; 3], |s| s.map(|c| c as i64));
             let mut within = HashMap::new();
             for part in order.chunks(999) {
                 let mut deck = vec![part.len() as i32];
@@ -237,10 +250,12 @@ impl Degauss {
         self.turn.as_ref().unwrap()
     }
 
-    /// The jolt at step j over `base`, the 1536x768 frame with the blotch and the sign; `at` gives the picture pixel
+    /// The jolt at frame t over `base`, the 1536x768 frame with the blotch and the sign; `at` gives the picture pixel
     /// shown at each pixel of the frame (NONE at the sides).
-    pub fn jolt(&mut self, host: &mut Host, j: usize, base: &[u8], at: &[u32]) -> Vec<u8> {
-        let p = PHASE0 + j as i32;
+    pub fn jolt(&mut self, host: &mut Host, t: usize, base: &[u8], at: &[u32]) -> Vec<u8> {
+        // its step, for the decay's and the flash's printed lines; its phase, as two counts of a rate
+        let j = t - JOLT;
+        let p = [t as i32, PHASE_T];
         let a10 = self.scale(host, &[[0, 460, self.decay[j], 999]])[0];
         let s = self.scale(host, &[[0, 1, a10, 2], [0, 3, a10, 20], [0, 60, self.decay[j], 999], [0, 8, self.flash[j], 999], [0, 2, a10, 1]]);
         let (half, fringe, swirl, flash, a20) = (s[0], s[1], s[2], s[3], s[4]);
@@ -249,11 +264,12 @@ impl Degauss {
         // frame's phase
         if self.waves.is_none() {
             let mut places: Vec<Vec<(i32, &[i32])>> = (0..HH as i32).flat_map(|y| [vec![(y, r[0])], vec![(y, r[1])]]).collect();
-            // (a column past 767 counted in two terms, each a card)
-            places.extend((0..HW as i32).map(|x| if x < 768 { vec![(x, r[2])] } else { vec![(768, r[2]), (x - 768, r[2])] }));
+            // (a column past 767 counted in two terms, each a card: 768 and its count on from there)
+            places.extend((0..768).map(|x| vec![(x, r[2])]));
+            places.extend((0..(HW - 768) as i32).map(|j| vec![(768, r[2]), (j, r[2])]));
             self.waves = Some(self.clock(host, &places));
         }
-        let phase = self.clock(host, &[vec![(p, r[3])], vec![(p, r[4])], vec![(p, r[5])]]);
+        let phase = self.clock(host, &(3..6).map(|k| p.iter().map(|&n| (n, r[k])).collect()).collect::<Vec<_>>());
         let places = self.waves.as_ref().unwrap();
         let rows: Vec<(i32, i32)> = places[..2 * HH].to_vec();
         let mut turns: Vec<(i32, i32)> = vec![];
@@ -272,7 +288,7 @@ impl Degauss {
         let pushes = self.scale(host, &waves.iter().map(|&q| [0, a10, q, 999]).collect::<Vec<_>>());
         let down: Vec<i32> = pushes.chunks(HW / 2).flat_map(|part| host.go1(&self.m["dg_push"], &[&[fringe, part.len() as i32], part], 3 * part.len())).collect();
         // the swirl: each colour's phase, each picture pixel's angle turned on by it, each distinct angle's sine
-        let phases = self.clock(host, &(0..3).map(|c| vec![(p, r[3]), (c, r[3])]).collect::<Vec<_>>());
+        let phases = self.clock(host, &(0..3).map(|c| vec![(p[0], r[3]), (p[1], r[3]), (c, r[3])]).collect::<Vec<_>>());
         let turn = self.turn(host).to_vec();
         let mut angle = vec![[0usize; 3]; self.w * self.h];           // tenths round the turn, per colour
         for (c, &by) in phases.iter().enumerate() {

@@ -22,6 +22,8 @@ const SLOW1: usize = 308;
 const STEPS: usize = 62 * 48;
 const MI: i64 = 1_000_000;
 const TURN: i64 = 1_000_000_000;
+/// The slices from the camera within which the march takes a block's top for the seabed (the host's NEAR).
+const NEAR: i64 = 30;
 
 /// A rate of w radians a second as nt a frame (12 frames a second, or 6 for story time), and a radians as nt.
 fn rate(w: f64, fps: f64) -> i64 { (w / std::f64::consts::TAU / fps * 1e9).round() as i64 }
@@ -490,7 +492,50 @@ pub fn script<O: Ops>(o: &mut O, d: &ScriptData) -> Vec<Vec<i64>> {
 
     o.stage("ending");
     ending(o, &mut lines);
+    // after the torch's aim: x and the camera's place from the portal's middle across and up by the hundred (whole,
+    // hundredths), the portal's plane by the ten (whole, tenths, both toward 0), y and z in hundredths, the tenths
+    // from the camera to the first slice (10 less z's tenths), and the god rays' phases by the hundred (whole, hundredths)
+    let by100: Vec<(V, V)> = [1, 39, 40].iter().map(|&c| { let xs: V = lines.iter().map(|l| l[c]).collect(); o.divmod(v(&xs), K(100)) }).collect();
+    let planes: V = lines.iter().map(|l| l[38]).collect();
+    let (ap, s) = abs(o, &planes);
+    let (pw, pt) = o.divmod(v(&ap), K(10));
+    let (nw, nt) = (neg(o, &pw), neg(o, &pt));
+    let (pw, pt) = (o.sel(&s, v(&nw), v(&pw)), o.sel(&s, v(&nt), v(&pt)));
+    let col = |c: usize| -> V { lines.iter().map(|l| l[c]).collect() };
+    let (yw, yp, zw, zp) = (col(2), col(3), col(4), col(5));
+    let y100 = ls(o, &[(&yw, 100), (&yp, 1)], 0);
+    let z100 = ls(o, &[(&zw, 100), (&zp, 10)], 0);
+    let first = ls(o, &[(&zp, -1)], 10);
+    let shafts: Vec<(V, V)> = [20, 21].iter().map(|&c| o.divmod(v(&col(c)), K(100))).collect();
+    for (i, l) in lines.iter_mut().enumerate() {
+        for (w, p) in &by100 { l.extend([w[i], p[i]]); }
+        l.extend([pw[i], pt[i], y100[i], z100[i], first[i]]);
+        for (w, p) in &shafts { l.extend([w[i], p[i]]); }
+    }
+    near_flags(o, &mut lines);
     lines
+}
+
+/// Each clump's and tuft's root near the camera or not: 1 where its map row is before the frame's z + 1 + NEAR (the
+/// march takes the block's top for the seabed there, further the smooth seabed), on the machines, put after its row.
+/// The records' places in a line: after its first 47 numbers and the jellyfish (16 each), 4 more, the clumps (104
+/// each), the tufts' count and the tufts (11 each).
+fn near_flags<O: Ops>(o: &mut O, lines: &mut [Vec<i64>]) {
+    let (mut at, mut zs): (Vec<(usize, usize)>, V) = (vec![], vec![]);
+    for (i, l) in lines.iter().enumerate() {
+        let mut p = 47 + 16 * l[46] as usize;
+        let nk = l[p + 3] as usize;
+        p += 4;
+        for _ in 0..nk { at.push((i, p + 2)); zs.push(l[4]); p += 104; }
+        let ng = l[p] as usize;
+        p += 1;
+        for _ in 0..ng { at.push((i, p + 2)); zs.push(l[4]); p += 11; }
+    }
+    let rows: V = at.iter().map(|&(i, p)| lines[i][p]).collect();
+    let bound = ls(o, &[(&zs, 1)], 1 + NEAR);
+    let near = o.lt(v(&rows), v(&bound));
+    // (from the last, so the places before stay as they were)
+    for (j, &(i, p)) in at.iter().enumerate().rev() { lines[i].insert(p + 1, near[j]); }
 }
 
 /// The caustics' three phases, the god rays' two, the glowing spots' pulse and the tentacles' wave, by frame.
@@ -606,9 +651,9 @@ fn kelp<O: Ops>(o: &mut O, d: &ScriptData, fs: &V, x0: &V, z0: &V) -> Vec<Vec<Ve
     let az = rnd(o, &w, 100_000);
     // the stalks' sways: (real time 1.2 + k + st) as steps of 60
     let m = kk.len();
-    let (mut sf, mut sk) = (vec![], vec![]);
-    for j in 0..m { for st in 0..3 { sf.push(f[j]); sk.push(kk[j] + st); } }
-    let gs = ang_lin(o, &[(&sf, rate(1.2, 12.0)), (&sk, rad(1.0))], 0);
+    let (mut sf, mut sk, mut sst) = (vec![], vec![], vec![]);
+    for j in 0..m { for st in 0..3 { sf.push(f[j]); sk.push(kk[j]); sst.push(st); } }
+    let gs = ang_lin(o, &[(&sf, rate(1.2, 12.0)), (&sk, rad(1.0)), (&sst, rad(1.0))], 0);
     let sway = steps(o, &gs, 60);
     // the blades: side (0.75 + 0.25 sin(real time 2 + 1.7 i + k)) - a quarter turn, as steps of 64
     let (mut bf, mut bi, mut bk, mut side) = (vec![], vec![], vec![], vec![]);
@@ -748,10 +793,12 @@ fn fish<O: Ops>(o: &mut O, d: &ScriptData, fs: &V, l8: &V, x0: &V, cy: &V, z0: &
         let fl8 = o.clamp(v(&fl8), -WIDE, 100 * MI);
         let flash = rndp(o, &fl8, 3_125_000);
         let far: Vec<V> = rel.iter().map(|r| { let (a, _) = abs(o, r); o.lt(K(560), v(&a)) }).collect();
+        // each fish's number: its place in its school, the second school's from 100
+        let number = ls(o, &[(&fk, 1)], 100 * sk as i64);
         for e in 0..ff.len() {
             if far.iter().any(|x| x[e] == 1) { continue; }
             let mut l: Vec<i64> = rel.iter().map(|r| r[e]).collect();
-            l.extend([flash[e], fk[e] + 100 * sk as i64]);
+            l.extend([flash[e], number[e]]);
             out[ci[e]].push(l);
         }
         first += count;

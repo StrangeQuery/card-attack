@@ -16,7 +16,7 @@
 /// The night's frame k (0 .. F_HAND - 1), RGB, the full version or the party version.
 pub fn night_frame_v<O: Ops>(o: &mut O, nw: &NightWorld, k: i64, party: bool) -> Vec<u8> {
     // (the design's frame: the orbit skipped)
-    let k = design_f(nw, k);
+    let k = design_f(o, nw, k);
     let r = |o: &mut O, k: i64, m: Mode| if party { party_render(o, nw, k, m) } else { night_render(o, nw, k, m) };
     if k < XFADE {
         let a = smooth1(o, k, 0, XFADE);
@@ -51,23 +51,38 @@ pub fn compose<O: Ops>(o: &mut O, nw: &NightWorld, f: i64, mode: Mode, lo: &Part
     let n_pix = fw * fh;
     let parent = |p: usize| -> usize { ((p / fw) / 2) * lw + (p % fw) / 2 };
     let lsubj = |q: usize| lo.g.mat[q] >= 0 && is_subject(w, lo.g.src[q], lo.g.mat[q] as usize);
-    // a subject's half-resolution pixel for a full one: its own, or the nearest of the eight round it
-    let subj_near = |p: usize| -> Option<usize> {
-        let q = parent(p);
-        if lsubj(q) { return Some(q); }
-        let (x, y) = ((q % lw) as i64, (q / lw) as i64);
-        for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1)] {
-            let (a, b) = (x + dx, y + dy);
-            if a >= 0 && b >= 0 && (a as usize) < lw && (b as usize) < lh { let r = b as usize * lw + a as usize; if lsubj(r) { return Some(r); } }
+    // a subject's half-resolution pixel for each full one: its own, or of the eight round it (in a fixed order) the
+    // first that is a subject's, which a machine picks (the largest of their flags, the first of equals); none
+    // where no flag is set
+    let subj_near = |o: &mut O, ps: &[usize]| -> Vec<Option<usize>> {
+        let mut out = vec![None; ps.len()];
+        let (mut flags, mut cands, mut at): (Vec<V>, Vec<Vec<usize>>, Vec<usize>) = (vec![], vec![], vec![]);
+        for (j, &p) in ps.iter().enumerate() {
+            let q = parent(p);
+            if lsubj(q) { out[j] = Some(q); continue; }
+            let (x, y) = ((q % lw) as i64, (q / lw) as i64);
+            let (mut fl, mut c) = (vec![], vec![]);
+            for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1)] {
+                let (a, b) = (x + dx, y + dy);
+                let r = if a >= 0 && b >= 0 && (a as usize) < lw && (b as usize) < lh { Some(b as usize * lw + a as usize) } else { None };
+                fl.push(r.is_some_and(lsubj) as i64);
+                c.push(r.unwrap_or(q));
+            }
+            flags.push(fl); cands.push(c); at.push(j);
         }
-        None
+        if !at.is_empty() {
+            let groups: Vec<&[i64]> = flags.iter().map(|g| &g[..]).collect();
+            let best = o.nearest(&groups);
+            for (k, &j) in at.iter().enumerate() { if flags[k][best[k]] == 1 { out[j] = Some(cands[k][best[k]]); } }
+        }
+        out
     };
     o.stage("p_subjects");
     let cam = lo.cam;
     let scr = screen_for(nw, cam.f2);
     let sc = &w.sc;
     let subj_tri = |k: usize| subject_kind(sc.mats[sc.world.mat[k]].kind);
-    let (near, far) = night_visible(nw, &cam, mode);
+    let (near, far) = lo.vis.clone();
     let near: Vec<usize> = near.into_iter().filter(|&k| subj_tri(k)).collect();
     let far: Vec<usize> = far.into_iter().filter(|&k| subj_tri(k)).collect();
     let two: Vec<bool> = sc.world.mat.iter().map(|&m| sc.mats[m].kind == kind::TREE || nw.nocull[m]).collect();
@@ -79,8 +94,7 @@ pub fn compose<O: Ops>(o: &mut O, nw: &NightWorld, f: i64, mode: Mode, lo: &Part
         let pick: Vec<usize> = (0..m.tris.len()).filter(|&t| *src == 4 || subject_kind(sc.mats[m.mat[t]].kind)).collect();
         if pick.is_empty() { continue; }
         let two: Vec<bool> = m.mat.iter().map(|&q| nw.nocull[q]).collect();
-        let c = m.corners[0];
-        let far = (c[0] - cam.eye_cm[0]).abs().max((c[2] - cam.eye_cm[2]).abs()).max((c[1] - cam.eye_cm[1]).abs()) > 60_000;
+        let far = mover_far(o, m.corners[0], cam.eye_cm);
         drawn.push((*src, draw(o, &w.tb, &cam, m, &m.corners, &two, &pick, far, 1)));
     }
     let refs: Vec<(u8, &Drawn, &Mesh)> = drawn.iter().map(|(src, d)| (*src, d, if *src == 1 { &sc.world } else { &lo.movers.iter().find(|(s, _)| s == src).unwrap().1 })).collect();
@@ -108,6 +122,10 @@ pub fn compose<O: Ops>(o: &mut O, nw: &NightWorld, f: i64, mode: Mode, lo: &Part
         let wv = o.lin(&[(v(&ln), Some(K(250))), (K(-250), None)]);
         let wv = o.clamp(v(&wv), 0, 1000);
         let wv: V = vis.iter().enumerate().map(|(j, &p)| if !lo.laid.is_empty() && lo.laid[parent(p)] { 1000 } else { wv[j] }).collect();
+        // (asked for the pixels that take the post's light or the half-resolution picture)
+        let ask: Vec<usize> = (0..vis.len()).filter(|&j| wv[j] > 0 || !lo.ov[0].is_empty()).collect();
+        let mut near = vec![None; vis.len()];
+        for (k, q) in subj_near(o, &ask.iter().map(|&j| vis[j]).collect::<Vec<_>>()).into_iter().enumerate() { near[ask[k]] = q; }
         let shade: Vec<usize> = (0..vis.len()).filter(|&j| wv[j] < 1000).collect();
         let sp: Vec<usize> = shade.iter().map(|&j| vis[j]).collect();
         let mut ds: Vec<[i64; 3]> = vec![[0; 3]; vis.len()];
@@ -128,8 +146,9 @@ pub fn compose<O: Ops>(o: &mut O, nw: &NightWorld, f: i64, mode: Mode, lo: &Part
                 let mut ov = Over::new();
                 let mut px = vec![];
                 let mut vals: [V; 3] = [vec![], vec![], vec![]];
-                for &p in &sp {
-                    if let Some(q) = subj_near(p) {
+                for &j in &shade {
+                    let p = vis[j];
+                    if let Some(q) = near[j] {
                         if (0..3).any(|ch| lo.ov[ch][q] != 0) { px.push(p); for ch in 0..3 { vals[ch].push(lo.ov[ch][q]); } }
                     }
                 }
@@ -146,20 +165,20 @@ pub fn compose<O: Ops>(o: &mut O, nw: &NightWorld, f: i64, mode: Mode, lo: &Part
             for (k, &j) in shade.iter().enumerate() { ds[j] = [t[0][k], t[1][k], t[2][k]]; }
         }
         // where it streaks: the half-resolution picture of the subject mixed in (percent)
-        let low = |p: usize| -> [i64; 3] { let q = subj_near(p).unwrap_or(parent(p)); std::array::from_fn(|ch| lo.img[3 * q + ch] as i64) };
+        let low = |j: usize| -> [i64; 3] { let q = near[j].unwrap_or(parent(vis[j])); std::array::from_fn(|ch| lo.img[3 * q + ch] as i64) };
         let mixj: Vec<usize> = (0..vis.len()).filter(|&j| wv[j] > 0 && wv[j] < 1000).collect();
         if !mixj.is_empty() {
             let t: V = mixj.iter().map(|&j| wv[j]).collect();
             let t = o.div(v(&t), K(10), 0);
             for ch in 0..3 {
                 let a: V = mixj.iter().map(|&j| ds[j][ch]).collect();
-                let b: V = mixj.iter().map(|&j| low(vis[j])[ch]).collect();
+                let b: V = mixj.iter().map(|&j| low(j)[ch]).collect();
                 let m = o.mix(v(&a), v(&b), v(&t));
                 for (k, &j) in mixj.iter().enumerate() { ds[j][ch] = m[k]; }
             }
         }
         for (j, &p) in vis.iter().enumerate() {
-            let d = if wv[j] >= 1000 { low(p) } else { ds[j] };
+            let d = if wv[j] >= 1000 { low(j) } else { ds[j] };
             for ch in 0..3 { out[3 * p + ch] = d[ch] as u8; }
             over[p] = true;
         }

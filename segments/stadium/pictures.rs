@@ -36,7 +36,7 @@ pub fn shows<O: Ops>(o: &mut O, sc: &Scene, sh: &Show, nbanners: usize) -> Shows
     let main = if !s_lt(t12, CARDIAC_T, o) { Src::Cardiac } else if !s_lt(t12, HAG.0, o) { Src::Hag } else {
         // the montage: the 2-beat chunk on the beat's clock (from BEAT_T0; whole chunks added so it counts up
         // from zero before then), its clip round the 8 in order
-        let a = s_lin(&[(t12, Some(C_2BEAT)), (nclip * 1_000_000 - beat_off(C_2BEAT), None)], o);
+        let a = s_lin(&[(t12, Some(C_2BEAT)), (nclip, Some(1_000_000)), (-beat_off(C_2BEAT), None)], o);
         let chunk = whole1m(a, o);
         Src::Demo(sc.clip_entry[s_divmod(chunk, nclip, o).1 as usize], frame)
     };
@@ -180,8 +180,7 @@ fn sd_phase<O: Ops>(o: &mut O, t12: i64, rad_s: f64) -> i64 { let a = angle(t12,
 /// - rings: the squared distance to each of two moving centres, the ring's sine at it (one moving), their product.
 pub fn standins<O: Ops>(o: &mut O, sc: &Scene, t12: i64, need: &[(usize, usize)], sd: &mut Sd) {
     let mut want: Vec<(usize, usize)> = need.iter().copied().filter(|k| !sd.px.contains_key(k)).collect();
-    want.sort();
-    want.dedup();
+    sorter::distinct(&mut want, &[sorter::up(4), sorter::up(7)], |&(d, q)| [d as i64, q as i64]);
     if want.is_empty() { return; }
     let t = &sc.sd;
     let mut vals: Vec<(usize, usize, i64)> = vec![];
@@ -219,8 +218,11 @@ pub fn standins<O: Ops>(o: &mut O, sc: &Scene, t12: i64, need: &[(usize, usize)]
                     let sx = { let a = o.div(v(&xs), v(&zq), 0); o.sum(&[(v(&a), 1)], 40) };
                     let sy = { let a = o.div(v(&ys), v(&zq), 0); o.sum(&[(v(&a), 1)], 30) };
                     let b = o.tab(&t.vb, v(&zq));
+                    // the stars on the picture; of those on one texel, the last
+                    let on: Vec<usize> = (0..st.len()).filter(|&k| (0..SD_W as i64).contains(&sx[k]) && (0..SD_H as i64).contains(&sy[k])).collect();
+                    let last = one_each(o, &on.iter().map(|&k| [sy[k], sx[k]]).collect::<Vec<_>>(), true);
                     let mut g = vec![0i64; SD_W * SD_H];
-                    for k in 0..st.len() { if (0..SD_W as i64).contains(&sx[k]) && (0..SD_H as i64).contains(&sy[k]) { g[sy[k] as usize * SD_W + sx[k] as usize] = b[k]; } }
+                    for (q, &k) in on.iter().enumerate() { if last[q] { g[sy[k] as usize * SD_W + sx[k] as usize] = b[k]; } }
                     grid.insert(d, g);
                 }
                 it.iter().map(|&(d, qq)| grid[&d][qq]).collect()

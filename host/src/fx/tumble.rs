@@ -69,7 +69,10 @@ pub fn render(demo: &Path, refbin: &str) {
     let roto = Roto4::new(demo);
     let sin = |scale: f64, n: usize| -> Vec<i32> { (0..n).map(|k| tables::js_round(scale * (2.0 * std::f64::consts::PI * k as f64 / n as f64).sin())).collect() };
     let (sin60, sin60x2, sin120) = (cube::sin60(), sin(HALF as f64, 60), sin(48.0, 120));
+    // the cube's corner cards for each axis, at this size and at the long sequence's: a table made once, before the
+    // frames, from the constant corners; each frame takes its axis's
     let corners_at = |axis: usize, half: i32| -> Vec<i32> { cube::corner_cards(axis).chunks(3).flat_map(|c| [c[0], c[1], c[2] / cube::HALF * half]).collect() };
+    let corners: Vec<[Vec<i32>; 2]> = (0..3).map(|axis| [corners_at(axis, HALF), corners_at(axis, cube::HALF)]).collect();
     let (edges, faces) = (cube::edge_cards(), cube::faces());
     let face_tri: Vec<i32> = faces.iter().flat_map(|f| f.tri.clone()).collect();
     // each face's diagonals, a to c and b to d, from its three corners a, b, c: d is the corner they don't share
@@ -79,7 +82,7 @@ pub fn render(demo: &Path, refbin: &str) {
     let mut video = Video2::new(frames());
     for f in 0..frames() {
         let fr = frame(demo, &mut host, f as i32);
-        let raw = host.go(&vtx, &[&[&[fr.angle, fr.axis as i32], &sin60x2], &[&corners_at(fr.axis, HALF)]], Some(24));
+        let raw = host.go(&vtx, &[&[&[fr.angle, fr.axis as i32], &sin60x2], &[&corners[fr.axis][0]]], Some(24));
         // where the cube is: half the place and distance (for the small cube), then the whole, then the small cube's lens
         let place = fr.path.map(|(steps, _)| host.go(&path, &[&[&steps, &sin120], &[]], Some(7)));
         // the corners seen from the eye at a place: shifted for the tilt about it, then the perspective
@@ -93,7 +96,7 @@ pub fn render(demo: &Path, refbin: &str) {
         // the faces' light, from the cube at the long sequence's size, at half the place and distance
         let (mut palette, mut lit) = (BASE.to_vec(), vec![]);
         if fr.flevel > 0 {
-            let small = host.go(&vtx, &[&[&[fr.angle, fr.axis as i32], &sin60], &[&corners_at(fr.axis, cube::HALF)]], Some(24));
+            let small = host.go(&vtx, &[&[&[fr.angle, fr.axis as i32], &sin60], &[&corners[fr.axis][1]]], Some(24));
             let p = place.as_ref().unwrap();
             let small = seen(&mut host, &small, &p[..3], p[6]);   // its near face, face on, at its own size
             let corners = host.go1(&proj, &[&[48, 24, 0], &small], 16);

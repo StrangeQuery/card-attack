@@ -34,8 +34,9 @@ The film's hottest machines are written in CARDIAC assembly, in the `hand/` fold
 20 machines, and between them 1,991.2G of the 2,641.7G instructions (75%). Seventeen are the same machine as a Rust
 one, card for card: the host loads `PART/hand/NAME.asm` in place of the compiled `NAME.cqb`, and
 the Rust machine's native build runs beside it in the native checks. The other three (`tr_add1`, `tr_add2p`,
-`tr_add2m`) each do one case of adding longs. The host picks the case by working out the sums itself first, from
-the actual values, and then deals the cards to that case's machine. [HOT_MACHINES.md](HOT_MACHINES.md) has how each was made and what it saves.
+`tr_add2m`) each do one case of adding longs: one long and a constant, a second long added, a second taken away.
+The host picks the case by the terms' count and signs, which are the same for a whole call, and deals it the items
+whose values are all longs (each value compared with a long's limits). [HOT_MACHINES.md](HOT_MACHINES.md) has how each was made and what it saves.
 
 The rest of the film, 649.0G instructions on 425 machines, runs compiled Rust.
 

@@ -21,6 +21,8 @@ const HALF: [i64; 3] = [286, 817, -500];
 const SCALE: [i32; 3] = [310, 630, 310];
 
 pub struct Jump { pub kit: Kit, model: Model, mats: Vec<Material>, face_mat: Vec<usize>, pub lane: Vec<i32>, sparks: Vec<[i32; 6]>, bright: Vec<i32>,
+    /// each spark's last frame (its first and 7), a table made at the start
+    spark_last: Vec<i32>,
     /// 8-bit to tenths, each channel's value worked out once (apart)
     tenths: std::cell::RefCell<HashMap<(usize, i32), i32>> }
 
@@ -50,7 +52,8 @@ impl Jump {
         let sp: Vec<Vec<i32>> = read(demo, "accel/data/sparks.txt").lines().map(|l| l.split_whitespace().map(|v| v.parse().unwrap()).collect()).collect();
         let bright = sp.last().unwrap().clone();
         let sparks = sp[..sp.len() - 1].iter().map(|v| [v[0], v[1], v[2], v[3], v[4], v[5]]).collect();
-        Jump { kit: Kit::new(demo), model, mats, face_mat, lane, sparks, bright, tenths: Default::default() }
+        let spark_last = sp[..sp.len() - 1].iter().map(|v| v[0] + 7).collect();
+        Jump { kit: Kit::new(demo), model, mats, face_mat, lane, sparks, bright, spark_last, tenths: Default::default() }
     }
 
     /// The camera over the jump (jump.rs's camera) and the numbers our car needs.
@@ -59,10 +62,14 @@ impl Jump {
         let mut c = Calc::new();
         // each of f - 2, f - 1 and f: how far ahead our car is, where (64ths), the grade's entry and part there
         struct At { k: N, a64: N, i: N, p: N, cz: N }
+        // (the frame dealt once, the two before it from it on the calculator; the host keeps the schedule's frames
+        // to choose each stage)
         let frames = [f - 2, f - 1, f];
-        let at: Vec<At> = frames.iter().map(|&fr| {
-            let k = { let (a, b) = (c.num(fr as i64), c.num(F_LAUNCH as i64)); c.sub(a, b) };
-            let a64 = if (0..30).contains(&(fr - F_LAUNCH)) {
+        let fnum = c.num(f as i64);
+        let fnums = [c.addk(fnum, -2), c.addk(fnum, -1), fnum];
+        let at: Vec<At> = frames.iter().zip(fnums).map(|(&fr, frn)| {
+            let k = { let b = c.num(F_LAUNCH as i64); c.sub(frn, b) };
+            let a64 = if (F_LAUNCH..F_LAUNCH + 30).contains(&fr) {
                 let m = c.mulk(k, 50_000);
                 let ang = c.divk(m, 3);
                 let (s, _) = c.sin(ang);
@@ -71,7 +78,7 @@ impl Jump {
                 let off = c.within(off, 200);
                 c.addk(off, 384)
             } else { c.num(384) };
-            let fz = { let a = c.num(fr as i64); c.mulk(a, 144) };
+            let fz = c.mulk(frn, 144);
             let cz = c.add(fz, a64);
             let q = c.divk(cz, 128);
             let q = c.within(q, 999);
@@ -79,14 +86,13 @@ impl Jump {
             let (i, p) = (card(&mut c, q), card(&mut c, r));
             At { k, a64, i, p, cz }
         }).collect();
-        let cam_z = { let a = c.num(f as i64); c.mulk(a, 144) };
+        let cam_z = c.mulk(fnum, 144);
         let (q, r) = (c.divk(cam_z, 128), c.modk(cam_z, 128));
         let q = c.within(q, 999);
         let (ci, cp) = (card(&mut c, q), card(&mut c, r));
         // the falloff's indexes for the landing's wag and pitch
-        let g = f - F_LAND;
-        let (e8, e16) = if g >= 0 {
-            let gn = c.num(g as i64);
+        let (e8, e16) = if f >= F_LAND {
+            let gn = { let b = c.num(F_LAND as i64); c.sub(fnum, b) };
             let m8 = c.mulk(gn, 8);
             let m16 = c.mulk(gn, 16);
             let (q8, q16) = (c.divk(m8, 3), c.divk(m16, 3));
@@ -110,16 +116,15 @@ impl Jump {
         for (n, &fr) in frames.iter().enumerate() {
             let gtab = tab(&c, &d.grade, at[n].i);
             let gc = fine(&mut c, gtab, at[n].p);
-            let (k, j) = (fr - F_LAUNCH, fr - F_LAND);
-            let y = if (0..18).contains(&k) {
+            let y = if (F_LAUNCH..F_LAUNCH + 18).contains(&fr) {
                 let kk = c.mul(at[n].k, at[n].k);
                 let (a, b) = (c.num(25_920), c.num(3844));
                 let s = c.lin(&[(at[n].k, Some(a), false), (kk, Some(b), true)]);
                 let q = c.divk(s, 1000);
                 let q = c.within(q, 5000);
                 c.addk(q, 704)
-            } else if (0..6).contains(&j) {
-                let jn = c.num(j as i64);
+            } else if (F_LAND..F_LAND + 6).contains(&fr) {
+                let jn = { let b = c.num(F_LAND as i64); c.sub(fnums[n], b) };
                 let six = c.num(6);
                 let jj = c.mul(jn, jn);
                 let s = c.lin(&[(jn, Some(six), false), (jj, None, true)]);
@@ -128,7 +133,7 @@ impl Jump {
                 let q = c.within(q, 100);
                 c.add(gc, q)
             } else { gc };
-            let gr = if (0..18).contains(&k) {
+            let gr = if (F_LAUNCH..F_LAUNCH + 18).contains(&fr) {
                 let m = c.mulk(at[n].k, 534);
                 let q = c.divk(m, 10);
                 let q = c.within(q, 2000);
@@ -154,8 +159,7 @@ impl Jump {
         let q = c.divk(m, 1000);
         let q = c.within(q, 200);
         let h0 = c.addk(q, 152);
-        let k = f - F_LAUNCH;
-        let lift = if (0..34).contains(&k) {
+        let lift = if (F_LAUNCH..F_LAUNCH + 34).contains(&f) {
             let m = c.mulk(at[2].k, 250_000);
             let ang = c.divk(m, 17);
             let (s, _) = c.sin(ang);
@@ -211,18 +215,17 @@ impl Jump {
         let steer = { let (a, b) = (num(c, self.lane[f as usize + 1]), num(c, self.lane[(f as usize).max(1) - 1])); let s = c.sub(a, b); let m = c.mulk(s, 1000); let q = c.divk(m, 36); c.within(q, 2000) };
         let tcam = { let s = num(c, cam.slope); let m = c.mulk(s, 125); let q = c.divk(m, 12); c.within(q, 2000) };
         let tcar = { let s = c.sub(rb, ra); let m = c.mulk(s, 125); let q = c.divk(m, 2); c.within(q, 2000) };
-        let g = f - F_LAND;
         let ex = |c: &Calc, e: Option<N>| -> i32 { d.exp[(c.cards(e.unwrap())[0] as usize).min(191)] };
         let tan = c.lin(&[(tcar, None, false), (steer, None, false), (tcam, None, true)]);
         let m = c.mulk(tan, 159_155);
         let yaw = c.divk(m, 1000);
         let mut yaw = c.within(yaw, 990_000_000);
-        if g >= 0 {
+        if f >= F_LAND {
             let e = num(c, ex(c, n.e8));
             let m = c.mulk(e, 38_889);
             let w1 = c.divk(m, 1000);
             let w1 = c.within(w1, 40_000);
-            let gn = c.num(g as i64);
+            let gn = { let (a, b) = (c.num(f as i64), c.num(F_LAND as i64)); c.sub(a, b) };
             let ang = c.mulk(gn, 175_070);
             let (s, _) = c.sin(ang);
             let p = c.mul(w1, s);
@@ -230,8 +233,7 @@ impl Jump {
             let wag = c.within(wag, 40_000);
             yaw = c.add(yaw, wag);
         }
-        let k = f - F_LAUNCH;
-        let p1000 = if (0..18).contains(&k) {
+        let p1000 = if (F_LAUNCH..F_LAUNCH + 18).contains(&f) {
             let kn = { let (a, b) = (c.num(f as i64), c.num(F_LAUNCH as i64)); c.sub(a, b) };
             let (e18, h) = (c.num(18), c.num(18_000));
             let kg = c.mul(kn, n.gr);
@@ -239,12 +241,12 @@ impl Jump {
             let s = c.lin(&[(e18, Some(h), false), (kn, Some(h), true), (kg, Some(ff), false)]);
             let q = c.divk(s, 1800);
             c.within(q, 3000)
-        } else if g >= 0 {
+        } else if f >= F_LAND {
             let e = num(c, ex(c, n.e16));
             let m = c.mulk(e, -1047);
             let c1 = c.divk(m, 10_000);
             let c1 = c.within(c1, 200);
-            let gn = c.num(g as i64);
+            let gn = { let (a, b) = (c.num(f as i64), c.num(F_LAND as i64)); c.sub(a, b) };
             let ang = c.mulk(gn, 206_901);
             let (_, cs) = c.sin(ang);
             let p = c.mul(c1, cs);
@@ -287,8 +289,7 @@ impl Jump {
         // each channel's tenths, worked out once for each 8-bit value
         {
             let mut want: Vec<(usize, i32)> = winners.iter().flat_map(|w| (0..3).map(move |ch| (ch, w.1[ch]))).filter(|k| !self.tenths.borrow().contains_key(k)).collect();
-            want.sort();
-            want.dedup();
+            sorter::distinct(&mut want, &[sorter::up(1), sorter::CARD], |&(ch, v)| [ch as i64, v as i64]);
             if !want.is_empty() {
                 let out = hd.many_pub(host, "apart", &want.iter().map(|&(ch, v)| vec![0, v, SCALE[ch], 255]).collect::<Vec<_>>());
                 let mut t = self.tenths.borrow_mut();
@@ -308,14 +309,14 @@ impl Jump {
             return tail_lights(c);
         }
         let mut pixels: Vec<usize> = big.keys().map(|&p| (p / (2 * RW) / 2) * RW + (p % (2 * RW)) / 2).collect();
-        pixels.sort();
-        pixels.dedup();
+        sorter::distinct(&mut pixels, &[sorter::up(7)], |&p| [p as i64]);
         let samples = |i: usize| -> [usize; 4] { let (x, y) = (i % RW, i / RW); [(2 * y) * 2 * RW + 2 * x, (2 * y) * 2 * RW + 2 * x + 1, (2 * y + 1) * 2 * RW + 2 * x, (2 * y + 1) * 2 * RW + 2 * x + 1] };
         let mut out = vec![[0; 3]; pixels.len()];
         for ch in 0..3 {
             // four cards the same are their own mean (a run of one colour, copied); the rest averaged
             let fours: Vec<Vec<i32>> = pixels.iter().map(|&i| samples(i).iter().map(|s| big.get(s).map_or(px[i].c[ch], |v| v[ch])).collect()).collect();
-            let mixed: Vec<usize> = (0..fours.len()).filter(|&m| fours[m].iter().any(|&v| v != fours[m][0])).collect();
+            let differ = hd.differ(host, &fours.iter().flat_map(|v| [(v[1], v[0]), (v[2], v[0]), (v[3], v[0])]).collect::<Vec<_>>());
+            let mixed: Vec<usize> = (0..fours.len()).filter(|&m| differ[3 * m..3 * m + 3].iter().any(|&d| d)).collect();
             let o = hd.many_pub(host, "aavg4", &mixed.iter().map(|&m| fours[m].clone()).collect::<Vec<_>>());
             for m in 0..fours.len() { out[m][ch] = fours[m][0]; }
             for (j, &m) in mixed.iter().enumerate() { out[m][ch] = o[j][0]; }
@@ -381,14 +382,18 @@ impl Jump {
         let uy = self.kit_go(hd, host, "ashu", &[ry16, 128, 121]);
         let cover = self.kit_go(hd, host, "ashk", &[k]);
         // the ellipse's pixels on the screen: its columns either side of the middle, each row's places
-        let cols: Vec<(i32, i32)> = (-(ux.len() as i32 - 1)..ux.len() as i32).map(|dxp| (cx + dxp, ux[dxp.unsigned_abs() as usize])).filter(|&(x, _)| (0..RW as i32).contains(&x)).collect();
+        // (ashu's cards out from the middle, laid out both ways: the first at the ellipse's first column or row)
+        let both = |u: &[i32]| -> Vec<i32> { if u.is_empty() { vec![] } else { u[1..].iter().rev().chain(u.iter()).copied().collect() } };
+        let (bx, by) = (both(&ux), both(&uy));
+        let (x0, y0) = (cx - (ux.len() as i32 - 1), cy - (uy.len() as i32 - 1));
+        let cols: Vec<(i32, i32)> = bx.iter().enumerate().map(|(k, &u)| (x0 + k as i32, u)).filter(|&(x, _)| (0..RW as i32).contains(&x)).collect();
         if cols.is_empty() { return; }
         let row_u: Vec<i32> = cols.iter().map(|&(_, u)| u).collect();
         let mut dark: Vec<(usize, i32)> = vec![];
-        for dyp in -(uy.len() as i32 - 1)..uy.len() as i32 {
-            let y = cy + dyp;
+        for (k, &v) in by.iter().enumerate() {
+            let y = y0 + k as i32;
             if !(0..RH as i32).contains(&y) { continue; }
-            let e = hd.go_pub(host, "aghs", &[&[uy[dyp.unsigned_abs() as usize], row_u.len() as i32], &row_u]);
+            let e = hd.go_pub(host, "aghs", &[&[v, row_u.len() as i32], &row_u]);
             for (m, &v) in e.iter().enumerate() {
                 if v >= 320 { continue; }
                 let k = cover[v as usize];
@@ -436,7 +441,7 @@ impl Jump {
     /// asfade), laid on where the pixel is no nearer (ageq, agsum); the ten brightest as lights.
     pub fn sparks(&self, hd: &Hd, host: &mut Host, cam: &Cam, f: i32, path: &mut Path64, px: &mut [Px]) -> Vec<super::accel_hd::Light> {
         let d = &hd.d;
-        let live: Vec<[i32; 6]> = self.sparks.iter().copied().filter(|sp| (0..8).contains(&(f - sp[0]))).collect();
+        let live: Vec<[i32; 6]> = self.sparks.iter().zip(&self.spark_last).filter(|&(sp, &last)| sp[0] <= f && f <= last).map(|(sp, _)| *sp).collect();
         if live.is_empty() { return vec![]; }
         let c = &mut path.c;
         let kk = { let t = c.num(192); let s = c.sub(t, path.n.h0); let m = c.mulk(s, 1000); let q = c.divk(m, 440); c.within(q, 2000) };
@@ -548,7 +553,7 @@ impl Jump {
             let tl: Vec<i32> = scr[1].iter().map(|&n| c.cards(n)[0]).collect();
             let bright = c.cards(*bright)[0];
             let (xa, ya, xb, yb, ha4) = (h[0], h[2], tl[0], tl[2], h[4]);
-            if [xa, ya, xb, yb].iter().any(|v| v.abs() >= 990) { continue; }
+            if [xa, ya, xb, yb].iter().any(|v| !(-989..=989).contains(v)) { continue; }
             let dd = hd.go_pub(host, "asum", &[&[2, xb, xa, -1, yb, ya, -1]]);
             let ab = hd.go_pub(host, "aflabs", &[&[dd[0], dd[1]]]);
             let n = ab[0];
@@ -580,7 +585,7 @@ impl Jump {
             for (n, &i) in at.iter().enumerate() { px[i].c[ch] = out[n]; }
         }
         // the ten brightest light up, where the head is on the screen over something 30 units away or more
-        lit.sort_by_key(|l| -l.0);
+        sorter::sort(&mut lit, &[sorter::down(6)], |l| [l.0 as i64]);
         let top: Vec<&(i32, [i32; 4])> = lit.iter().take(10).filter(|l| (0..RW as i32).contains(&l.1[0]) && (0..RH as i32).contains(&l.1[2])).collect();
         let far = hd.many_pub(host, "ageq", &top.iter().map(|l| vec![px[l.1[2] as usize * RW + l.1[0] as usize].a4, 120]).collect::<Vec<_>>());
         let s = hd.many_pub(host, "apart", &top.iter().map(|l| vec![0, l.0, 3, 10]).collect::<Vec<_>>());

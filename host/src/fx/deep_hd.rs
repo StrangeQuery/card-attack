@@ -28,6 +28,8 @@ const BUBBLE: [i32; 3] = [225, 242, 250];
 pub struct Data {
     fish: Vec<u8>, fish_w: Vec<i32>, fish_h: Vec<i32>, fish_at: Vec<usize>,
     bell: Vec<u8>, bell_w: Vec<i32>, bell_at: Vec<usize>,
+    /// the sizes times 7, 14 or 500, as printed in hd.txt
+    fish_w7: Vec<i32>, fish_w500: Vec<i32>, fish_h14: Vec<i32>, fish_h500: Vec<i32>, bell_w500: Vec<i32>,
     bub: Vec<u8>, bub_at: Vec<usize>, bub_side: Vec<i32>, bub_phases: Vec<i32>, bub_size: Vec<i32>,
     cover: Vec<i32>, pale_glow: Vec<i32>, pale_rim: Vec<i32>, strand: Vec<i32>, halo: Vec<i32>, fine: Vec<i32>, taper: Vec<i32>, arm_taper: Vec<i32>,
     /// the orca at its 12 swim phases (the mesh kit's cards, data/make_orca.py), its haze by how far ahead (32nds)
@@ -52,6 +54,7 @@ impl Data {
         let us = |v: Vec<i32>| v.into_iter().map(|x| x as usize).collect::<Vec<usize>>();
         Data { fish: bin("hd_fish.bin"), fish_w: get("fish_w"), fish_h: get("fish_h"), fish_at: us(get("fish_at")),
             bell: bin("hd_bell.bin"), bell_w: get("bell_w"), bell_at: us(get("bell_at")),
+            fish_w7: get("fish_w7"), fish_w500: get("fish_w500"), fish_h14: get("fish_h14"), fish_h500: get("fish_h500"), bell_w500: get("bell_w500"),
             bub: bin("hd_bubble.bin"), bub_at: us(get("bubble_at")), bub_side: get("bubble_side"), bub_phases: get("bubble_phases"), bub_size: get("bubble_size"),
             orcas: (0..12).map(|k| super::mesh::Model::read(demo, &format!("deep/data/orca_{k}.txt"))).collect(), orca_haze: get("orca_haze"),
             knob: KnobData::load(demo),
@@ -238,8 +241,15 @@ fn place(c: &mut Calc, s: &mut Seen) {
 
 /// A sprite's walk, as the reference's Walk: the box round (cx, cy) reaching `reach`, the place at its first pixel
 /// (thousandths of a texel) from (w0, h0) at the middle, the steps across and down; and the place a further 999
-/// pixels across.
-struct WalkN { x0: N, x1: N, y0: N, y1: N, u0: N, v0: N, u9: N, v9: N, st: [N; 4] }
+/// pixels across; the box's columns and rows less one, and its columns past 999 less one.
+struct WalkN { x0: N, x1: N, y0: N, y1: N, u0: N, v0: N, u9: N, v9: N, st: [N; 4], n: [N; 3] }
+/// A box's columns less one, rows less one and columns past 999 less one, from its ends.
+fn box_counts(c: &mut Calc, x0: N, x1: N, y0: N, y1: N) -> [N; 3] {
+    let nx = c.sub(x1, x0);
+    let ny = c.sub(y1, y0);
+    let past = c.addk(nx, -999);
+    [nx, ny, past]
+}
 fn walk_sums(c: &mut Calc, cx: N, cy: N, reach: N, w0: i64, h0: i64, st: [N; 4]) -> WalkN {
     let (px, py) = (c.shift(cx), c.shift(cy));
     let (px, py) = (c.within(px, 1600), c.within(py, 900));
@@ -264,28 +274,31 @@ fn walk_sums(c: &mut Calc, cx: N, cy: N, reach: N, w0: i64, h0: i64, st: [N; 4])
     let k999 = c.num(999);
     let u9 = c.lin(&[(u0, None, false), (st[0], Some(k999), false)]);
     let v9 = c.lin(&[(v0, None, false), (st[2], Some(k999), false)]);
-    WalkN { x0, x1, y0, y1, u0, v0, u9, v9, st }
+    let n = box_counts(c, x0, x1, y0, y1);
+    WalkN { x0, x1, y0, y1, u0, v0, u9, v9, st, n }
 }
 
 /// Walk a box: each row's start (the rows machine down its first column, and down column 999 for a wide box), then
 /// each pixel's two wholes (the walk machine across, at most 999 pixels a walk). Calls f(x, y, u, v) a row at a time.
 fn walk_box(host: &mut Host, m: &Machines, c: &Calc, w: &WalkN, mut f: impl FnMut(&mut Host, i32, Vec<(i32, i32, i32)>)) {
     // the box's pixels (places on the screen: the host's addresses, not cards)
-    let (x0, x1, y0, y1) = (val(c, w.x0) as i32, val(c, w.x1) as i32, val(c, w.y0) as i32, val(c, w.y1) as i32);
-    if x0 > x1 || y0 > y1 { return; }
+    let (x0, x1, y0) = (val(c, w.x0) as i32, val(c, w.x1) as i32, val(c, w.y0) as i32);
+    let [nx, ny, past] = w.n.map(|n| val(c, n) as i32);
+    if nx < 0 || ny < 0 { return; }
     let st: Vec<[i32; 2]> = w.st.iter().map(|&s| long(c, s)).collect();
     let rows_from = |host: &mut Host, u: N, v: N| -> Vec<[i32; 4]> {
         let (u, v) = (long(c, u), long(c, v));
-        let deck = [y1 - y0, u[0], u[1], st[1][0], st[1][1], v[0], v[1], st[3][0], st[3][1]];
-        run(host, &m.rows, &[], &deck, 9, 4 * (y1 - y0 + 1) as usize).chunks(4).map(|o| [o[0], o[1], o[2], o[3]]).collect()
+        let deck = [ny, u[0], u[1], st[1][0], st[1][1], v[0], v[1], st[3][0], st[3][1]];
+        run(host, &m.rows, &[], &deck, 9, 4 * (ny + 1) as usize).chunks(4).map(|o| [o[0], o[1], o[2], o[3]]).collect()
     };
     let first = rows_from(host, w.u0, w.v0);
-    let second = if x1 - x0 + 1 > 999 { Some(rows_from(host, w.u9, w.v9)) } else { None };
+    // (a walk is at most 999 pixels: a wider box walks its first 999 and then the rest)
+    let second = if past >= 0 { Some(rows_from(host, w.u9, w.v9)) } else { None };
+    let first_n = if past >= 0 { 998 } else { nx };
     let mut items = vec![];
     for (r, p) in first.iter().enumerate() {
-        let n = (x1 - x0 + 1).min(999);
-        items.extend([n - 1, p[0], p[1], st[0][0], st[0][1], p[2], p[3], st[2][0], st[2][1]]);
-        if let Some(sec) = &second { let p = sec[r]; items.extend([x1 - x0 - 999, p[0], p[1], st[0][0], st[0][1], p[2], p[3], st[2][0], st[2][1]]); }
+        items.extend([first_n, p[0], p[1], st[0][0], st[0][1], p[2], p[3], st[2][0], st[2][1]]);
+        if let Some(sec) = &second { let p = sec[r]; items.extend([past, p[0], p[1], st[0][0], st[0][1], p[2], p[3], st[2][0], st[2][1]]); }
     }
     let per = (x1 - x0 + 1) as usize;
     let out = run(host, &m.walk, &[], &items, 9, 0);
@@ -347,7 +360,7 @@ fn fish(host: &mut Host, m: &Machines, d: &Data, s: &Scene, cv: &mut Canvas, dep
     eval_at(host, m, d, &mut c, 1);
     let lit_v = val(&c, lit);
     let mut shown: Vec<usize> = (0..all.len()).filter(|&e| seen(&c, &all[e].0) && !all[e].1.iter().any(|&f| flag(&c, f))).collect();
-    shown.sort_by(|&p, &q| val(&c, all[q].0.a).cmp(&val(&c, all[p].0.a)).then(p.cmp(&q)));
+    sorter::sort(&mut shown, &[sorter::down(9)], |&e| [val(&c, all[e].0.a)]);
     // which way each faces, its size, its walk
     struct Pose { row: N, phase: N, levels: Vec<Arg>, mirror: Arg, sn: N, cs: N, fogi: N, near: N, kf: N }
     let mut poses = vec![];
@@ -396,7 +409,7 @@ fn fish(host: &mut Host, m: &Machines, d: &Data, s: &Scene, cv: &mut Canvas, dep
         let ab = c.sel(above, k13, k0);
         let row = c.add(ab, yi);
         let k5280 = c.num(5_280_000);
-        let levels: Vec<Arg> = (0..9).map(|k| { let p = c.mulk(sn_.a, 7 * d.fish_w[k] as i64); c.lt(p, k5280) }).collect();
+        let levels: Vec<Arg> = (0..9).map(|k| { let p = c.mulk(sn_.a, d.fish_w7[k] as i64); c.lt(p, k5280) }).collect();
         let a500 = c.divk(sn_.a, 500);
         let k49 = c.num(49);
         let fogi = c.min(a500, k49);
@@ -414,8 +427,8 @@ fn fish(host: &mut Host, m: &Machines, d: &Data, s: &Scene, cv: &mut Canvas, dep
     for (p, &e) in poses.iter().zip(&shown) {
         let k = (0..9).find(|&k| flag(&c, p.levels[k])).unwrap();
         let a = all[e].0.a;
-        let s1000 = { let x = c.mulk(a, 7 * d.fish_w[k] as i64); let q = c.divk(x, 5280); c.within(q, 999) };
-        let t1000 = { let x = c.mulk(a, 14 * d.fish_h[k] as i64); let q = c.divk(x, 5280); c.within(q, 999) };
+        let s1000 = { let x = c.mulk(a, d.fish_w7[k] as i64); let q = c.divk(x, 5280); c.within(q, 999) };
+        let t1000 = { let x = c.mulk(a, d.fish_h14[k] as i64); let q = c.divk(x, 5280); c.within(q, 999) };
         let mir = flag(&c, p.mirror);
         let step = |c: &mut Calc, x: N, y: N, neg: bool| -> N { let l = c.lin(&[(x, Some(y), neg)]); let q = c.divk(l, 999); c.within(q, 999) };
         let st = [step(&mut c, p.cs, s1000, mir), step(&mut c, p.sn, s1000, !mir), step(&mut c, p.sn, t1000, false), step(&mut c, p.cs, t1000, false)];
@@ -423,7 +436,7 @@ fn fish(host: &mut Host, m: &Machines, d: &Data, s: &Scene, cv: &mut Canvas, dep
         let r0 = c.div(k422, a);
         let reach = c.addk(r0, 2);
         let reach = c.within(reach, 1000);
-        let walk = walk_sums(&mut c, all[e].0.x.unwrap(), all[e].0.y.unwrap(), reach, 500 * d.fish_w[k] as i64, 500 * d.fish_h[k] as i64, st);
+        let walk = walk_sums(&mut c, all[e].0.x.unwrap(), all[e].0.y.unwrap(), reach, d.fish_w500[k] as i64, d.fish_h500[k] as i64, st);
         let fog = c.num(demokit::tables::FISH_FOG[val(&c, p.fogi) as usize] as i64);
         let lit = c.num(lit_v);
         let left = { let k32 = c.num(32); c.sub(k32, fog) };
@@ -621,7 +634,8 @@ fn jelly(host: &mut Host, m: &Machines, d: &Data, s: &Scene, j: &(i32, i32, [i32
     let r32 = c.mulk(rest, 32);
     let w = c.divk(r32, 41_667);
     let w = c.within(w, 32);
-    let nr1 = c.num(-s.r[1] as i64);
+    let r1 = c.num(s.r[1] as i64);
+    let nr1 = c.neg(r1);
     let u1 = c.num(s.u[1] as i64);
     let up = c.atan2(nr1, u1);
     let (sn, cs) = c.sin(up);
@@ -666,6 +680,7 @@ fn jelly(host: &mut Host, m: &Machines, d: &Data, s: &Scene, j: &(i32, i32, [i32
     let ty0 = { let q = c.divk(lo, TILE as i64); c.clamp(q, 0, 2000) };
     let hi = c.add(sy_, reach_h);
     let ty1 = { let q = c.divk(hi, TILE as i64); c.clamp(q, -2000, TH as i64 - 1) };
+    let (tnx, tny) = (c.sub(tx1, tx0), c.sub(ty1, ty0));
     let a4 = c.mulk(aheadn, 1000 * TILE as i64);
     let hstep = c.divk(a4, 112);
     let hstep = c.within(hstep, 21_500);
@@ -704,7 +719,7 @@ fn jelly(host: &mut Host, m: &Machines, d: &Data, s: &Scene, j: &(i32, i32, [i32
     let q2 = c.div(q1, inv9);
     let reach = c.addk(q2, 2);
     let reach = c.within(reach, 2000);
-    let bell_walk = walk_sums(&mut c, cx, cy, reach, 500 * d.bell_w[k] as i64, 500 * d.bell_w[k] as i64, st);
+    let bell_walk = walk_sums(&mut c, cx, cy, reach, d.bell_w500[k] as i64, d.bell_w500[k] as i64, st);
     // the tentacles' points: the angle each hangs from, then its 25 points
     let wave = s.wave as i64;
     let mut tents = vec![];
@@ -811,7 +826,9 @@ fn jelly(host: &mut Host, m: &Machines, d: &Data, s: &Scene, j: &(i32, i32, [i32
         }
         tent_pts.push(pts);
     }
-    let longest = *lengths.iter().max().unwrap() as i64;
+    // the longest tentacle
+    let mut lg = c.num(lengths[0] as i64);
+    for &l in &lengths[1..] { let ln = c.num(l as i64); lg = c.max(lg, ln); }
     let mut arm_pts = vec![];
     for (ca, sa, _, pts) in &arms {
         let mut out = vec![];
@@ -823,7 +840,6 @@ fn jelly(host: &mut Host, m: &Machines, d: &Data, s: &Scene, j: &(i32, i32, [i32
             let z2 = p(&mut c, *ca, wv);
             let x = c.lin(&[(c1000[0], None, false), (x1, None, false), (x2, None, false)]);
             let z = c.lin(&[(c1000[2], None, false), (z1, None, false), (z2, None, true)]);
-            let lg = c.num(longest);
             let l55 = c.mulk(lg, 55 * i as i64);
             let dropn = c.divk(l55, 2);
             let y = c.sub(c1000[1], dropn);
@@ -886,7 +902,7 @@ fn jelly(host: &mut Host, m: &Machines, d: &Data, s: &Scene, j: &(i32, i32, [i32
     }
     eval_at(host, m, d, &mut c, 14);
     // and for each piece that glows, its walk
-    let mut boxes: Vec<(usize, usize, [N; 8])> = vec![];
+    let mut boxes: Vec<(usize, usize, [N; 8], [N; 3])> = vec![];
     for (si, (pieces, _, _, _, sig, xy)) in strands.iter_mut().enumerate() {
         for (h, pc) in pieces.iter_mut().enumerate() {
             let Some((piece, dx, dy, len, _)) = pc else { continue };
@@ -915,13 +931,14 @@ fn jelly(host: &mut Host, m: &Machines, d: &Data, s: &Scene, j: &(i32, i32, [i32
             let y0 = c.clamp(lo, 0, 2000);
             let hi = c.add(yb, reach);
             let y1 = c.clamp(hi, -2000, HH as i64 - 1);
-            boxes.push((si, h, [tx, ty, nx, ny, x0, x1, y0, y1]));
+            let n = box_counts(&mut c, x0, x1, y0, y1);
+            boxes.push((si, h, [tx, ty, nx, ny, x0, x1, y0, y1], n));
         }
     }
     eval_at(host, m, d, &mut c, 15);
     // the walks of those on the screen
-    for &(si, h, [tx, ty, nx, ny, x0, x1, y0, y1]) in &boxes {
-        if val(&c, x0) > val(&c, x1) || val(&c, y0) > val(&c, y1) { strands[si].0[h] = None; continue; }
+    for &(si, h, [tx, ty, nx, ny, x0, x1, y0, y1], n) in &boxes {
+        if val(&c, n[0]) < 0 || val(&c, n[1]) < 0 { strands[si].0[h] = None; continue; }
         let (sig, xy) = (strands[si].4, strands[si].5);
         let p = xy[h].unwrap();
         let len = strands[si].0[h].as_ref().unwrap().3;
@@ -947,7 +964,7 @@ fn jelly(host: &mut Host, m: &Machines, d: &Data, s: &Scene, j: &(i32, i32, [i32
         let k999 = c.num(999);
         let u9 = c.lin(&[(a0, None, false), (ax, Some(k999), false)]);
         let v9 = c.lin(&[(l0, None, false), (lx, Some(k999), false)]);
-        strands[si].0[h].as_mut().unwrap().0.walk = Some(WalkN { x0, x1, y0, y1, u0: a0, v0: l0, u9, v9, st: [ax, ay, lx, ly] });
+        strands[si].0[h].as_mut().unwrap().0.walk = Some(WalkN { x0, x1, y0, y1, u0: a0, v0: l0, u9, v9, st: [ax, ay, lx, ly], n });
     }
     eval_at(host, m, d, &mut c, 13);
     // the strands' glow, piece after piece
@@ -985,10 +1002,11 @@ fn jelly(host: &mut Host, m: &Machines, d: &Data, s: &Scene, j: &(i32, i32, [i32
     }
     // the halo, a 4 x 4 at a time
     let (tx0, tx1, ty0, ty1) = (cardv(&c, tx0), cardv(&c, tx1), cardv(&c, ty0), cardv(&c, ty1));
-    if tx0 > tx1 || ty0 > ty1 { return; }
+    let (tnx, tny) = (cardv(&c, tnx), cardv(&c, tny));
+    if tnx < 0 || tny < 0 { return; }
     let (u0, v0, hs) = (long(&c, hu0), long(&c, hv0), long(&c, hstep));
-    let rows = run(host, &m.rows, &[], &[ty1 - ty0, u0[0], u0[1], 0, 0, v0[0], v0[1], hs[0], hs[1]], 9, 4 * (ty1 - ty0 + 1) as usize);
-    let items: Vec<i32> = rows.chunks(4).flat_map(|p| [tx1 - tx0, p[0], p[1], hs[0], hs[1], p[2], p[3], 0, 0]).collect();
+    let rows = run(host, &m.rows, &[], &[tny, u0[0], u0[1], 0, 0, v0[0], v0[1], hs[0], hs[1]], 9, 4 * (tny + 1) as usize);
+    let items: Vec<i32> = rows.chunks(4).flat_map(|p| [tnx, p[0], p[1], hs[0], hs[1], p[2], p[3], 0, 0]).collect();
     let uv = run(host, &m.walk, &[], &items, 9, 0);
     let tiles: Vec<(usize, usize)> = (ty0..=ty1).flat_map(|ty| (tx0..=tx1).map(move |tx| (tx as usize, ty as usize))).collect();
     assert_eq!(uv.len(), 2 * tiles.len());
@@ -1148,13 +1166,13 @@ fn orcas(host: &mut Host, m: &Machines, d: &Data, s: &Scene, cv: &mut Canvas, de
         let keep = run(host, &m.keep, &[], &items.iter().flat_map(|&(x, y, a)| [a, depth(x, y)]).collect::<Vec<_>>(), 2, 1);
         // the colour at each distance shown: the body mixed toward the far colour by the haze there
         let shown: Vec<&(usize, usize, i32)> = items.iter().zip(&keep).filter(|(_, &k)| k == 1).map(|(i, _)| i).collect();
-        let mut dists: Vec<i32> = shown.iter().map(|i| i.2).collect();
-        dists.sort();
-        dists.dedup();
-        let deck: Vec<i32> = dists.iter().flat_map(|&a| (0..3).flat_map(move |ch| [ORCA_DARK[ch], s.far[ch], d.orca_haze[a as usize]])).collect();
+        // (the pixels gathered by distance on the card sorter, each distance's colour mixed once)
+        let groups = sorter::groups(&shown.iter().map(|i| [i.2 as i64]).collect::<Vec<_>>(), &[sorter::CARD]);
+        let mut colour_of = vec![0; shown.len()];
+        for (e, g) in groups.iter().enumerate() { for &j in g { colour_of[j] = e; } }
+        let deck: Vec<i32> = groups.iter().flat_map(|g| { let a = shown[g[0]].2; (0..3).flat_map(move |ch| [ORCA_DARK[ch], s.far[ch], d.orca_haze[a as usize]]) }).collect();
         let cols = run(host, &m.mix, &[], &deck, 3, 1);
-        for &&(x, y, a) in &shown {
-            let e = dists.binary_search(&a).unwrap();
+        for (&&(x, y, _), &e) in shown.iter().zip(&colour_of) {
             cv.set(x, y, [cols[3 * e], cols[3 * e + 1], cols[3 * e + 2]]);
         }
     }
@@ -1334,13 +1352,18 @@ fn ending(host: &mut Host, m: &Machines, d: &Data, s: &Scene, cv: &mut Canvas) {
     if (ORCA2_FIRST..=ORCA2_LAST).contains(&n) { orca2(host, m, d, s, cv); }
     tell(host, "orca");
     // the knob's pixels first (their colours don't depend on what is under them), so the dial's glow on the water
-    // is mixed only into the 4 x 4 pixels the knob doesn't wholly cover; then the knob over it
+    // is mixed only into the 4 x 4 pixels the knob doesn't wholly cover (its pixels in each counted on the sum
+    // machine, a card of 1 for each, at most 16); then the knob over it
     let kp = knob(host, m, d, s);
     tell(host, "knob");
-    let mut covered = vec![0u8; TW * TH];
+    let mut ones: BTreeMap<usize, Vec<i32>> = BTreeMap::new();
     let mut seen = vec![false; HW * HH];
-    for &(x, y, _) in &kp { if !seen[y * HW + x] { seen[y * HW + x] = true; covered[(y / TILE) * TW + x / TILE] += 1; } }
-    halo(host, m, d, s, cv, &covered);
+    for &(x, y, _) in &kp { if !seen[y * HW + x] { seen[y * HW + x] = true; ones.entry((y / TILE) * TW + x / TILE).or_default().push(1); } }
+    let tiles: Vec<usize> = ones.keys().copied().collect();
+    let counts = sum_up(host, m, 16, &tiles.iter().map(|t| ones[t].clone()).collect::<Vec<_>>());
+    let mut whole = vec![false; TW * TH];
+    for (&t, &n) in tiles.iter().zip(&counts) { whole[t] = n == 16; }
+    halo(host, m, d, s, cv, &whole);
     tell(host, "halo");
     for (x, y, c3) in kp { cv.set(x, y, c3); }
     silt(host, m, d, s, cv);
@@ -1419,7 +1442,7 @@ fn orca2(host: &mut Host, m: &Machines, d: &Data, s: &Scene, cv: &mut Canvas) {
     for (i, &&(x, y, _)) in shown.iter().enumerate() { cv.set(x, y, out[i]); }
 }
 
-fn halo(host: &mut Host, m: &Machines, d: &Data, s: &Scene, cv: &mut Canvas, covered: &[u8]) {
+fn halo(host: &mut Host, m: &Machines, d: &Data, s: &Scene, cv: &mut Canvas, whole: &[bool]) {
     let kd = &d.knob;
     let mut c = Calc::new();
     let (cm, cam) = cam_nums(&mut c, s);
@@ -1471,7 +1494,7 @@ fn halo(host: &mut Host, m: &Machines, d: &Data, s: &Scene, cv: &mut Canvas, cov
     let amt: Vec<i32> = amt.iter().map(|&a| cardv(&c, a)).collect();
     let deck: Vec<i32> = (0..TW * TH).flat_map(|t| [ex[t % TW], ey[t / TW]]).collect();
     let idx = run(host, &m.kindex, &[99], &deck, 2, 1);
-    let items: Vec<(usize, [i32; 3], i32)> = idx.iter().enumerate().filter(|&(t, &e)| e >= 0 && amt[e as usize] > 0 && covered[t] < 16).map(|(t, &e)| (t, WARM, amt[e as usize])).collect();
+    let items: Vec<(usize, [i32; 3], i32)> = idx.iter().enumerate().filter(|&(t, &e)| e >= 0 && amt[e as usize] > 0 && !whole[t]).map(|(t, &e)| (t, WARM, amt[e as usize])).collect();
     mix_tiles(host, m, cv, &items, true);
 }
 
@@ -1491,9 +1514,9 @@ fn knob(host: &mut Host, m: &Machines, d: &Data, s: &Scene) -> Vec<(usize, usize
     let (sx, sz) = if n > CLICK {
         let a10 = { let x = c.mulk(ct.p19, 50); let q = c.divk(x, 19); c.addk(q, 12) };
         let (r1, r2) = (kd.shake[(2 * (n - 332)) as usize] as i64, kd.shake[(2 * (n - 332) + 1) as usize] as i64);
-        let x = c.mulk(a10, 2 * r1 - 999);
+        let x = c.mulk(a10, r1);
         let sx = c.divk(x, 9990);
-        let z = c.mulk(a10, 6 * (2 * r2 - 999));
+        let z = c.mulk(a10, r2);
         let sz = c.divk(z, 99_900);
         let (sx, sz) = (c.within(sx, 10), c.within(sz, 10));
         (c.neg(sx), c.neg(sz))
@@ -1641,10 +1664,10 @@ fn silt(host: &mut Host, m: &Machines, d: &Data, s: &Scene, cv: &mut Canvas) {
         let ag = ages[&age];
         for i in 0..18i64 {
             let r = &kd.silt[((puff * 18 + i) * 3) as usize..];
-            let a = c.num(1000 * r[0] as i64);
+            let a = c.num(r[0] as i64);
             let (sn, cs) = sin_cos(&mut c, a);
             let grown = { let g = c.mulk(ag, 12); c.addk(g, 490) };
-            let rad = { let x = c.num(120 * r[1] as i64); let q = c.divk(x, 1000); let q = c.within(q, 120); c.add(q, grown) };
+            let rad = { let x = c.num(r[1] as i64); let q = c.divk(x, 1000); let q = c.within(q, 120); c.add(q, grown) };
             let y = { let r2 = c.num(r[2] as i64); let up = c.addk(r2, 500); let a8 = c.mulk(ag, 8); let x = c.mul(a8, up); let q = c.divk(x, 1000); c.addk(q, -35) };
             let qx = { let x = c.mul(cs, rad); let q = c.divk(x, 999); c.within(q, 1000) };
             let qz = { let x = c.mul(sn, rad); let q = c.divk(x, 999); c.within(q, 1000) };
@@ -1675,14 +1698,15 @@ fn silt(host: &mut Host, m: &Machines, d: &Data, s: &Scene, cv: &mut Canvas) {
         let x = { let v = p.x.unwrap(); let q = c.divk(v, 1000); c.within(q, 2000) };
         let y = { let v = p.y.unwrap(); let q = c.divk(v, 1000); c.within(q, 2000) };
         let (tx0, ty0, tx1, ty1, xy, _) = falloff(&mut c, x, y, reach, r2);
-        boxes.push((*age, tx0, ty0, tx1[0], ty1[0], xy, r2));
+        let (nx, ny) = (c.sub(tx1[0], tx0), c.sub(ty1[0], ty0));
+        boxes.push((*age, tx0, ty0, tx1[0], ty1[0], [nx, ny], xy, r2));
     }
     eval(host, m, d, &mut c);
     let mut sums: BTreeMap<usize, Vec<i32>> = BTreeMap::new();
     let mut per = vec![];
-    for (age, tx0, ty0, tx1, ty1, xy, r2) in &boxes {
+    for (age, tx0, ty0, tx1, ty1, n, xy, r2) in &boxes {
         let (tx0, ty0, tx1, ty1) = (val(&c, *tx0), val(&c, *ty0), val(&c, *tx1), val(&c, *ty1));
-        if tx0 > tx1 || ty0 > ty1 { continue; }
+        if val(&c, n[0]) < 0 || val(&c, n[1]) < 0 { continue; }
         let hundred = c.num(100);
         let ex: Vec<N> = (tx0..=tx1).map(|tx| { let m4 = c.num(4 * tx + 2); let dx = c.sub(m4, xy[0]); let sq = c.mul(dx, dx); let sq = c.mulk(sq, 5); let e = c.div(sq, *r2); c.min(e, hundred) }).collect();
         let ey: Vec<N> = (ty0..=ty1).map(|ty| { let m4 = c.num(4 * ty + 2); let dy = c.sub(m4, xy[1]); let sq = c.mul(dy, dy); let sq = c.mulk(sq, 5); let e = c.div(sq, *r2); c.min(e, hundred) }).collect();
@@ -1721,26 +1745,26 @@ fn debris(host: &mut Host, m: &Machines, d: &Data, s: &Scene, cv: &mut Canvas) {
     let mut flakes = vec![];
     for i in 0..140usize {
         let r: Vec<i64> = kd.debris[7 * i..7 * i + 7].iter().map(|&v| v as i64).collect();
-        let born = { let x = c.num(18 * r[0]); let q = c.divk(x, 1000); c.addk(q, 332) };
+        let born = { let x = c.num(r[0]); let q = c.divk(x, 1000); c.addk(q, 332) };
         let age = c.sub(nn, born);
         let neg = c.below0(age);
         let k16 = c.num(16);
         let old = c.lt(k16, age);
-        let a = c.num(1000 * r[1]);
+        let a = c.num(r[1]);
         let (sn, cs) = sin_cos(&mut c, a);
-        let sp = { let x = c.num(17 * r[3]); let q = c.divk(x, 1000); c.addk(q, 5) };
+        let sp = { let x = c.num(r[3]); let q = c.divk(x, 1000); c.addk(q, 5) };
         let sp = c.within(sp, 22);
         let age16 = c.within(age, 2000);
-        let rad = { let x = c.num(300 * r[2]); let q = c.divk(x, 1000); let q = c.within(q, 300); let q = c.addk(q, 180); let g = c.mul(sp, age16); c.add(q, g) };
+        let rad = { let x = c.num(r[2]); let q = c.divk(x, 1000); let q = c.within(q, 300); let q = c.addk(q, 180); let g = c.mul(sp, age16); c.add(q, g) };
         let rad = c.within(rad, 50_000);
-        let ri = { let x = c.num(10 * r[4]); let q = c.divk(x, 1000); c.addk(q, 2) };
+        let ri = { let x = c.num(r[4]); let q = c.divk(x, 1000); c.addk(q, 2) };
         let ri = c.within(ri, 12);
         let y = { let g = c.mul(ri, age16); let g = c.addk(g, 10); c.within(g, 1000) };
         let qx = { let x = c.mul(cs, rad); let q = c.divk(x, 999); c.within(q, 1000) };
         let qz = { let x = c.mul(sn, rad); let q = c.divk(x, 999); c.within(q, 1000) };
         let rel = from_cam(&mut c, [qx, y, qz], cam);
         let p = pn(&mut c, rel, &cm);
-        let size = { let x = c.num(45 * r[6]); let q = c.divk(x, 1000); c.addk(q, 25) };
+        let size = { let x = c.num(r[6]); let q = c.divk(x, 1000); c.addk(q, 25) };
         let k = { let x = c.mulk(age, -272); let x = c.addk(x, 272 * 17); c.divk(x, 170) };
         flakes.push((i, neg, old, p, size, k, r[5] == 1));
     }
@@ -1811,9 +1835,9 @@ fn crackle(host: &mut Host, m: &Machines, d: &Data, s: &Scene, cv: &mut Canvas) 
         let mut starts = vec![];
         for i in 0..count {
             let r: Vec<i64> = kd.crackle[(((n - 331) as usize * 20 + i) * 80)..][..80].iter().map(|&v| v as i64).collect();
-            let a = c.num(1000 * r[0]);
+            let a = c.num(r[0]);
             let (sn, cs) = sin_cos(&mut c, a);
-            let rad = { let x = c.num(400 * r[1]); let q = c.divk(x, 1000); let q = c.within(q, 400); let q = c.addk(q, 600); let q = c.mulk(q, 460); let q = c.divk(q, 1000); c.within(q, 460) };
+            let rad = { let x = c.num(r[1]); let q = c.divk(x, 1000); let q = c.within(q, 400); let q = c.addk(q, 600); let q = c.mulk(q, 460); let q = c.divk(q, 1000); c.within(q, 460) };
             let qx = { let x = c.mul(cs, rad); let q = c.divk(x, 999); c.within(q, 500) };
             let qz = { let x = c.mul(sn, rad); let q = c.divk(x, 999); c.within(q, 500) };
             let ten = c.num(10);
@@ -1831,14 +1855,14 @@ fn crackle(host: &mut Host, m: &Machines, d: &Data, s: &Scene, cv: &mut Canvas) 
             let (dx, dy) = (c.divk(dx, 10), c.divk(dy, 10));
             let (dx, dy) = (c.within(dx, 99_999), c.within(dy, 99_999));
             let at = c.atan2(dy, dx);
-            let turn = c.num((r[2] - 500) * 159_155);
+            let turn = c.num(r[2]);
             let turn = c.divk(turn, 1000);
             let mut ang = c.add(at, turn);
             let len = { let h = c.num(r[3]); let h = c.divk(h, 2); let h = c.addk(h, 500); let h = c.mul(h, reach); let h = c.mulk(h, 100); c.divk(h, 1000) };
             let len = c.within(len, 90_000);
             for j in 0..10usize {
                 let st = &r[4 + 7 * j..];
-                let t = { let x = c.num((st[0] - 500) * 222_817); c.divk(x, 1000) };
+                let t = { let x = c.num(st[0]); c.divk(x, 1000) };
                 ang = c.add(ang, t);
                 let (sn, cs) = sin_cos(&mut c, ang);
                 let nx = { let v = c.mul(cs, len); let v = c.divk(v, 999); c.add(x, v) };
@@ -1846,11 +1870,11 @@ fn crackle(host: &mut Host, m: &Machines, d: &Data, s: &Scene, cv: &mut Canvas) 
                 segs.push(SegN { a: [x, y], b: [nx, ny], first: j == 0, last: j == 9, fork: false });
                 (x, y) = (nx, ny);
                 if st[1] == 1 {
-                    let t = { let v = c.num((st[2] - 500) * 413_803); c.divk(v, 1000) };
+                    let t = { let v = c.num(st[2]); c.divk(v, 1000) };
                     let mut fa = c.add(ang, t);
                     let (mut fx, mut fy) = (x, y);
                     for mm in 0..4usize {
-                        let t = { let v = c.num((st[3 + mm] - 500) * 190_986); c.divk(v, 1000) };
+                        let t = { let v = c.num(st[3 + mm]); c.divk(v, 1000) };
                         fa = c.add(fa, t);
                         let (sn, cs) = sin_cos(&mut c, fa);
                         let len10 = c.mulk(len, 10);
@@ -1915,7 +1939,8 @@ fn crackle(host: &mut Host, m: &Machines, d: &Data, s: &Scene, cv: &mut Canvas) 
         let u0 = { let v = c.sub(y0, base); let h = c.mulk(wd, -500); let h = c.addk(h, 499); c.add(v, h) };
         let v0 = { let v = c.sub(y0, base); let h = c.mulk(wd, 500); let h = c.addk(h, -500); c.add(v, h) };
         let (slope, u0, v0) = (c.long(slope), c.long(u0), c.long(v0));
-        walks.push((e, steep, c0, c1, yb, slope, u0, v0));
+        let cols = c.sub(c1, c0);
+        walks.push((e, steep, c0, cols, yb, slope, u0, v0));
     }
     // the lines' glow: each line's box of 4 x 4 pixels, how far along and across it each is
     let reach_px = { let wn = c.num(w as i64); let x = c.mulk(wn, 2); let x = c.addk(x, 4); c.mulk(x, 3) };
@@ -1956,22 +1981,23 @@ fn crackle(host: &mut Host, m: &Machines, d: &Data, s: &Scene, cv: &mut Canvas) 
         let m4x = c.mulk(ux, -4);
         let lg = |c: &mut Calc, v: N| c.long(v);
         let (s0, t0, s4x, s4y, m4x) = (lg(&mut c, s0), lg(&mut c, t0), lg(&mut c, s4x), lg(&mut c, s4y), lg(&mut c, m4x));
-        boxes.push((e, tx0, tx1, ty0, ty1, s0, t0, s4x, s4y, m4x, len_px));
+        let (nx, ny) = (c.sub(tx1, tx0), c.sub(ty1, ty0));
+        boxes.push((e, tx0, nx, ty0, ny, s0, t0, s4x, s4y, m4x, len_px));
     }
     eval(host, m, d, &mut c);
     // the lines' pixels: each column's rows (or each row's columns) from the walks, forks first, then the mains
     let mut core: BTreeMap<usize, i32> = BTreeMap::new();
-    let deck: Vec<i32> = walks.iter().flat_map(|(_, _, c0, c1, _, sl, u0, v0)| {
+    let deck: Vec<i32> = walks.iter().flat_map(|(_, _, _, cols, _, sl, u0, v0)| {
         let (sl, u0, v0) = (long(&c, *sl), long(&c, *u0), long(&c, *v0));
-        [(val(&c, *c1) - val(&c, *c0)) as i32, u0[0], u0[1], sl[0], sl[1], v0[0], v0[1], sl[0], sl[1]]
+        [val(&c, *cols) as i32, u0[0], u0[1], sl[0], sl[1], v0[0], v0[1], sl[0], sl[1]]
     }).collect();
     let rows = if walks.is_empty() { vec![] } else { run(host, &m.walk, &[], &deck, 9, 0) };
     let mut at = 0;
     let mut fills: Vec<(bool, Vec<(i64, i64)>)> = vec![];
-    for (e, steep, c0, c1, yb, _, _, _) in &walks {
-        let (c0, c1, yb) = (val(&c, *c0), val(&c, *c1), val(&c, *yb));
+    for (e, steep, c0, cols, yb, _, _, _) in &walks {
+        let (c0, cols, yb) = (val(&c, *c0), val(&c, *cols), val(&c, *yb));
         let mut px = vec![];
-        for k in 0..=(c1 - c0) {
+        for k in 0..=cols {
             let (r0, r1) = (yb + rows[at] as i64, yb + rows[at + 1] as i64);
             at += 2;
             for r in r0..=r1 { px.push(if *steep { (r, c0 + k) } else { (c0 + k, r) }); }
@@ -1989,19 +2015,19 @@ fn crackle(host: &mut Host, m: &Machines, d: &Data, s: &Scene, cv: &mut Canvas) 
     // then across), the table's glow where it reaches, summed per 4 x 4 pixels
     let mut parts: BTreeMap<usize, Vec<i32>> = BTreeMap::new();
     let table = &kd.glow[match w { 2 => 0, 4 => 1, _ => 2 }];
-    for (e, tx0, tx1, ty0, ty1, s0, t0, s4x, s4y, m4x, len_px) in &boxes {
-        let (tx0, tx1, ty0, ty1) = (val(&c, *tx0), val(&c, *tx1), val(&c, *ty0), val(&c, *ty1));
-        if tx0 > tx1 || ty0 > ty1 { continue; }
+    for (e, tx0, nx, ty0, ny, s0, t0, s4x, s4y, m4x, len_px) in &boxes {
+        let (tx0, nx, ty0, ny) = (val(&c, *tx0), val(&c, *nx), val(&c, *ty0), val(&c, *ny));
+        if nx < 0 || ny < 0 { continue; }
         let (s0, t0, s4x, s4y, m4x) = (long(&c, *s0), long(&c, *t0), long(&c, *s4x), long(&c, *s4y), long(&c, *m4x));
-        let deck = [(ty1 - ty0) as i32, s0[0], s0[1], s4y[0], s4y[1], t0[0], t0[1], m4x[0], m4x[1]];
-        let starts = run(host, &m.rows, &[], &deck, 9, 4 * (ty1 - ty0 + 1) as usize);
-        let wdeck: Vec<i32> = starts.chunks(4).flat_map(|p| [(tx1 - tx0) as i32, p[0], p[1], s4x[0], s4x[1], p[2], p[3], s4y[0], s4y[1]]).collect();
+        let deck = [ny as i32, s0[0], s0[1], s4y[0], s4y[1], t0[0], t0[1], m4x[0], m4x[1]];
+        let starts = run(host, &m.rows, &[], &deck, 9, 4 * (ny + 1) as usize);
+        let wdeck: Vec<i32> = starts.chunks(4).flat_map(|p| [nx as i32, p[0], p[1], s4x[0], s4x[1], p[2], p[3], s4y[0], s4y[1]]).collect();
         let st = run(host, &m.walk, &[], &wdeck, 9, 0);
         let (first, last) = (segs[*e].first as i32, segs[*e].last as i32);
         let lp = cardv(&c, *len_px);
         let sdeck: Vec<i32> = st.chunks(2).flat_map(|p| [p[0], p[1], lp, first, last]).collect();
         let at = run(host, &m.kseg, &[], &sdeck, 5, 2);
-        let wdt = (tx1 - tx0 + 1) as usize;
+        let wdt = (nx + 1) as usize;
         for (k, p) in at.chunks(2).enumerate() {
             if p[0] < 0 { continue; }
             let t = (ty0 as usize + k / wdt) * TW + tx0 as usize + k % wdt;

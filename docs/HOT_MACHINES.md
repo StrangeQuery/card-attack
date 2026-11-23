@@ -71,9 +71,9 @@ A machine for each case is the natural hand-written answer, but they had to be w
 ### By hand
 
 Three machines, one a case, each taking tr_add's deck unchanged (so either can run on the same cards):
-`segments/train/hand/` (`tr_add1.asm`, `tr_add2p.asm`, `tr_add2m.asm`; not beside `tr_add.rs`, where the compiler writes its own `.asm`). The host already knows the case when it deals
-the deck, because it works out the sums itself from the actual values to choose between tr_addc and tr_add; it now
-picks the machine by the case too.
+`segments/train/hand/` (`tr_add1.asm`, `tr_add2p.asm`, `tr_add2m.asm`; not beside `tr_add.rs`, where the compiler writes its own `.asm`). The host picks the
+machine by the terms' count and signs, which are the same for a whole call, and deals it each item whose values are
+longs (a comparison of each value with a long's limits).
 
 - `999 - cl` once a run, as `m = cl - 999`: `lo + m` is over 0 exactly when the lows carry.
 - No k test in the loop: the case is the machine.
@@ -91,8 +91,8 @@ machines were right on every item. The compiled tr_add was not:
     k1: c -163495, item [-836, 663]: [1, 168] for [-999, 168]
 
 -835,337 + -163,495 = -998,832: a long, [-999, 168]. The compiled code stores the partial high `hi + ch` = -1000
-before adding the carry, and a card holds ±999: the -1000 wraps, and the high comes out 1. The host's check
-(`okl`) guarantees the final sum and `a + c` are longs, not that partial. The native Rust build, on i16, gets it
+before adding the carry, and a card holds ±999: the -1000 wraps, and the high comes out 1. The operation
+guarantees the final sum is a long, not that partial. The native Rust build, on i16, gets it
 right; only the tape is wrong, and only at the -1000 edge, in all three cases. The film's 3,419 frames were
 identical to the reference before and after, so its decks never hit it: a latent wrong answer, not a visible one.
 The first hand k = 2 versions had the same flaw (a partial high on a card) and were rewritten to sum the high
@@ -210,7 +210,7 @@ The swarm calculator's long sums (`segments/swarm/machines/sw_lsum.rs`), three c
 thousands, units), loaded by the swarm, the turn, the mesh and the train's operations alike. So from here on a hand
 machine that takes a Rust machine's whole deck lives at `PART/hand/NAME.asm`, and the host's `rust()` loads it in
 the Rust machine's place, under the same name, with the Rust machine's native build beside it for native checks.
-tr_sum, tr_walka and tr_qa moved to that rule (tr_add's three per-case machines are still picked by the host, which works out the sums itself to choose the adder).
+tr_sum, tr_walka and tr_qa follow that rule (tr_add's three per-case machines are loaded on their own, and the host picks one by the terms' count and signs).
 
 By hand: the first term loaded straight in, each card stored before its carry test, the units' carry one more on
 the thousands' add (the compiled code tests `h1 == 999` on its own), the millions' carry in the accumulator.
@@ -231,8 +231,8 @@ Live: sw_lsum's 188.8G to 109.6G (-42%); the film 3,043.1G; each worker busy 164
 
 ## tr_addc
 
-Sums of cards, each term added or taken away, and a constant (`tr_addc.rs`): the host's first choice for a sum
-whose every partial fits a card (the host finds that out by working out every partial sum itself). The deck gives the signs once, in its header (up to six); the compiled machine
+Sums of cards, each term added or taken away, and a constant (`tr_addc.rs`): the host's first choice for an item
+of at most six cards and a constant card (each value compared with a card's limits). The deck gives the signs once, in its header (up to six); the compiled machine
 keeps them in an array and walks it for every sum: an indexed read on CARDIAC is an address worked out and an
 instruction built, every term, every sum.
 
@@ -257,6 +257,15 @@ Live: tr_addc's 163.6G to 43.1G (-74%); the film 2,922.6G; each worker busy 155.
 161.1 s; 3419/3419 identical.
 
 This one isn't for the compiler: it's what CARDIAC's stored program is for, code that is data.
+
+tr_addc punches each sum as two cards, its thousands and the rest, both with the sum's sign: after the last term
+`STO s` keeps the last three digits and `SFT 03` leaves the thousands (12 + 2k instructions). Seven cards add up to
+at most 6,993, which the accumulator's four digits hold, so every sum of at most six cards and a constant card
+comes out whole whatever its partial sums pass on the way, and the host deals it every such item by comparing each
+value with a card's limits, item by item. tr_add's machines keep the high's partials in the accumulator too, so
+they take every item whose values are longs. Over the film: 18.9G items through `sum`, 7.6G of them all cards; the
+adders' 574.0G (tr_sum 226.1, tr_add2p 166.7, tr_add1 87.9, tr_addc 47.3, tr_add2m 46.0) to 536.0G (tr_sum 185.9,
+tr_addc 123.8, tr_add2p 103.4, tr_add1 83.1, tr_add2m 39.8); the film 2,679.1G to 2,632.0G; 3419/3419 identical.
 
 ## sw_qis
 

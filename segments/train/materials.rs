@@ -308,7 +308,8 @@ pub fn water<O: Ops>(o: &mut O, tb: &Tb, env: &Env, px: &Px, k: i64, e: i64, out
     let r = [rx.clone(), up.clone(), rz.clone()];
     let mut d2 = vec![];
     for i in 0..3 {
-        let d = o.sum(&[(v(&r[i]), 1)], -env.sun[i]);
+        let ns = kl(o, &[(env.sun[i], Some(-1))]);
+        let d = o.sum(&[(v(&r[i]), 1)], ns);
         let d = o.clamp(v(&d), -999, 999);
         d2.push(o.mul(v(&d), v(&d), 0));
     }
@@ -377,7 +378,6 @@ pub fn building<O: Ops>(o: &mut O, w: &World, env: &Env, e: i64, round: &SkyMap,
     let (sc, tb) = (&w.sc, &w.tb);
     let n = px.len();
     let style = par(sc, px, 0);
-    let pitch = par(sc, px, 1);
     let gk = par(sc, px, 2);
     let rnd = par(sc, px, 3);
     let topv = par(sc, px, 4);
@@ -390,19 +390,27 @@ pub fn building<O: Ops>(o: &mut O, w: &World, env: &Env, e: i64, round: &SkyMap,
     let v1 = o.lin(&[(v(&vv), None), (K(-100), None)]);
     let (fi, pv) = o.phase(v(&v1), 278, 5);
     let ur = o.lin(&[(v(&rnd), Some(K(3))), (v(&u), None)]);
-    // the column's pitch as a rate: 100000 / pitch
-    let rp: V = pitch.iter().map(|&p| 100_000 / p.max(100)).collect();
+    // the column's pitch as a rate, 100000 / pitch (at least 100), and the windows' second rate, 10 / 14 of it: for
+    // each of the pixels' materials, on the machines
+    let mut has = vec![false; sc.mats.len()];
+    for &m in &px.mat { has[m] = true; }
+    let ms: Vec<usize> = (0..sc.mats.len()).filter(|&m| has[m]).collect();
+    let mp: V = ms.iter().map(|&m| sc.mats[m].par[1]).collect();
+    let mp = o.max(v(&mp), K(100));
+    let mr = o.div(K(100_000), v(&mp), 0);
+    let mr2 = { let t = o.lin(&[(v(&mr), Some(K(10)))]); o.div(v(&t), K(14), 0) };
+    let mut rate_of = vec![(0, 0); sc.mats.len()];
+    for (j, &m) in ms.iter().enumerate() { rate_of[m] = (mr[j], mr2[j]); }
+    let rp: V = px.mat.iter().map(|&m| rate_of[m].0).collect();
     let mut cu = vec![0; n];
     let mut pu = vec![0; n];
     let mut pa = vec![0; n];
-    let mut rates: Vec<i64> = rp.clone();
-    rates.sort();
-    rates.dedup();
-    for &r in &rates {
-        let at: Vec<usize> = (0..n).filter(|&i| rp[i] == r).collect();
+    // the pixels gathered by rate on the card sorter, each rate's pixels in their order
+    for at in sorter::groups(&rp.iter().map(|&r| [r]).collect::<Vec<_>>(), &[sorter::LONG]) {
+        let (r, r2) = rate_of[px.mat[at[0]]];
         let g: V = at.iter().map(|&i| ur[i]).collect();
         let (c, p) = o.phase(v(&g), r, 5);
-        let (_, p2) = o.phase(v(&g), r * 10 / 14, 5);
+        let (_, p2) = o.phase(v(&g), r2, 5);
         for (j, &i) in at.iter().enumerate() { cu[i] = c[j]; pu[i] = p[j]; pa[i] = p2[j]; }
     }
     let (_, pm) = o.phase(v(&ur), 625, 5);
@@ -544,13 +552,11 @@ pub fn simple<O: Ops>(o: &mut O, w: &World, env: &Env, round: &SkyMap, kd: i64, 
             let rate = o.tab(tb.t("conc_jl"), v(&jl));
             // joints: the place's phase in its joint length (rates differ by material)
             let mut ph = vec![0; n];
-            let mut rates = rate.clone();
-            rates.sort();
-            rates.dedup();
-            for &r in &rates {
-                let at: Vec<usize> = (0..n).filter(|&i| rate[i] == r).collect();
+            for at in sorter::groups(&rate.iter().map(|&r| [r]).collect::<Vec<_>>(), &[sorter::LONG]) {
+                let r = rate[at[0]];
                 let g: V = at.iter().map(|&i| u[i]).collect();
-                let (_, p) = if r > 999 { o.phase(v(&g), r / 10, 4) } else { o.phase(v(&g), r, 5) };
+                // (a rate past a card in tenths, over 10 on the machines)
+                let (_, p) = if r > 999 { let r10 = one(o.div(K(r), K(10), 0)); o.phase(v(&g), r10, 4) } else { o.phase(v(&g), r, 5) };
                 for (j, &i) in at.iter().enumerate() { ph[i] = p[j]; }
             }
             let j = o.tab2(tb.t("conc_joint"), v(lf), v(&ph));
@@ -984,7 +990,8 @@ pub fn train<O: Ops>(o: &mut O, w: &World, env: &Env, round: &SkyMap, px: &Px, f
     let screen = is(o, 4);
     let lamp = is(o, 5);
     let nose = is(o, 6);
-    let lz = o.lin(&[(v(&px.p[2]), None), (K(-front), None)]);
+    let nf = kl(o, &[(front, Some(-1))]);
+    let lz = o.lin(&[(v(&px.p[2]), None), (K(nf), None)]);
     let lz = o.clamp(v(&lz), 0, CARS * CAR - 1);
     let (car, cz) = o.divmod(v(&lz), K(250));
     let (car, czr) = { let (c2, r2) = o.divmod(v(&car), K(10)); let cz2 = o.lin(&[(v(&r2), Some(K(250))), (v(&cz), None)]); let _ = car; (c2, cz2) };
@@ -1134,11 +1141,9 @@ pub fn shade_solid<O: Ops, S: Shading<O>>(o: &mut O, w: &World, cam: &Cam, env: 
     let mut nn = px.n.clone();
     let kinds: Vec<i64> = mats.iter().map(|&m| sc.mats[m].kind).collect();
     let in_tun = cam.z_cm > TUN0 - 500 && cam.z_cm < TUN1 + 1000;
-    let mut all: Vec<i64> = kinds.clone();
-    all.sort();
-    all.dedup();
-    for kd in all {
-        let at: Vec<usize> = (0..n).filter(|&i| kinds[i] == kd).collect();
+    // the pixels gathered by kind on the card sorter, each kind's pixels in their order
+    for at in sorter::groups(&kinds.iter().map(|&kd| [kd]).collect::<Vec<_>>(), &[sorter::CARD]) {
+        let kd = kinds[at[0]];
         let sub = px.sub(&at);
         let m = at.len();
         let mut out = Out { alb: zeros(m), spec: zeros(m), emit: zeros(m), hot: zeros(m), n: sub.n.clone() };
@@ -1387,8 +1392,7 @@ pub fn mirrored<O: Ops>(o: &mut O, w: &World, cam: &Cam, env: &Env, e: i64, k: i
     let has: Vec<usize> = (0..scr.len()).filter(|&j| m.g.mat[si[j] as usize] >= 0 && farther[j] == 1).collect();
     if has.is_empty() { return; }
     let mut uniq: Vec<usize> = has.iter().map(|&j| si[j] as usize).collect();
-    uniq.sort();
-    uniq.dedup();
+    sorter::distinct(&mut uniq, &[sorter::up(7)], |&p| [p as i64]);
     let (c, _h) = shade_solid(o, w, cam, env, e, k, front, &m.g, ray, &uniq, map, round, None, Some(m.h), fmap, sh_);
     let at: std::collections::HashMap<usize, usize> = uniq.iter().enumerate().map(|(i, &p)| (p, i)).collect();
     for &j in &has { let i = at[&(si[j] as usize)]; for ch in 0..3 { sky[ch][j] = c[ch][i]; } }

@@ -91,6 +91,9 @@ pub struct NightWorld {
     pub screens: Vec<[i64; 13]>,
     pub search: Vec<[i64; 8]>, pub spots: Vec<[i64; 7]>, pub lasers: Vec<[i64; 8]>, pub aud_c: [i64; 3],
     pub blights: Vec<[i64; 4]>, pub uplights: Vec<[i64; 4]>,
+    /// each laser's beams' places across its fan (thousandths, -1000 to 1000), and each column's or row's middle in
+    /// hundredths of a pixel (100 k + 50); worked out at the start
+    pub laser_fan: Vec<V>, pub mid: Tab,
     pub balloons: Vec<[i64; 8]>, pub fw_shells: Vec<[i64; 7]>, pub fw_ways: Vec<[i64; 3]>, pub flashes: Vec<[i64; 7]>, pub stars: Vec<[i64; 4]>,
     pub path_keys: Vec<[i64; 3]>, pub places: Vec<[i64; 3]>,
     /// worked out at the start: the places in mm; the airship's centre at rest and its screen from it (film, mm); the
@@ -111,6 +114,8 @@ pub struct NightWorld {
     pub tube_qn: Vec<Tab>, pub tube_y: Tab,
     /// the dusk's shadows of the ride's own world (the frames the night dissolves in from)
     pub dusk_old: SMap,
+    /// what the frames' triangles are picked by (nframe.rs)
+    pub cull: NightCull,
 }
 
 pub fn night_load<O: Ops>(o: &mut O, dir: &str) -> NightWorld {
@@ -143,7 +148,8 @@ pub fn night_load<O: Ops>(o: &mut O, dir: &str) -> NightWorld {
     let blank = || SkyConst { hx: vec![], hz: vec![], lvl: vec![], base: [vec![], vec![], vec![]], a: vec![], b: vec![], c: vec![] };
     let skyk = SkyConsts { day: [blank(), blank()], dusk: [blank(), blank()] };
     let tun = TunnelMaps { lamps: Tab { name: "none", data: vec![], w: 0 }, head: Tab { name: "none", data: vec![], w: 0 } };
-    let mut w = World { sc, tb, scr, tun, lines, wires, sh: Shadows { day, dusk: none(o), depart }, ghosts, skyk, scr_h: Screen { vlev: vec![], nlq7: vec![], lq: vec![] }, lines_h: BlurLines { dirs: vec![] } };
+    let mut w = World { sc, tb, scr, tun, lines, wires, sh: Shadows { day, dusk: none(o), depart }, ghosts, skyk, scr_h: Screen { vlev: vec![], nlq7: vec![], lq: vec![] }, lines_h: BlurLines { dirs: vec![] }, cull: Cull::default() };
+    w.cull.mirror = mirror_bounds(o, &w.sc);
     // the dusk's shadows: what stands past the tunnel in the night's world (the sun's way as the ride's)
     w.sh.dusk = dusk_map(o, &w, &flag("w_new"));
     let dusk_old = dusk_map(o, &w, &flag("w_old"));
@@ -165,11 +171,23 @@ pub fn night_load<O: Ops>(o: &mut O, dir: &str) -> NightWorld {
         pics, clips: Clips::read(&format!("{dir}/night/data/clips.bin")),
         path: Path::default(), scrs: vec![], scrs_h: vec![], lines_h: BlurLines { dirs: vec![] },
         places_mm: vec![], blimp0: [0; 3], screen_off_mm: [0; 3], hand_dir: [0; 3], cab_dir: [0; 3],
-        lamps_dm: vec![], lamp_qn: vec![], glow_at: [0; 3],
+        lamps_dm: vec![], lamp_qn: vec![], glow_at: [0; 3], laser_fan: vec![], mid: Tab { name: "mid", data: vec![], w: 0 },
         hull_f: Tab { name: "hull_f", data: vec![], w: 0 }, hull_mats: vec![], hull_a: vec![], hull_mean: vec![],
-        tube_qn: vec![], tube_y: Tab { name: "tube_y", data: vec![], w: 0 }, dusk_old,
+        tube_qn: vec![], tube_y: Tab { name: "tube_y", data: vec![], w: 0 }, dusk_old, cull: NightCull::default(),
         w,
     };
+    nw.cull = night_cull(o, &nw);
+    let ks: V = (0..1536).collect();
+    nw.mid = Tab { name: "mid", data: o.lin(&[(v(&ks), Some(K(100))), (K(50), None)]), w: 0 };
+    // the lasers' fans: beam j of n at -1000 + 2000 j / (n - 1)
+    nw.laser_fan = nw.lasers.iter().map(|s_| {
+        let nb = s_[6];
+        let js: V = (0..nb).collect();
+        let d = kl(o, &[(nb, None), (-1, None)]);
+        let t = o.lin(&[(v(&js), Some(K(2000)))]);
+        let t = o.div(v(&t), K(d), 0);
+        o.lin(&[(v(&t), None), (K(-1000), None)])
+    }).collect();
     // the tubes' tables
     {
         let parts: V = (-127..=127).collect();
@@ -282,7 +300,16 @@ pub fn screen_f<O: Ops>(o: &mut O, tb: &Tb, base: &Screen, f2: i64) -> Screen {
 /// The smoothstep of x from a to b (thousandths): t = (x - a) 1000 / (b - a) held to 0..1000, then t^2 (3000 - 2t)
 /// over a million (in two steps). b - a under 100,000 in size.
 pub fn smoothv<O: Ops>(o: &mut O, x: &V, a: i64, b: i64) -> V {
-    let (num, den) = if b >= a { (o.lin(&[(v(x), Some(K(1000))), (K(-1000 * a), None)]), b - a) } else { (o.lin(&[(v(x), Some(K(-1000))), (K(1000 * a), None)]), a - b) };
+    if b >= a { return smoothk(o, x, -1000 * a, b - a); }
+    let num = o.lin(&[(v(x), Some(K(-1000))), (K(1000 * a), None)]);
+    let t = o.div(v(&num), K(a - b), 0);
+    let t = o.clamp(v(&t), 0, 1000);
+    ease_t(o, &t)
+}
+
+/// The smoothstep of x rising from a over den (thousandths), given its constant c = -1000 a.
+pub fn smoothk<O: Ops>(o: &mut O, x: &V, c: i64, den: i64) -> V {
+    let num = o.lin(&[(v(x), Some(K(1000))), (K(c), None)]);
     let t = o.div(v(&num), K(den), 0);
     let t = o.clamp(v(&t), 0, 1000);
     ease_t(o, &t)
@@ -391,8 +418,8 @@ pub fn smooth_c<O: Ops>(o: &mut O, x: i64, a: i64, b: i64) -> i64 {
     one(ease_t(o, &t))
 }
 
-/// The design's frame for the film's frame f: f up to the click (VOL_OFF), then CUT_N on.
-pub fn design_f(nw: &NightWorld, f: i64) -> i64 { if f <= nw.path.f_read + 20 { f } else { f + CUT_N } }
+/// The design's frame for the film's frame f: f up to the click (VOL_OFF), then CUT_N on (on the machines).
+pub fn design_f<O: Ops>(o: &mut O, nw: &NightWorld, f: i64) -> i64 { if f <= nw.path.f_cut { f } else { kl(o, &[(f, None), (CUT_N, None)]) } }
 
 /// The soundtrack's beat is 0.378 s after the stadium's show clock's (the soundtrack's mix): thousandths of a frame (4.536).
 pub const BEAT_T0: i64 = 4536;

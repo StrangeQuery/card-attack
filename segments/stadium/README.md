@@ -88,9 +88,9 @@ arithmetic that it uses.
   posed meshes ([`things.rs`](things.rs): the pose's corners turned to the facing and placed, M v + o by logarithms,
   backs left out); everyone else an impostor: its feet's corners and its top on the screen, the rows between walked
   for the left edge, the picture's rows and columns walked, every covered texel of the atlas a piece (the finer
-  atlas, three times the prototype's, for those over 96 rows); the impostors' pieces sorted nearest first by the
-  depths the machines punched, and the first piece on each pixel kept. While it lays the pieces down, the host leaves
-  out the rows and columns off the screen by its own comparisons.
+  atlas, three times the prototype's, for those over 96 rows); the impostors' pieces put nearest first on the card
+  sorter by the depths the machines punched, every piece kept for `resolve`. While it lays the pieces down,
+  the host leaves out the rows and columns off the screen by its own comparisons.
 - **What each pixel sees** (`resolve`): every piece sorted to its pixel by the host, CARDIAC's `nearest` where a
   pixel has more than one.
 - **The light** ([`light.rs`](light.rs)): the prototype's `light_at` (the giant screen as 18 area lights by its

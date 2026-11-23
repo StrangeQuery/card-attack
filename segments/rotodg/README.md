@@ -44,15 +44,17 @@ tables printed ahead of time in Python by `modex/data/make_data.py`: the blotche
 table (`atan.txt`, 257 entries). The angles are the clock machine's counts times rates (tenths of a degree), the sines
 the [rubik](../rubik) folder's table, the atan read from its table at a ratio found by halving steps. Every machine
 computes each distinct item once; the host sorts them out and files the answers back. To keep a column's place within
-a card, the host splits a column past 767 into 768 and the rest before the clock machine counts it.
+a card, a column past 767 is dealt to the clock machine as two counts, 768 and its count on from there.
 
-- **The blotch, per frame:** its strength on `dg_scale`; on `dg_scale` too, each row's two blotch strengths, each
+- **The blotch, per frame:** its strength on `dg_scale` (dealt the frame, counted from the blotch's start, with the
+  creep's and the decay's constants); on `dg_scale` too, each row's two blotch strengths, each
   pixel's two amounts (the row's strength by the falloff across, by the pixel's light from `dg_lum`), and each
   colour's tints added; held to 0..255 on `dg_mix`.
 - **The sign:** the UI kit's page DEGAUSS (`ui_page` places its letters, `umix` lays them on), the warning sign's
   pixels (an asset, `modex/data/warning.txt`), and the box under them, each pixel under it taken toward black once on
   `umix`.
-- **The jolt, per frame:** its sizes on `dg_scale` from the decay table; the waves' angles on `dr_clock`, their sines
+- **The jolt, per frame:** its sizes on `dg_scale` from the decay table; the waves' angles on `dr_clock` (the
+  frame's phase dealt as the frame and a constant count of the same rate), their sines
   on `rb_sine`, each row's push across and each column's down on `dg_scale` and `dg_push` (a push per colour, in whole
   pixels). The swirl: each pixel's angle from the middle once (`dg_anglew`, `dg_atan`), turned on by each colour's
   phase (`dg_turn`), each distinct angle's sine (`rb_sine`), each pixel's light (`dg_lum`), the swirl's strength and

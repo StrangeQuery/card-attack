@@ -24,7 +24,7 @@ const NAMES: &[&str] = &["aphase", "aswerve", "alane", "anear", "athree", "dz", 
 
 /// The machines that work each item of their deck alone (no card carried from one item to the next): the same item
 /// always gets the same cards, so each distinct one is run once.
-const ONE_AT_A_TIME: &[&str] = &["amix", "amul", "apaint", "agsum", "awtex", "awblend", "ascov", "ascut", "asedge", "akover", "apart", "aamt", "amlerp", "amnum", "abmix", "abadd", "aavg4", "ageq", "athx", "afog", "aweight", "ay8"];
+const ONE_AT_A_TIME: &[&str] = &["asum", "amix", "amul", "apaint", "agsum", "awtex", "awblend", "ascov", "ascut", "asedge", "akover", "apart", "aamt", "amlerp", "amnum", "abmix", "abadd", "aavg4", "ageq", "athx", "afog", "aweight", "ay8"];
 
 /// The accelerated drive's data (segments/accel/data and the drive's).
 pub struct Data { pub road: Vec<i32>, pub grade: Vec<i32>, pub turn: Vec<i32>,
@@ -122,8 +122,7 @@ impl Hd {
         if ONE_AT_A_TIME.contains(&name) && items.len() > each {
             let list: Vec<&[i32]> = items.chunks(each).collect();
             let mut distinct: Vec<&[i32]> = list.clone();
-            distinct.sort();
-            distinct.dedup();
+            sorter::distinct(&mut distinct, &vec![sorter::CARD; each], |d| d.iter().map(|&c| c as i64).collect::<Vec<_>>());
             if distinct.len() < list.len() {
                 let flat: Vec<i32> = distinct.iter().flat_map(|d| d.iter().copied()).collect();
                 let got = self.each_all(host, name, head, &flat, each);
@@ -155,8 +154,8 @@ impl Hd {
         let turn = self.go(host, "dturn", &[&[cam[1]], &d.turn]);
         let (c, s) = (turn[0], turn[1]);
         let h = self.go(host, "acam", &[&[d.grade[entry as usize], d.grade[entry as usize + 1], into]]);
-        let across = self.go(host, "aray", &[&[c, s]]);
-        let along = self.go(host, "aray", &[&[-s, c]]);
+        let across = self.go(host, "aray", &[&[c, s, 0]]);
+        let along = self.go(host, "aray", &[&[c, s, 1]]);
         Cam { f, slope: cam[1], entry, into, o, minus: z[4], far_end: z[5], road_at: z[6], blocks_at: z[7], x8: cam[0], c, s, h8: h[0], hf: h[1], h0: 152, across, along }
     }
 
@@ -260,8 +259,7 @@ impl Hd {
     /// A one-card-in, one-card-out machine over many cards, each distinct card worked out once.
     fn memo(&self, host: &mut Host, name: &str, cards: &[i32]) -> Vec<i32> {
         let mut distinct: Vec<i32> = cards.to_vec();
-        distinct.sort();
-        distinct.dedup();
+        sorter::distinct(&mut distinct, &[sorter::CARD], |&c| [c as i64]);
         let out = self.each(host, name, &[], &distinct, 1);
         let map: HashMap<i32, i32> = distinct.into_iter().zip(out).collect();
         cards.iter().map(|c| map[c]).collect()
@@ -270,8 +268,7 @@ impl Hd {
     /// Palette colours fogged toward the sky by fk 32nds, made on the mix machine as they are first wanted.
     pub fn fog_all(&self, host: &mut Host, wanted: &[(usize, i32)]) {
         let mut todo: Vec<(usize, i32)> = wanted.iter().copied().filter(|k| !self.fogged.borrow().contains_key(k)).collect();
-        todo.sort();
-        todo.dedup();
+        sorter::distinct(&mut todo, &[sorter::up(6), sorter::CARD], |&(id, fk)| [id as i64, fk as i64]);
         if todo.is_empty() { return; }
         let sky = self.d.palette[self.d.street["sky"][0]];
         let mut chans = vec![];
@@ -463,8 +460,7 @@ impl Hd {
         for (c, most) in [31, 63, 31].iter().enumerate() {
             // each distinct channel and threshold worked out once (a machine given the same cards punches the same)
             let mut pairs: Vec<(i32, i32)> = (0..RW * RH).map(|i| (px[i].c[c], t(i))).collect();
-            pairs.sort();
-            pairs.dedup();
+            sorter::distinct(&mut pairs, &[sorter::CARD, sorter::CARD], |&(v, t)| [v as i64, t as i64]);
             let mut level: HashMap<(i32, i32), i32> = HashMap::new();
             for piece in pairs.chunks(384) {
                 let mut deck: Vec<i32> = piece.iter().flat_map(|&(v, t)| [v, t]).collect();
@@ -504,10 +500,13 @@ impl Hd {
             for k in 0..9 { deck.extend([near[k], far[k], faces[10 * k + 1], faces[10 * k + 6]]); }
             let hits = self.go(host, "dhit", &[&deck]);
             for h in hits[..hits.len() - 1].chunks(3) {
-                walls.push(Wall { x, face: h[0] as usize, start: h[1], met: h[2], k: h[0] as usize / 10, ..Default::default() });
+                walls.push(Wall { x, face: h[0] as usize, start: h[1], met: h[2], ..Default::default() });
             }
         }
         if walls.is_empty() { return; }
+        // each wall's block, its face's number over 10 (10 faces to a block)
+        let blocks = self.each(host, "apart", &[], &walls.iter().flat_map(|w| [0, w.face as i32, 1, 10]).collect::<Vec<_>>(), 4);
+        for (w, &k) in walls.iter_mut().zip(&blocks) { w.k = k as usize; }
         let ray = |w: &Wall| (cam.across[w.x], cam.along[w.x]);
         let deck: Vec<i32> = walls.iter().flat_map(|w| [ray(w).0, faces[w.face], w.start, w.met]).collect();
         let prep = self.each(host, "awprep", &[], &deck, 4);
@@ -579,7 +578,8 @@ impl Hd {
             eprintln!("wall f {} k {} end {} e {} start {} i0 {} ws {} a4 {} fk {} top {} tex {} tone {}", cam.f, w.k, w.end, f[0], w.start, w.texel, w.tenths, w.a4, w.fk, f[2], f[4], f[3]);
         } }
         // the texels: each wall's two texel columns, its texel rows
-        let deck: Vec<i32> = walls.iter().flat_map(|w| { let f = &faces[w.face..w.face + 5]; [w.texel, f[4], w.end as i32, w.texel + 1, f[4], w.end as i32] }).collect();
+        let next = self.each(host, "asum", &[], &walls.iter().flat_map(|w| [w.texel, 1, 1]).collect::<Vec<_>>(), 3);
+        let deck: Vec<i32> = walls.iter().zip(&next).flat_map(|(w, &t1)| { let f = &faces[w.face..w.face + 5]; [w.texel, f[4], w.end as i32, t1, f[4], w.end as i32] }).collect();
         let bay = self.each(host, "awbay", &[], &deck, 3);
         let mut items: Vec<(usize, i32)> = vec![];       // (wall, texel row)
         // the software half: at the blocks' middles, the nearest texel (the second column past 5 tenths, the row above
@@ -594,12 +594,16 @@ impl Hd {
         }
         for (n, w) in walls.iter().enumerate() {
             let mut js: Vec<i32> = if soft { near.iter().filter(|t| t.1 == n).map(|t| t.2).collect() } else { w.rows.iter().flat_map(|r| [r[0], r[2]]).collect() };
-            js.sort();
-            js.dedup();
+            sorter::distinct(&mut js, &[sorter::CARD], |&j| [j as i64]);
             items.extend(js.into_iter().map(|j| (n, j)));
         }
         let deck: Vec<i32> = items.iter().flat_map(|&(n, j)| { let top = faces[walls[n].face + 2]; [j, top, bay[4 * n], j, top, bay[4 * n + 2]] }).collect();
         let tex = self.each(host, "awtex", &[], &deck, 3);
+        // a roof's texel (awtex's place below 0, -1 - its roof): the roof, -1 - place
+        let roofs: Vec<(usize, i32)> = (0..tex.len() / 2).filter(|&e| tex[2 * e] < 0).map(|e| (e, tex[2 * e])).collect();
+        let roof_no = self.each(host, "asum", &[], &roofs.iter().flat_map(|&(_, p)| [-1, p, -1]).collect::<Vec<_>>(), 3);
+        let mut roof = vec![0; tex.len() / 2];
+        for (&(e, _), &r) in roofs.iter().zip(&roof_no) { roof[e] = r; }
         // each texel's palette colour, hazed
         let id = |n: usize, side: usize, j: usize| -> usize {
             let w = &walls[n];
@@ -607,7 +611,7 @@ impl Hd {
             let (tone, end) = (f[3] as usize, w.end as usize);
             let (place, up) = (tex[4 * j + 2 * side], tex[4 * j + 2 * side + 1] as usize);
             let across = bay[4 * n + 2 * side + 1] as usize;
-            if place < 0 { d.roofs[((tone * 2 + end) * 2 + (-place - 1) as usize) as usize][across * 12 + up] }
+            if place < 0 { d.roofs[((tone * 2 + end) * 2 + roof[2 * j + side] as usize) as usize][across * 12 + up] }
             else { d.bays[(tone * 2 + end) * 9 + d.kinds[place as usize] as usize][across * 12 + up] }
         };
         let wanted: Vec<(usize, i32)> = items.iter().enumerate().flat_map(|(j, &(n, _))| [(id(n, 0, j), walls[n].fk), (id(n, 1, j), walls[n].fk)]).collect();
@@ -623,7 +627,8 @@ impl Hd {
         for c in 0..3 {
             // two texels the same are their own blend (a run of one colour, copied); the rest blended
             let ab: Vec<(i32, i32)> = items.iter().enumerate().map(|(j, &(n, _))| (fogged[&(id(n, 0, j), walls[n].fk)][c], fogged[&(id(n, 1, j), walls[n].fk)][c])).collect();
-            let mixed: Vec<usize> = (0..items.len()).filter(|&j| ab[j].0 != ab[j].1).collect();
+            let differ = self.differ(host, &ab);
+            let mixed: Vec<usize> = (0..items.len()).filter(|&j| differ[j]).collect();
             let deck: Vec<i32> = mixed.iter().flat_map(|&j| [ab[j].0, ab[j].1, walls[items[j].0].tenths]).collect();
             let h = self.each(host, "awblend", &[], &deck, 3);
             for j in 0..items.len() { rowcol[j][c] = ab[j].0; }
@@ -635,13 +640,16 @@ impl Hd {
         } }
         // each wall's rows: the texel rows under and above, the twentieths up
         let mut seq: Vec<(usize, usize, usize, [i32; 3], [i32; 3], i32)> = vec![];      // pixel, wall, texel rows' run, under, above, w
+        // (a new run where a wall starts or where either texel row differs from the row's below)
+        let pairs: Vec<(i32, i32)> = walls.iter().flat_map(|w| w.rows.windows(2).flat_map(|p| [(p[1][0], p[0][0]), (p[1][2], p[0][2])])).collect();
+        let changed = self.differ(host, &pairs);
         let mut runs = 0;
+        let mut at_pair = 0;
         for (n, w) in walls.iter().enumerate() {
-            let mut last = (i32::MIN, i32::MIN);
             for (r, row) in w.rows.iter().enumerate() {
                 let y = w.bottom as usize - r;
-                if (row[0], row[2]) != last || r == 0 { runs += 1; }
-                last = (row[0], row[2]);
+                if r == 0 || changed[at_pair] || changed[at_pair + 1] { runs += 1; }
+                if r > 0 { at_pair += 2; }
                 seq.push((y * RW + w.x, n, runs, rowcol[at[&(n, row[0])]], rowcol[at[&(n, row[2])]], row[1]));
             }
         }
@@ -649,7 +657,8 @@ impl Hd {
         for c in 0..3 {
             // rows whose texel rows are the same colour are that colour (copied); the rest by awcol, a run's first
             // row given (new) wherever the deck takes it up
-            let kept: Vec<usize> = (0..seq.len()).filter(|&j| seq[j].3[c] != seq[j].4[c]).collect();
+            let differ = self.differ(host, &seq.iter().map(|s| (s.3[c], s.4[c])).collect::<Vec<_>>());
+            let kept: Vec<usize> = (0..seq.len()).filter(|&j| differ[j]).collect();
             for j in 0..seq.len() { out[j][c] = seq[j].3[c]; }
             for part in kept.chunks(600) {
                 let mut deck = vec![part.len() as i32];
@@ -714,6 +723,13 @@ impl Hd {
     /// `many` for the jump's module.
     pub fn many_pub(&self, host: &mut Host, name: &str, items: &[Vec<i32>]) -> Vec<Vec<i32>> { self.many(host, name, &[], items) }
 
+    /// Whether each pair's two cards differ: their difference on asum, against 0.
+    pub fn differ(&self, host: &mut Host, pairs: &[(i32, i32)]) -> Vec<bool> {
+        if pairs.is_empty() { return vec![]; }
+        let deck: Vec<i32> = pairs.iter().flat_map(|&(a, b)| [a, b, -1]).collect();
+        self.each(host, "asum", &[], &deck, 3).into_iter().map(|d| d != 0).collect()
+    }
+
     /// Lay things over pixels where they are nearer, in the order given: each thing (its pixel, its distance, its
     /// colour) replaces what the pixel shows if it is nearer, so a later thing goes over an earlier one only where
     /// nearer still. anear picks each pixel's winner; the host groups the things by pixel, keeping their order, and
@@ -748,8 +764,7 @@ impl Hd {
     /// The colour channels of many pixels moved toward the sky by k 32nds `layers` times (each done once).
     fn hazed(&self, host: &mut Host, wanted: &[([i32; 3], i32, i32)]) -> HashMap<([i32; 3], i32, i32), [i32; 3]> {
         let mut todo: Vec<([i32; 3], i32, i32)> = wanted.to_vec();
-        todo.sort();
-        todo.dedup();
+        sorter::distinct(&mut todo, &[sorter::CARD; 5], |&(c, a, b)| [c[0] as i64, c[1] as i64, c[2] as i64, a as i64, b as i64]);
         let sky = self.d.palette[self.d.street["sky"][0]];
         let mut out: HashMap<([i32; 3], i32, i32), [i32; 3]> = HashMap::new();
         let mut chans = vec![];
@@ -820,7 +835,7 @@ impl Hd {
             let v = self.go(host, "athvis", &[&[1, p1, p2, a4]]);
             if v[2] > 0 { seen.push((a4, v[0], v[1], dz, what)); }
         }
-        seen.sort_by_key(|t| -t.0);
+        sorter::sort(&mut seen, &[sorter::down(6)], |t| [t.0 as i64]);
         let n = seen.len();
         let mut lights = vec![];
         if n == 0 { return lights; }
@@ -854,15 +869,18 @@ impl Hd {
                 let side = if what == -1 { -1 } else { 1 };
                 let b = self.go(host, "apost1", &[&[1, x, xf, sc4, top[j][0], foot[j][0]]]);
                 let (hw, x0, x1, y0, y1) = (b[0], b[1], b[2], b[3], b[4]);
-                if x1 > x0 && y1 > y0 {
+                // the body's columns and rows, drawn when there are some of each
+                let size = self.go(host, "asum", &[&[2, x1, x0, -1, y1, y0, -1]]);
+                let ncols = size[0];
+                if ncols > 0 && size[1] > 0 {
                     let cols = self.go(host, "apcol", &[&[1, x, xf, hw, x0, x1]]);
-                    let shades = self.many(host, "apshade", &[], &(0..(x1 - x0) as usize).map(|c| vec![cols[2 * c + 1], hw, side]).collect::<Vec<_>>());
+                    let shades = self.many(host, "apshade", &[], &(0..ncols as usize).map(|c| vec![cols[2 * c + 1], hw, side]).collect::<Vec<_>>());
                     let deck: Vec<i32> = shades.iter().map(|s| s[0]).collect();
                     let shaded = self.go(host, "ashade", &[&[post[0], post[1], post[2], deck.len() as i32], &deck]);
                     let colours: Vec<[i32; 3]> = shaded.chunks(3).map(|c| [c[0], c[1], c[2]]).collect();
                     let haze = self.hazed(host, &colours.iter().map(|&c| (c, k, 2)).collect::<Vec<_>>());
                     let mut items = vec![];
-                    for c in 0..(x1 - x0) as usize {
+                    for c in 0..ncols as usize {
                         let cov = cols[2 * c];
                         if cov == 0 { continue; }
                         for yy in y0..y1 { items.push(((yy as usize) * RW + x0 as usize + c, a4, cov, haze[&(colours[c], k, 2)])); }
@@ -954,8 +972,8 @@ impl Hd {
     fn var_each(&self, host: &mut Host, name: &str, head: &[i32], items: &[Vec<i32>], outs: usize) -> Vec<i32> {
         if ONE_AT_A_TIME.contains(&name) && items.len() > 1 {
             let mut distinct: Vec<&Vec<i32>> = items.iter().collect();
-            distinct.sort();
-            distinct.dedup();
+            let longest = items.iter().map(|it| it.len()).max().unwrap_or(0);
+            sorter::distinct(&mut distinct, &vec![sorter::CARD; longest], |d| d.iter().map(|&c| c as i64).collect::<Vec<_>>());
             if distinct.len() < items.len() {
                 let owned: Vec<Vec<i32>> = distinct.iter().map(|d| (*d).clone()).collect();
                 let got = self.var_each_all(host, name, head, &owned, outs);
@@ -1054,8 +1072,7 @@ impl Hd {
         // the tables, each amount once
         {
             let mut want: Vec<i32> = amt.iter().flatten().copied().filter(|a| !self.tables.borrow().contains_key(a)).collect();
-            want.sort();
-            want.dedup();
+            sorter::distinct(&mut want, &[sorter::CARD], |&a| [a as i64]);
             for a in want {
                 let t = self.go(host, "agtab", &[&[a, self.d.glowt.len() as i32], &self.d.glowt]);
                 self.tables.borrow_mut().insert(a, t);
@@ -1193,7 +1210,7 @@ impl Hd {
     /// machines punch; the ghosts of the strongest headlight; all of it summed onto the pixels.
     pub fn flares(&self, host: &mut Host, lights: &[Light], px: &mut [Px]) {
         let mut fl: Vec<&Light> = lights.iter().filter(|l| (l.kind == 0 || l.kind == 1) && l.s > 60).collect();
-        fl.sort_by_key(|l| -l.s);
+        sorter::sort(&mut fl, &[sorter::down(3)], |l| [l.s as i64]);
         if fl.is_empty() { return; }
         let d = &self.d;
         let e = |t: i32| -> i32 { if (0..192).contains(&t) { d.exp[t as usize] } else { 0 } };
@@ -1214,9 +1231,8 @@ impl Hd {
             let wy = self.go(host, "afway", &[&[fy, r]]);
             let wx = self.go(host, "afway", &[&[fx, r]]);
             let r8 = wx[2];
-            let (xlo, xhi) = ((cx - r8).max(0), (cx + r8 + 1).min(RW as i32));
-            let (ylo, yhi) = ((cy - r).max(0), (cy + r + 1).min(RH as i32));
-            if xlo < xhi && ylo < yhi {
+            // (the ways reach r8 across and r down: the places they give are the flare's box, clipped to the screen)
+            {
                 // the ways out from the light: its own pixel, then on (16 - f, 32 - f, ...) and back (16 + f, ...)
                 let ways = |host: &mut Host, f: i32, w: &[i32], n: i32, m: i32, dd: i32| -> [Vec<i32>; 3] {
                     [self.flare_axis(host, f, 1, m, dd), self.flare_axis(host, w[0], n, m, dd), self.flare_axis(host, w[1], n, m, dd)]
@@ -1227,7 +1243,7 @@ impl Hd {
                 let rows: Vec<(i32, usize, usize)> = (0..3).flat_map(|w| (0..g[w].len()).map(move |k| (w, k))).map(|(w, k)| {
                     let yy = match w { 0 => cy, 1 => cy + 1 + k as i32, _ => cy - 1 - k as i32 };
                     (yy, w, k)
-                }).filter(|&(yy, _, _)| (ylo..yhi).contains(&yy)).collect();
+                }).filter(|&(yy, _, _)| (0..RH as i32).contains(&yy)).collect();
                 for &(yy, wy, ky) in &rows {
                     for wx in 0..3 {
                         if gx[wx].is_empty() { continue; }
@@ -1236,7 +1252,7 @@ impl Hd {
                             let t = self.go(host, "aflrow", &[&[gy[wy][ky], y1[wy][ky], y2[wy][ky], sv[c], cv[c], gx[wx].len() as i32], &deck]);
                             for (k, ts) in t.chunks(3).enumerate() {
                                 let xx = match wx { 0 => cx, 1 => cx + 1 + k as i32, _ => cx - 1 - k as i32 };
-                                if !(xlo..xhi).contains(&xx) { continue; }
+                                if !(0..RW as i32).contains(&xx) { continue; }
                                 let a = &mut adds[yy as usize * RW + xx as usize][c];
                                 for &tt in ts { let v = e(tt); if v > 0 { a.push(v); } }
                             }
@@ -1252,23 +1268,31 @@ impl Hd {
                     let (gx, gy) = (g[0], g[1]);
                     let w = self.go(host, "apart", &[&[1, 300, phi, 3, 10]])[0];
                     let rr16 = self.go(host, "apart", &[&[1, 0, w, rad4, 125]])[0];
-                    let rr = self.go(host, "apart", &[&[1, 3, rr16, 1, 16]])[0];
+                    // its radius rr in whole pixels and the count out from its middle, rr + 1
+                    let rr = self.go(host, "apart", &[&[2, 3, rr16, 1, 16, 4, rr16, 1, 16]]);
                     let amt = self.go(host, "aamt", &[&[1, phi, col[0], col[1], col[2]]]);
-                    let u2 = self.go(host, "aghu", &[&[rr16, rr + 1]]);
-                    let (xlo, xhi) = ((gx - rr).max(0), (gx + rr + 1).min(RW as i32));
-                    if xlo >= xhi { continue; }
+                    let u2 = self.go(host, "aghu", &[&[rr16, rr[1]]]);
+                    // its box, gx - rr to gx + rr + 1 across and the same about gy down (then clipped); drawn unless
+                    // it is wholly off the screen (rr is at most 65: wholly off past 900 or before -500 across, and
+                    // with no rows past 600 or before -500 down)
+                    if !(-500..=900).contains(&gx) { continue; }
+                    let bx = self.go(host, "asum", &[&[2, gx, rr[0], -1, gx, rr[1], 1]]);
+                    if bx[1] <= 0 || bx[0] >= RW as i32 { continue; }
+                    let by = if (-500..=600).contains(&gy) { self.go(host, "asum", &[&[2, gy, rr[0], -1, gy, rr[1], 1]]) } else { vec![0, 0] };
+                    let (xlo, xhi) = (bx[0].max(0), bx[1].min(RW as i32));
+                    // u u at each place of the box from its first: aghu's, out from the middle both ways
+                    let both: Vec<i32> = u2[1..].iter().rev().chain(u2.iter()).copied().collect();
                     let cols: Vec<i32> = (xlo..xhi).collect();
-                    let ux: Vec<i32> = cols.iter().map(|&xx| u2[(xx - gx).unsigned_abs() as usize]).collect();
+                    let ux: Vec<i32> = cols.iter().map(|&xx| both[(xx - bx[0]) as usize]).collect();
                     let mut found: Vec<(usize, i32)> = vec![];
-                    for yy in (gy - rr).max(0)..(gy + rr + 1).min(RH as i32) {
-                        let s = self.go(host, "aghs", &[&[u2[(yy - gy).unsigned_abs() as usize], ux.len() as i32], &ux]);
+                    for yy in by[0].max(0)..by[1].min(RH as i32) {
+                        let s = self.go(host, "aghs", &[&[both[(yy - by[0]) as usize], ux.len() as i32], &ux]);
                         for (k, &v) in s.iter().enumerate() { if v < 576 { found.push((yy as usize * RW + cols[k] as usize, v)); } }
                     }
                     // the profile at each place (the table's card for every 16 of it), times the amount
                     let prof = |v: i32| d.ghost16[ring][v as usize];
                     let mut ks: Vec<i32> = found.iter().map(|&(_, v)| prof(v)).collect();
-                    ks.sort();
-                    ks.dedup();
+                    sorter::distinct(&mut ks, &[sorter::CARD], |&k| [k as i64]);
                     for c in 0..3 {
                         let tab = self.go(host, "agtab", &[&[amt[c], ks.len() as i32], &ks]);
                         let of: HashMap<i32, i32> = ks.iter().copied().zip(tab).collect();

@@ -41,14 +41,17 @@ const SAND: [i32; 3] = [202, 186, 148];
 const SPECKS: usize = 450;
 /// The map: per row (a unit of z) its base, its drop to the next row, how far past the nearest lip it is, 201
 /// heights over the base (tenths), and its glowing spots (how many, then each one's unit along x and kind).
-struct Map { base: Vec<i32>, drop: Vec<i32>, lip: Vec<i32>, rows: Vec<Vec<i32>>, spots: Vec<Vec<i32>> }
+/// The height map, a row at a time: its base, drop and lip, its columns, its glowing spots, and its own number (a
+/// table by row, for the machines that take a row's number).
+struct Map { base: Vec<i32>, drop: Vec<i32>, lip: Vec<i32>, rows: Vec<Vec<i32>>, spots: Vec<Vec<i32>>, num: Vec<i32> }
 
 fn load_map(demo: &Path) -> Map {
     let (mut base, mut drop, mut lip, mut rows, mut spots) = (vec![], vec![], vec![], vec![], vec![]);
     for r in tables::rows(&read(demo, "deep/data/map.txt")) {
         base.push(r[0]); drop.push(r[1]); lip.push(r[2]); rows.push(r[3..204].to_vec()); spots.push(r[204..].to_vec());
     }
-    Map { base, drop, lip, rows, spots }
+    let num = (0..rows.len() as i32).collect();
+    Map { base, drop, lip, rows, spots, num }
 }
 
 #[allow(dead_code, clippy::all, unused_variables, unused_mut, unused_imports)]
@@ -69,14 +72,14 @@ pub struct Jelly { pub at: [i32; 3], pub turn: i32, pub kind: i32, pub rad: i32,
 /// lean carries the top across (tenths), how tall it is (tenths) and its sway's phase (a step of 60); per blade on
 /// it which way it points on the screen (a step of 64) and its length (50ths of a unit per pixel a unit makes).
 #[derive(Clone)]
-pub struct Clump { pub map_x: [i32; 2], pub row: i32, pub at: [i32; 2], pub stalks: Vec<Stalk> }
+pub struct Clump { pub map_x: [i32; 2], pub row: i32, pub near: i32, pub at: [i32; 2], pub stalks: Vec<Stalk> }
 #[derive(Clone)]
 pub struct Stalk { pub lean: i32, pub tall: i32, pub phase: i32, pub blades: Vec<[i32; 2]> }
 
 /// A tuft of seagrass: its root on the map and from the camera (as a clump's), its sway's phase (a step of 60) and
 /// its five blades' heights (tenths).
 #[derive(Clone)]
-pub struct Tuft { pub map_x: [i32; 2], pub row: i32, pub at: [i32; 2], pub phase: i32, pub heights: [i32; 5] }
+pub struct Tuft { pub map_x: [i32; 2], pub row: i32, pub near: i32, pub at: [i32; 2], pub phase: i32, pub heights: [i32; 5] }
 
 /// A fish: its head and tail from the camera (tenths), how much it flashes silver (32nds) and its number (in its
 /// school, the second school's from 100).
@@ -90,14 +93,16 @@ pub struct Frame {
     pub white: bool,
     /// the camera: x in hundredths, y as whole units and hundredths, z as whole units and tenths
     pub x: i32, pub y: i32, pub y_part: i32, pub z: i32, pub z_part: i32,
+    /// x as whole units and hundredths; y and z in hundredths; the tenths from the camera to the first slice
+    pub x_whole: i32, pub x_part: i32, pub y100: i32, pub z100: i32, pub start: i32,
     /// forward, right and up, 300 times the unit vectors
     pub f: [i32; 3], pub r: [i32; 3], pub u: [i32; 3],
     /// the light in 32nds and in tenths
     pub light: i32, pub light10: i32,
     /// the caustics' three phases (0..59)
     pub phase: [i32; 3],
-    /// the god rays' two phases, hundredths of a step of 60
-    pub shaft: [i32; 2],
+    /// the god rays' two phases, hundredths of a step of 60, and each as whole steps and hundredths
+    pub shaft: [i32; 2], pub shaft_split: [i32; 4],
     /// the glowing spots' pulse (a step 0..59) and how dark it is for them, 32 - 7 light / 10
     pub pulse: i32, pub dark: i32,
     /// forward, right and up in hundredths, for the things drawn over the seabed
@@ -112,6 +117,9 @@ pub struct Frame {
     /// place from its middle across and up (hundredths), its swirl's and colour's phases (tenths of a step of 60), and
     /// how far everything has gone white (32nds)
     pub on: i32, pub plane: i32, pub from: [i32; 2], pub swirl: [i32; 2], pub white32: i32,
+    /// the camera's place from the portal's middle across and up as whole units and hundredths, and the portal's plane
+    /// as whole units and tenths (toward 0)
+    pub from_split: [[i32; 2]; 2], pub plane_whole: i32, pub plane_tenth: i32,
     /// the jellyfish: how much the light lets them glow (32nds; 0 before they come), their tentacles' wave this frame
     /// (a step of 60), and those near the camera, by number
     pub jelly_light: i32, pub wave: i32, pub jellies: Vec<Jelly>,
@@ -142,18 +150,21 @@ fn frame_of(number: usize, v: &[i32]) -> Frame {
     let jellies = (0..j[2]).map(|_| { let s = take(16); Jelly { at: a3(&s), turn: s[3], kind: s[4], rad: s[5], ht: s[6],
         lengths: [s[7], s[8], s[9], s[10], s[11], s[12], s[13], s[14]], id: s[15] } }).collect();
     let g = take(4);
-    let kelp = (0..g[3]).map(|_| { let s = take(5); Clump { map_x: [s[0], s[1]], row: s[2], at: [s[3], s[4]],
+    let kelp = (0..g[3]).map(|_| { let s = take(6); Clump { map_x: [s[0], s[1]], row: s[2], near: s[3], at: [s[4], s[5]],
         stalks: (0..3).map(|_| { let t = take(33); Stalk { lean: t[0], tall: t[1], phase: t[2], blades: t[3..].chunks(2).map(|b| [b[0], b[1]]).collect() } }).collect() } }).collect();
     let n = take(1)[0];
-    let grass = (0..n).map(|_| { let s = take(11); Tuft { map_x: [s[0], s[1]], row: s[2], at: [s[3], s[4]], phase: s[5], heights: [s[6], s[7], s[8], s[9], s[10]] } }).collect();
+    let grass = (0..n).map(|_| { let s = take(12); Tuft { map_x: [s[0], s[1]], row: s[2], near: s[3], at: [s[4], s[5]], phase: s[6], heights: [s[7], s[8], s[9], s[10], s[11]] } }).collect();
     let n = take(1)[0];
     let fish = (0..n).map(|_| { let s = take(8); Fish { head: a3(&s), tail: a3(&s[3..]), flash: s[6], id: s[7] } }).collect();
     let aim = take(2);
+    let split = take(15);
     assert_eq!(i, v.len(), "frame {number}'s line");
     Frame { white: h[0] == 1, x: h[1], y: h[2], y_part: h[3], z: h[4], z_part: h[5], f: a3(&h[6..]), r: a3(&h[9..]), u: a3(&h[12..]),
         light: h[15], light10: h[16], phase: a3(&h[17..]), shaft: [h[20], h[21]], pulse: h[22], dark: h[23],
         f100: a3(&h[24..]), r100: a3(&h[27..]), u100: a3(&h[30..]), snow: [h[33], h[34]], show: h[35], caption: h[36], number,
         on: h[37], plane: h[38], from: [h[39], h[40]], swirl: [h[41], h[42]], white32: h[43],
+        x_whole: split[0], x_part: split[1], from_split: [[split[2], split[3]], [split[4], split[5]]], plane_whole: split[6], plane_tenth: split[7], y100: split[8], z100: split[9], start: split[10],
+        shaft_split: [split[11], split[12], split[13], split[14]],
         jelly_light: j[0], wave: j[1], jellies, aim: [aim[0], aim[1]], glow_tips: g[0], kelp, grass, fish, height10: g[1], fish_light: g[2] }
 }
 
@@ -428,7 +439,7 @@ fn jellies(host: &mut Host, m: &Machines, fr: &Frame, rgb: &mut [[i32; 3]], dept
     let ahead = many(host, &m.dot, &fr.f100, &centres, 3, 1);
     let fades = many(host, &m.jfade, &[fr.jelly_light], &ahead, 1, 1);
     let mut order: Vec<usize> = (0..fr.jellies.len()).filter(|&e| fades[e] > 0).collect();
-    order.sort_by(|&a, &b| ahead[b].cmp(&ahead[a]));
+    sorter::sort(&mut order, &[sorter::down(3)], |&e| [ahead[e] as i64]);
     let drawn: Vec<(i32, i32, usize)> = order.iter().map(|&e| (ahead[e], fades[e], e)).collect();
     let pixel = |c: i32, r: i32| -> Option<usize> { let (x, y) = (c + 96, r + 48); (x >= 0 && y >= 0 && x < w && y < h).then(|| (y * w + x) as usize) };
     for e in order {
@@ -659,7 +670,7 @@ fn plants(host: &mut Host, m: &Machines, map: &Map, fr: &Frame, far: [i32; 3], r
     let points: Vec<i32> = (0..=22).map(|i| 45 * i).chain((1..=15).map(|i| 66 * i - 20)).collect();
     for clump in &fr.kelp {
         let row = clump.row as usize;
-        let base = root(host, m, map, fr, clump.map_x, row);
+        let base = root(host, m, map, fr, clump.map_x, row, clump.near);
         let root = [clump.at[0], base, clump.at[1]];
         let d = many(host, &m.dot, &fr.f100, &root, 3, 1)[0];
         if d < 20 { continue; }
@@ -711,7 +722,7 @@ fn plants(host: &mut Host, m: &Machines, map: &Map, fr: &Frame, far: [i32; 3], r
     // seagrass, blade by blade
     for tuft in &fr.grass {
         let row = tuft.row as usize;
-        let base = root(host, m, map, fr, tuft.map_x, row);
+        let base = root(host, m, map, fr, tuft.map_x, row, tuft.near);
         // each blade's sway a sixth of a turn on from the last (a printed table of 0, 10, ..., 40 steps)
         let steps = many(host, &m.wiggle, &[tuft.phase], &(0..5).flat_map(|b| [10 * b, 0]).collect::<Vec<_>>(), 2, 1);
         let waves = many(host, &m.wave, &[], &steps, 1, 1);
@@ -757,10 +768,11 @@ fn fish(host: &mut Host, m: &Machines, fr: &Frame, far: [i32; 3], rgb: &mut [[i3
         let ys = host.go1(&m.step, &[&[1, a.1, b.1, n]], n as usize + 1);
         let cols = many(host, &m.pix, &[1], &xs, 1, 1);
         let rows = many(host, &m.pix, &[-1], &ys, 1, 1);
-        let thick = if a.2 < 140 { 1 } else { 0 };
+        // nearer than 14 units the line is two pixels thick: the rows under its points' too, from the add machine
+        let under = if a.2 < 140 { many(host, &m.add, &[0], &rows.iter().flat_map(|&r| [r, 1]).collect::<Vec<_>>(), 2, 1) } else { vec![] };
         let mut paint = vec![];
         for k in 0..=n as usize {
-            for r in rows[k]..=rows[k] + thick {
+            for &r in std::iter::once(&rows[k]).chain(under.get(k)) {
                 let (x, y) = (cols[k] + 96, r + 48);
                 if x < 0 || y < 0 || x >= W2 as i32 || y >= H2 as i32 { continue; }
                 let i = (y * W2 as i32 + x) as usize;
@@ -792,18 +804,18 @@ fn snow(host: &mut Host, m: &Machines, fr: &Frame, specks: &[i32], rgb: &mut [[i
 fn portal(host: &mut Host, m: &Machines, fr: &Frame, rays: &[Ray], settled: &[Settled], crossed: &[i32], start: i32) -> Vec<[Mixes; 3]> {
     let (w, h) = (W2, H2);
     let mut rows = vec![];
-    let (whole, tenth) = (fr.plane / 10, fr.plane % 10);
+    let (whole, tenth) = (fr.plane_whole, fr.plane_tenth);
     let radius: Vec<i32> = demokit::tables::PORTAL_RADIUS.iter().map(|&v| v as i32).collect();
     let angle: Vec<i32> = demokit::tables::PORTAL_ANGLE.iter().map(|&v| v as i32).collect();
     for y in 0..h {
         let row = &rays[y * w..(y + 1) * w];
         // where each ray crosses the plane, across and up, in tenths from the middle
         let mut l = vec![];
-        for (c, from) in fr.from.iter().enumerate() {
+        for (c, from) in fr.from_split.iter().enumerate() {
             let q = |r: &Ray| if c == 0 { r.qx } else { r.qy };
             let deck: Vec<i32> = row.iter().flat_map(|r| [tenth, q(r)]).collect();
             let first = host.go1(&m.tenth, &[&[w as i32], &deck], w);
-            let deck: Vec<i32> = row.iter().zip(&first).flat_map(|(r, &o)| [from.div_euclid(100), 0, from.rem_euclid(100), o, q(r), whole]).collect();
+            let deck: Vec<i32> = row.iter().zip(&first).flat_map(|(r, &o)| [from[0], 0, from[1], o, q(r), whole]).collect();
             let pairs = host.go1(&m.walks, &[&[w as i32], &deck], 2 * w);
             l.push(host.go1(&m.tenths, &[&[w as i32], &pairs], w));
         }
@@ -875,9 +887,9 @@ fn lay_caption(host: &mut Host, m: &Machines, fr: &Frame, caption: &[Vec<i32>], 
 }
 
 /// A kelp or seagrass root's height from the camera (tenths): the seabed under it on its map row, near (slices
-/// before 30) the top of its block, further the smooth seabed, as the march sees it.
-fn root(host: &mut Host, m: &Machines, map: &Map, fr: &Frame, map_x: [i32; 2], row: usize) -> i32 {
-    if (row as i32) < fr.z + 1 + NEAR {
+/// before 30, the script's flag) the top of its block, further the smooth seabed, as the march sees it.
+fn root(host: &mut Host, m: &Machines, map: &Map, fr: &Frame, map_x: [i32; 2], row: usize, near: i32) -> i32 {
+    if near == 1 {
         let block = host.go(&m.blocks, &[&[&[map_x[0], 0, 1], &map.rows[row]]], Some(1))[0];
         let top = many(host, &m.add, &[0], &[map.base[row], block], 2, 1)[0];
         host.go1(&m.base, &[&[fr.height10, 1, top, 0]], 1)[0]
@@ -910,7 +922,7 @@ pub struct Hd { m: deep_hd::Machines, d: std::sync::Arc<deep_hd::Data>, first: V
 fn frame(host: &mut Host, host_hd: &mut Host, m: &Machines, map: &Map, fr: &Frame, norm: &[i32], specks: &[i32], caption: &[Vec<i32>], hd: Option<&Hd>) -> (Vec<[i32; 3]>, Option<Vec<u8>>) {
     let (w, h) = (W2, H2);
     let j0 = (fr.z + 1) as usize;           // the first slice is the map row just ahead of the camera
-    let start = 10 - fr.z_part;             // tenths of a unit from the camera to it
+    let start = fr.start;                   // tenths of a unit from the camera to it
     // the frame's colours at its light
     let pairs: [([i32; 3], [i32; 3]); 11] = [([1, 2, 6], [4, 30, 50]), ([2, 6, 14], [40, 160, 170]), ([1, 3, 8], [6, 40, 62]),
         ([12, 11, 9], SAND), ([13, 15, 14], [210, 250, 240]), ([16, 16, 16], [200, 220, 215]),
@@ -950,7 +962,7 @@ fn frame(host: &mut Host, host_hd: &mut Host, m: &Machines, map: &Map, fr: &Fram
     // pixels' rays entered at slice k: x and height, for each pixel
     let enter = |host: &mut Host, pixels: &[usize], k: i32| -> Vec<([i32; 2], [i32; 2])> {
         let items: Vec<[i32; 6]> = pixels.iter().flat_map(|&i| { let ray = &rays[i]; [
-            [fr.x.div_euclid(100), 0, fr.x.rem_euclid(100), ray.fx, ray.qx, k],
+            [fr.x_whole, 0, fr.x_part, ray.fx, ray.qx, k],
             [fr.y, map.base[j0 + k as usize], fr.y_part, ray.fy, ray.qy, k]] }).collect();
         walks(host, &items).chunks(2).map(|o| (o[0], o[1])).collect()
     };
@@ -958,18 +970,21 @@ fn frame(host: &mut Host, host_hd: &mut Host, m: &Machines, map: &Map, fr: &Fram
     // per column: the pixel being marched (row, counting up from the bottom), its ray's x and height
     let mut pixel: Vec<i32> = vec![h as i32 - 1; w];
     let mut state: Vec<([i32; 2], [i32; 2])> = enter(host, &(0..w).map(|x| (h - 1) * w + x).collect::<Vec<_>>(), 0);
+    // the slice's number, the first 0 and each next one as the slice machine punches it
     let mut k = 0;
     while pixel.iter().any(|&p| p >= 0) {
         let j = j0 + k as usize;
         let row = &map.rows[j];
         let mut pending: Vec<usize> = (0..w).filter(|&x| pixel[x] >= 0).collect();
+        let mut next = None;
         while !pending.is_empty() {
             let mut again = vec![];
             for &x in &pending {
                 let i = pixel[x] as usize * w + x;
                 let ray = &rays[i];
                 let (sx, sy) = state[x];
-                let o = host.go(&m.slice, &[&[&[k, ray.last, sx[0], sx[1], sy[0], sy[1], ray.qx, ray.qy, map.drop[j]], row]], Some(5));
+                let o = host.go(&m.slice, &[&[&[k, ray.last, sx[0], sx[1], sy[0], sy[1], ray.qx, ray.qy, map.drop[j]], row]], Some(6));
+                next = Some(o[5]);
                 match o[0] {
                     0 => { state[x] = ([o[1], o[2]], [o[3], o[4]]); continue; }
                     1 => settled[i] = Settled::Hit { k, x: sx, y: sy },
@@ -984,7 +999,7 @@ fn frame(host: &mut Host, host_hd: &mut Host, m: &Machines, map: &Map, fr: &Fram
             for (&x, e) in again.iter().zip(entered) { state[x] = e; }
             pending = again;
         }
-        k += 1;
+        k = next.unwrap();
     }
     // the colours, a screen row at a time
     let mut rgb = vec![[0i32; 3]; w * h];
@@ -999,7 +1014,7 @@ fn frame(host: &mut Host, host_hd: &mut Host, m: &Machines, map: &Map, fr: &Fram
             let deck: Vec<i32> = waters.iter().flat_map(|&x| [dir[y * w + x][1], norm[y * w + x]]).collect();
             let up = host.go1(&m.slope, &[&[2, n as i32], &deck], n);
             let level = host.go1(&m.water, &[&[n as i32], &up], n);
-            let steps = host.go1(&m.shaft, &[&[y as i32, fr.shaft[0] / 100, fr.shaft[0] % 100, fr.shaft[1] / 100, fr.shaft[1] % 100]], 2 * w);
+            let steps = host.go1(&m.shaft, &[&[y as i32, fr.shaft_split[0], fr.shaft_split[1], fr.shaft_split[2], fr.shaft_split[3]]], 2 * w);
             let mut sharp = vec![];
             for wave in 0..2 {
                 let deck: Vec<i32> = waters.iter().map(|&x| steps[2 * x + wave]).collect();
@@ -1083,7 +1098,7 @@ fn frame(host: &mut Host, host_hd: &mut Host, m: &Machines, map: &Map, fr: &Fram
             let deck: Vec<i32> = (0..near.len()).flat_map(|q| [face[q], top[q], height[q][0], height[q][1], corner[2 * q + 1]]).collect();
             let crest = many(host, &m.crest, &[], &deck, 5, 3);
             // the rock: its place in the tables, its stratum, its grain, coral on a lip, how rocky
-            let deck: Vec<i32> = near.iter().enumerate().flat_map(|(q, &e)| [column[q], 0, hit(e).1 as i32]).collect();
+            let deck: Vec<i32> = near.iter().enumerate().flat_map(|(q, &e)| [column[q], 0, map.num[hit(e).1]]).collect();
             let places = many(host, &m.place, &[], &deck, 3, 2);
             let deck: Vec<i32> = near.iter().enumerate().flat_map(|(q, &e)| [map.base[hit(e).1], crest[3 * q + 1], crest[3 * q + 2], face[q], places[2 * q + 1]]).collect();
             let strata = many(host, &m.strata, &[], &deck, 5, 2);
@@ -1117,7 +1132,7 @@ fn frame(host: &mut Host, host_hd: &mut Host, m: &Machines, map: &Map, fr: &Fram
             let deck: Vec<i32> = far_hits.iter().zip(&fs).enumerate().flat_map(|(q, (&e, f))| [f.hp, f.hs, f.hf, map.drop[hit(e).1 - 1], crossed_at[q]]).collect();
             let face = host.go1(&m.face, &[&[c], &deck], 2 * far_hits.len());
             // the strata as a texture: the column's place in the tables, the stratum and band at the seabed's height
-            let deck: Vec<i32> = far_hits.iter().flat_map(|&e| { let (_, j, sx, _, _) = hit(e); [sx[0], 0, j as i32] }).collect();
+            let deck: Vec<i32> = far_hits.iter().flat_map(|&e| { let (_, j, sx, _, _) = hit(e); [sx[0], 0, map.num[j]] }).collect();
             let places = many(host, &m.place, &[], &deck, 3, 2);
             let height = many(host, &m.far2, &[], &fs.iter().map(|f| f.hs).collect::<Vec<_>>(), 1, 2);
             let deck: Vec<i32> = far_hits.iter().enumerate().flat_map(|(q, &e)| [map.base[hit(e).1], height[2 * q], height[2 * q + 1], 4, places[2 * q + 1]]).collect();
@@ -1136,7 +1151,7 @@ fn frame(host: &mut Host, host_hd: &mut Host, m: &Machines, map: &Map, fr: &Fram
         let deck: Vec<i32> = (0..n).flat_map(|e| [tenths[e], hit(e).4.qx]).collect();
         let shift = host.go1(&m.tenth, &[&[n as i32], &deck], n);
         let cross: Vec<[i32; 2]> = walks(host, &(0..n).map(|e| [xp[e][0], 0, xp[e][1], shift[e], 0, 0]).collect::<Vec<_>>());
-        let deck: Vec<i32> = (0..n).flat_map(|e| [cross[e][0], cross[e][1], tenths[e], hit(e).1 as i32 - 1]).collect();
+        let deck: Vec<i32> = (0..n).flat_map(|e| [cross[e][0], cross[e][1], tenths[e], map.num[hit(e).1 - 1]]).collect();
         let p12 = host.go1(&m.phase, &[&[fr.phase[0], fr.phase[1], n as i32], &deck], 2 * n);
         let p3 = host.go1(&m.phase2, &[&[fr.phase[2], n as i32], &deck], n);
         let deck: Vec<i32> = (0..n).flat_map(|e| [p12[2 * e], p12[2 * e + 1], p3[e]]).collect();
@@ -1219,7 +1234,7 @@ fn frame(host: &mut Host, host_hd: &mut Host, m: &Machines, map: &Map, fr: &Fram
     // the creatures at 1536x768, over the water
     let quarter = &demokit::tables::QUARTER_SINE60;
     let sin60: Vec<i32> = (0..60).map(|k: usize| (match k { 0..=15 => quarter[k], 16..=29 => quarter[30 - k], 30..=45 => -quarter[k - 30], _ => -quarter[60 - k] }) as i32).collect();
-    let scene = deep_hd::Scene { n: fr.number as i32, cam: [fr.x, 100 * fr.y + fr.y_part, 100 * fr.z + 10 * fr.z_part], r3: fr.r, u3: fr.u, f3: fr.f, f: fr.f100, r: fr.r100, u: fr.u100,
+    let scene = deep_hd::Scene { n: fr.number as i32, cam: [fr.x, fr.y100, fr.z100], r3: fr.r, u3: fr.u, f3: fr.f, f: fr.f100, r: fr.r100, u: fr.u100,
         fish: fr.fish.iter().map(|f| (f.head, f.tail, f.flash, f.id)).collect(), fish_light: fr.fish_light, far, show: fr.show, snow: fr.snow,
         specks, jellies: drawn.iter().map(|&(a, fd, e)| { let j = &fr.jellies[e]; (a, fd, j.at, j.turn, j.kind, j.rad, j.ht, j.lengths, hd.first[j.id as usize]) }).collect(),
         wave: fr.wave, sin60: &sin60, under: &under_raw, depth: &under_depth, base: &under,

@@ -15,6 +15,16 @@ pub struct Path {
     pub d_hand: i64, pub d_read: i64, pub d_orb0: i64, pub d_orb1: i64, pub d_turn: i64,
     /// the frame we are slowest in front of the airship's screen
     pub f_read: i64,
+    /// worked out from it at the start: the click to VOL 11 (VOL_OFF, f_read + 20), the knob's first frame (f_read -
+    /// 46), the smoothstep's constant for the 11's coming over the 10 frames from f_read - 30 (-1000 times that), the
+    /// knob's click (f_read - 12) and the two frames after it, the join's design frames (VOL_OFF + CUT_N and JOIN on)
+    pub f_cut: i64, pub f_vol_on: i64, pub k_v11: i64, pub f_click: [i64; 3], pub f_join: [i64; 2],
+    /// and in tenths of a frame: the read's camera and the one a frame before it, the join's ends (and a frame
+    /// before its last), and -100 times its first (the constant of the join's place)
+    pub t_cut: [i64; 2], pub t_join: [i64; 3], pub k_join: i64,
+    /// tables worked out at the start for finding a place's segment: each quarter metre's first point past its start
+    /// (its place in l), the running lengths l, and l a point on (both past the end 1 m past the path's length)
+    pub l_tabs: Vec<Tab>,
     /// the cab's place along the line at each frame 0..=F_STOP + 1 (mm), and its speed a frame (mm)
     pub za: Vec<i64>, pub zv: Vec<i64>,
 }
@@ -45,8 +55,12 @@ pub fn rsqrt<O: Ops>(o: &mut O, s: &V) -> V {
     o.lin(&[(v(&r), None), (v(&up), None)])
 }
 
+/// The power of ten, and its place (0 for 1), that a number under lim times it is scaled down by: the number
+/// compared with lim, 10 lim, 100 lim and so on.
+pub fn tens_under(x: i64, lim: i64) -> (i64, usize) { let (mut s, mut k) = (1, 0); while x >= lim * s { s *= 10; k += 1; } (s, k) }
+
 /// The size of vectors (any unit; parts up to three cards): each scaled down by a power of ten (the host picks it by
-/// the largest part's size, which a machine works out) to under 10,000, the square root of the squares' sum over
+/// comparing the largest part's size, which a machine works out, with 10,000, 100,000, ...) to under 10,000, the square root of the squares' sum over
 /// 10,000 made fine by two Newton steps; the size in the scaled unit, and the scale.
 pub fn size3<O: Ops>(o: &mut O, x: &V, y: &V, z: &V) -> (V, V, [V; 3]) {
     // sizes and the largest by comparisons (the parts may pass a long)
@@ -55,7 +69,7 @@ pub fn size3<O: Ops>(o: &mut O, x: &V, y: &V, z: &V) -> (V, V, [V; 3]) {
     let (ax, ay, az) = (ab(o, x), ab(o, y), ab(o, z));
     let m = mx(o, &ax, &ay);
     let m = mx(o, &m, &az);
-    let sc: V = m.iter().map(|&m| { let mut d = 1; while m / d >= 10_000 { d *= 10; } d }).collect();
+    let sc: V = m.iter().map(|&m| tens_under(m, 10_000).0).collect();
     let p: [V; 3] = [x, y, z].map(|a| { if sc.iter().all(|&d| d == 1) { a.clone() } else { o.div(v(a), v(&sc), 0) } });
     let s = o.lin(&[(v(&p[0]), Some(v(&p[0]))), (v(&p[1]), Some(v(&p[1]))), (v(&p[2]), Some(v(&p[2])))]);
     let s4 = o.div(v(&s), K(10_000), 0);
@@ -91,6 +105,11 @@ pub fn at_dist<O: Ops>(o: &mut O, pts: &[[i64; 3]], l: &[i64], s: &[i64]) -> [V;
         let i = l.partition_point(|&q| q <= x);
         i.clamp(1, l.len() - 1)
     }).collect();
+    at_segs(o, pts, l, s, &seg)
+}
+
+/// Points along a polyline at distances s, each in its segment seg (from the point before seg to seg).
+pub fn at_segs<O: Ops>(o: &mut O, pts: &[[i64; 3]], l: &[i64], s: &[i64], seg: &[usize]) -> [V; 3] {
     let l0: V = seg.iter().map(|&i| l[i - 1]).collect();
     let l1: V = seg.iter().map(|&i| l[i]).collect();
     let num = o.lin(&[(A::V(s), None), (v(&l0), Some(K(-1)))]);
@@ -199,6 +218,24 @@ pub fn flight<O: Ops>(o: &mut O, nw: &NightWorld) -> Path {
     path.d = profile(o, &nw.w.tb, &path);
     // the frame we read the airship's screen: the first whose distance reaches it
     path.f_read = F_CHASE + path.d.partition_point(|&x| x < path.d_read) as i64;
+    let fr = path.f_read;
+    path.f_cut = kl(o, &[(fr, None), (20, None)]);
+    path.f_vol_on = kl(o, &[(fr, None), (-46, None)]);
+    path.k_v11 = kl(o, &[(fr, Some(-1000)), (30_000, None)]);
+    path.f_click = [-12, -11, -10].map(|d| kl(o, &[(fr, None), (d, None)]));
+    path.f_join = [20 + CUT_N, 20 + CUT_N + JOIN].map(|d| kl(o, &[(fr, None), (d, None)]));
+    path.t_cut = [200, 190].map(|d| kl(o, &[(fr, Some(10)), (d, None)]));
+    path.t_join = [0, 10 * JOIN, 10 * JOIN - 10].map(|d| kl(o, &[(fr, Some(10)), (10 * (20 + CUT_N) + d, None)]));
+    path.k_join = kl(o, &[(fr, Some(-1000)), (-1000 * (20 + CUT_N), None)]);
+    // the path's quarter metres: the first point past each, and the lengths a point on (past the end, past any place)
+    let (ql, last) = (path.l.len(), *path.l.last().unwrap());
+    assert!((0..ql - 2).all(|i| path.l[i + 2] - path.l[i] >= 250), "two of the path's chords under a quarter metre");
+    let past = kl(o, &[(last, None), (1000, None)]);
+    path.l_tabs = vec![
+        Tab { name: "l_at", data: (0..=last / 250).map(|b| path.l.partition_point(|&q| q <= 250 * b) as i64).collect(), w: 0 },
+        Tab { name: "l", data: path.l.iter().copied().chain([past]).collect(), w: 0 },
+        Tab { name: "l_next", data: path.l[1..].iter().copied().chain([past, past]).collect(), w: 0 },
+    ];
     let (za, zv) = braking(o, &nw.w.tb);
     path.za = za;
     path.zv = zv;
@@ -351,8 +388,11 @@ pub fn cam_dist<O: Ops>(o: &mut O, p: &Path, tenths: i64) -> i64 { one(cam_dists
 
 pub fn cam_dists<O: Ops>(o: &mut O, p: &Path, tenths: &[i64]) -> V {
     let last = (p.d.len() - 1) as i64;
-    let i: Vec<i64> = tenths.iter().map(|&t| (t.max(0) / 10).min(last - 1)).collect();
-    let fr: V = tenths.iter().zip(&i).map(|(&t, &i)| (t.max(0) - 10 * i).min(10)).collect();
+    // the frame and its tenth on the machines (the time held to the table's: at its end, the last step whole)
+    let tc = o.clamp(A::V(tenths), 0, 10 * last);
+    let (q, r) = o.divmod(v(&tc), K(10));
+    let i: Vec<i64> = q.iter().map(|&q| q.min(last - 1)).collect();
+    let fr: V = q.iter().zip(&r).map(|(&q, &r)| if q == last { 10 } else { r }).collect();
     let a: V = i.iter().map(|&i| p.d[i as usize]).collect();
     let b: V = i.iter().map(|&i| p.d[i as usize + 1]).collect();
     let dlt = o.lin(&[(v(&b), None), (v(&a), Some(K(-1)))]);
@@ -362,7 +402,22 @@ pub fn cam_dists<O: Ops>(o: &mut O, p: &Path, tenths: &[i64]) -> V {
 }
 
 /// Points along the path at distances (mm).
-pub fn path_at<O: Ops>(o: &mut O, p: &Path, d: &V) -> [V; 3] { at_dist(o, &p.p, &p.l, d) }
+pub fn path_at<O: Ops>(o: &mut O, p: &Path, d: &V) -> [V; 3] {
+    // each place's segment on the machines: its quarter metre (the distance held to the path, over 250), that
+    // quarter's first point past it from the start's table, and which of that point and the next the place has
+    // reached; the host fetches by those indices
+    let last = *p.l.last().unwrap();
+    let dc = o.clamp(v(d), 0, last);
+    let (b, _) = o.divmod(v(&dc), K(250));
+    let i0 = o.tab(&p.l_tabs[0], v(&b));
+    let la = o.tab(&p.l_tabs[1], v(&i0));
+    let lb = o.tab(&p.l_tabs[2], v(&i0));
+    let fa = o.lt(v(&dc), v(&la));
+    let fb = o.lt(v(&dc), v(&lb));
+    let seg = o.lin(&[(v(&i0), None), (K(2), None), (v(&fa), Some(K(-1))), (v(&fb), Some(K(-1)))]);
+    let seg: Vec<usize> = seg.iter().map(|&i| i.clamp(1, p.l.len() as i64 - 1) as usize).collect();
+    at_segs(o, &p.p, &p.l, d, &seg)
+}
 
 /// Angles (millionths of a turn) at times: rate a tenth of a frame (millionths) times the tenths from a start.
 fn angles<O: Ops>(o: &mut O, tenths: &[i64], from: i64, rate: i64) -> V {
@@ -421,7 +476,7 @@ pub fn drone_at<O: Ops>(o: &mut O, nw: &NightWorld, tenths: &[i64]) -> [V; 3] {
     let w = ease_t(o, &wv);
     let mut pos: [V; 3] = std::array::from_fn(|c| lerpv(o, v(&arr[c]), v(&lead[c]), v(&w)));
     // aside while we read: (-14, -6, 0) m by e^-((d - read) / 60 m)^2
-    let x = o.lin(&[(v(&dd), None), (K(-p.d_read), None)]);
+    let x = o.lin(&[(v(&dd), None), (K(p.d_read), Some(K(-1)))]);
     let x = o.div(v(&x), K(60), 0);
     let x2 = o.lin(&[(v(&x), Some(v(&x)))]);
     let x2 = o.div(v(&x2), K(1000), 0);
@@ -706,16 +761,14 @@ pub fn night_cam<O: Ops>(o: &mut O, nw: &NightWorld, tenths: i64, cab: bool) -> 
     // past the skip (the design's time, tenths): over JOIN frames from the screen's read (the design's camera at the
     // click, VOL_OFF) onto the dive's: the eye along a cubic (Hermite) from the read's place and speed to the dive's,
     // the way, the bank and the lens from the read's to the dive's as they go, eased
-    let cut = nw.path.f_read + 20;
-    let j0 = 10 * (cut + CUT_N);
-    if !cab && tenths > j0 && tenths < j0 + 10 * JOIN {
-        let a = cam_parts(o, nw, 10 * cut, false);
-        let a1 = cam_parts(o, nw, 10 * cut - 10, false);
-        let je = j0 + 10 * JOIN;
-        let b = cam_parts(o, nw, je, false);
-        let b1 = cam_parts(o, nw, je - 10, false);
+    let (tc, tj) = (nw.path.t_cut, nw.path.t_join);
+    if !cab && tenths > tj[0] && tenths < tj[1] {
+        let a = cam_parts(o, nw, tc[0], false);
+        let a1 = cam_parts(o, nw, tc[1], false);
+        let b = cam_parts(o, nw, tj[1], false);
+        let b1 = cam_parts(o, nw, tj[2], false);
         let bt = cam_parts(o, nw, tenths, false);
-        let u = one(o.lin(&[(K(tenths), Some(K(100))), (K(-100 * j0), None)]));
+        let u = one(o.lin(&[(K(tenths), Some(K(100))), (K(nw.path.k_join), None)]));
         let s_ = one(o.div(K(u), K(JOIN), 0));
         let s2 = one({ let t = o.lin(&[(K(s_), Some(K(s_)))]); o.div(v(&t), K(1000), 0) });
         let s3 = one({ let t = o.lin(&[(K(s2), Some(K(s_)))]); o.div(v(&t), K(1000), 0) });
@@ -750,8 +803,8 @@ pub fn cam_parts<O: Ops>(o: &mut O, nw: &NightWorld, tenths: i64, cab: bool) -> 
     } else {
         let e = chase_eyes(o, nw, &[tenths]);
         let (d, r) = aim(o, nw, tenths);
-        let fc = (tenths - 10 * F_CHASE).max(0);
-        let u = one(o.lin(&[(K(fc), Some(K(100)))]));
+        // (the tenths since the chase, a hundred times, over its frames: held to 0 before it)
+        let u = one(o.lin(&[(K(tenths), Some(K(100))), (K(-1000 * F_CHASE), None)]));
         let u = one(o.div(K(u), K(NCH), 0));
         let u = one(o.clamp(K(u), 0, 1000));
         let ez = one(ease_t(o, &vec![u]));
@@ -765,17 +818,21 @@ pub fn cam_parts<O: Ops>(o: &mut O, nw: &NightWorld, tenths: i64, cab: bool) -> 
 /// A camera from its eye (film, unbent, mm), the way it looks (thousandths), its bank (mrad) and twice its focal
 /// length (pixels): across level, up square to both; banked.
 pub fn basis_cam<O: Ops>(o: &mut O, _nw: &NightWorld, eye: [i64; 3], f: [i64; 3], roll: i64, f2: i64) -> Cam {
-    let r = nrm3(o, &vec![f[2]], &vec![0], &vec![-f[0]]);
+    let nf0 = kl(o, &[(f[0], Some(-1))]);
+    let r = nrm3(o, &vec![f[2]], &vec![0], &vec![nf0]);
     let r = [r[0][0], 0, r[2][0]];
+    // (the across axis's parts' negatives, on the machines)
+    let nr = o.lin(&[(v(&vec![r[0], r[2]]), Some(K(-1)))]);
+    let nr = [nr[0], 0, nr[1]];
     let u = [one({ let t = o.lin(&[(K(f[1]), Some(K(r[2])))]); o.div(v(&t), K(1000), 0) }),
-             one({ let t = o.lin(&[(K(f[2]), Some(K(r[0]))), (K(f[0]), Some(K(-r[2])))]); o.div(v(&t), K(1000), 0) }),
-             one({ let t = o.lin(&[(K(f[1]), Some(K(-r[0])))]); o.div(v(&t), K(1000), 0) })];
+             one({ let t = o.lin(&[(K(f[2]), Some(K(r[0]))), (K(f[0]), Some(K(nr[2])))]); o.div(v(&t), K(1000), 0) }),
+             one({ let t = o.lin(&[(K(f[1]), Some(K(nr[0])))]); o.div(v(&t), K(1000), 0) })];
     let (rr, uu) = if roll == 0 { (r, u) } else {
         let ang = one({ let t = o.lin(&[(K(roll), Some(K(159_155)))]); o.div(v(&t), K(1000), 0) });
         let (s, c) = o.sincos(K(ang));
         let (s, c) = (s[0], c[0]);
         let rr: [i64; 3] = std::array::from_fn(|i| one({ let t = o.lin(&[(K(c), Some(K(r[i]))), (K(s), Some(K(u[i])))]); o.div(v(&t), K(999), 0) }));
-        let uu: [i64; 3] = std::array::from_fn(|i| one({ let t = o.lin(&[(K(-s), Some(K(r[i]))), (K(c), Some(K(u[i])))]); o.div(v(&t), K(999), 0) }));
+        let uu: [i64; 3] = std::array::from_fn(|i| one({ let t = o.lin(&[(K(s), Some(K(nr[i]))), (K(c), Some(K(u[i])))]); o.div(v(&t), K(999), 0) }));
         (rr, uu)
     };
     let sc = |o: &mut O, a: [i64; 3]| -> [i64; 3] { if f2 == 1900 { a } else { std::array::from_fn(|i| one({ let t = o.lin(&[(K(a[i]), Some(K(f2)))]); o.div(v(&t), K(1900), 0) })) } };

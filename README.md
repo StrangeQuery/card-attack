@@ -55,6 +55,12 @@ If it does, build Card Attack:
 `build.sh` checks that `cargo cardiac` is 0.2.5 or later, unpacks the generated data (each segment's
 `generated.tar.xz`), compiles every machine with `cargo cardiac build`, and builds the host.
 
+[![Card Attack, from the original sources through the repository to the package](docs/build.svg)](docs/build.svg)
+
+The diagram follows every file from the original sources (designs, fonts, models, music) through the generators
+run by hand and the archives they are packed in, to what the repository holds for `build.sh`, and on to the files
+the package holds for `play`. Open it on its own to read it at full size.
+
 ## Package
 
 After `./build.sh`:
@@ -134,7 +140,7 @@ Folders the segments above use:
 
 | Folder | What it is |
 |---|---|
-| [`cut`](segments/cut) | the running order (`cut.txt`), the dissolve between segments, the measured costs |
+| [`cut`](segments/cut) | the running order (`cut.txt`), the layers over segments, the measured costs |
 | [`ui`](segments/ui) | the UI kit: full-resolution layers painted on CARDIAC, for the cut's `over` lines |
 | [`shared`](segments/shared) | machines and data more than one segment uses, and the machine prelude |
 | [`swarm`](segments/swarm), [`cube`](segments/cube), [`drive`](segments/drive), [`ray`](segments/ray), [`rubik`](segments/rubik), [`mesh`](segments/mesh), [`titles`](segments/titles) | machines and data from earlier parts, used by the segments above |

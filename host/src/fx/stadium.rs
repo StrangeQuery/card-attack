@@ -13,7 +13,7 @@ use super::train::imp::Ops as _;
 
 #[allow(dead_code, clippy::all, unused_variables, unused_mut, unused_imports)]
 pub mod imp {
-    pub use super::super::train::imp::{fl, md, n_of, v, Native, Ops, Tab, A, CARD, K, LONG, V, WIDE};
+    pub use super::super::train::imp::{fl, md, n_of, sorter, v, Native, Ops, Tab, A, CARD, K, LONG, V, WIDE};
     include!("../../../segments/stadium/scene.rs");
     include!("../../../segments/stadium/maths.rs");
     include!("../../../segments/stadium/clock.rs");

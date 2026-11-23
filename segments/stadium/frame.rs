@@ -5,8 +5,8 @@ pub struct World { pub sc: Scene, pub t: Tables, pub lt: LightTabs, pub scr: Scr
 
 /// Each pixel's 1 / |ray| (thousandths, the ray (x, y, f) / f), worked out once: the squared distance from the
 /// middle on CARDIAC (half pixels squared over 4; at the half size, as the full size's: squared, not quartered),
-/// the printed table of 1000 / sqrt(1 + s / f^2).
-pub struct ScreenConsts { pub inv: V }
+/// the printed table of 1000 / sqrt(1 + s / f^2). And each row's place, 2 y + 1 - H (half pixels from the middle).
+pub struct ScreenConsts { pub inv: V, pub rows: V }
 
 impl World {
     /// The screen's numbers at the size being drawn.
@@ -25,7 +25,7 @@ fn screen_consts<O: Ops>(o: &mut O, t: &Tables) -> ScreenConsts {
         let r = o.sum(&[(v(&x2), 1)], y2[y]);
         s[y * scr_w() as usize..(y + 1) * scr_w() as usize].copy_from_slice(&r);
     }
-    ScreenConsts { inv: o.tab(&t.inv_ray, v(&s)) }
+    ScreenConsts { inv: o.tab(&t.inv_ray, v(&s)), rows: ys }
 }
 
 pub fn load<O: Ops>(o: &mut O, dir: &str) -> World {
@@ -72,10 +72,11 @@ pub struct Inputs<'a> { pub night: Option<&'a [u8]>, pub night_cam: &'a NightCam
 
 /// The frame k of the segment (0..FRAMES): RGB bytes, 1536 x 768.
 pub fn render<O: Ops>(o: &mut O, w: &World, inp: &Inputs, k: i64) -> Vec<u8> {
-    let t12 = t12_of(k);
+    o.stage("camera");
+    // the show's clock: the frame less 8, on CARDIAC
+    let t12 = s_sum(&[(k, 1)], -8, o);
     if t12 >= CUT_T12 { return vec![0; npix() * 3]; }
     let (sc, t, lt) = (&w.sc, &w.t, &w.lt);
-    o.stage("camera");
     let cam = if k < DISSOLVE {
         match &inp.night_cam.0[k as usize] {
             NightCam::Axes(c) => *c,
@@ -492,8 +493,8 @@ pub fn resolve<O: Ops>(o: &mut O, srcs: &[(&V, &Vec<u32>, Src_)]) -> (Vec<Option
 pub fn sky<O: Ops>(o: &mut O, w: &World, cam: &Cam, t12: i64) -> [V; 3] {
     let t = &w.t;
     // the height part per row, hundred-thousandths: f_z 100 - (2 y + 1 - H) u_z / 20
-    let rows: V = (0..scr_h()).map(|y| 2 * y + 1 - scr_h()).collect();
-    let num = { let n = s_neg(cam.b[1][2], o); o.lin(&[(v(&rows), Some(K(n)))]) };
+    let rows = &w.scr_now().rows;
+    let num = { let n = s_neg(cam.b[1][2], o); o.lin(&[(v(rows), Some(K(n)))]) };
     let num = divk(o, &num, 20 * focal() / 1000);
     let fz = s_lin(&[(cam.b[2][2], Some(100))], o);
     let num = o.sum(&[(v(&num), 1)], fz);
@@ -531,15 +532,16 @@ pub fn stars<O: Ops>(o: &mut O, w: &World, cam: &Cam, win: &[Option<Src_>], col:
     let ys: V = pr.iter().map(|p| p.1).collect();
     let (px, _) = o.divmod(v(&xs), K(100));
     let (py, _) = o.divmod(v(&ys), K(100));
-    let mut seen = std::collections::HashSet::new();
-    let mut hit: Vec<(usize, usize)> = vec![];
+    // the stars on the open sky's pixels; of those on one pixel, the first
+    let mut cand: Vec<(i64, i64, usize)> = vec![];
     for (q, &i) in at.iter().enumerate() {
         let (x, y) = (px[q] + scr_w() / 2, py[q] + scr_h() / 2);
         if x < 0 || x >= scr_w() || y < 0 || y >= scr_h() { continue; }
-        let p = (y * scr_w() + x) as usize;
-        if win[p].is_some() || !seen.insert(p) { continue; }
-        hit.push((p, i));
+        if win[(y * scr_w() + x) as usize].is_some() { continue; }
+        cand.push((y, x, i));
     }
+    let first = one_each(o, &cand.iter().map(|c| [c.0, c.1]).collect::<Vec<_>>(), false);
+    let hit: Vec<(usize, usize)> = (0..cand.len()).filter(|&k| first[k]).map(|k| ((cand[k].0 * scr_w() + cand[k].1) as usize, cand[k].2)).collect();
     let b: V = hit.iter().map(|h| sc.star_b[h.1]).collect();
     for (c, k) in [5000i64, 5500, 7000].iter().enumerate() {
         let a = o.lin(&[(v(&b), Some(K(*k)))]);
@@ -567,18 +569,20 @@ pub fn dope_stars<O: Ops>(o: &mut O, w: &World, cam: &Cam, win: &[Option<Src_>],
     let ys: V = pr.iter().map(|p| p.1).collect();
     let (px, _) = o.divmod(v(&xs), K(100));
     let (py, _) = o.divmod(v(&ys), K(100));
-    let mut hit: Vec<(usize, usize)> = vec![];
-    let mut seen = std::collections::HashSet::new();
+    // the stars' pixels on the open sky (a big one's four: its place and the next row and column, by the host's
+    // addressing); of those on one pixel, the first
+    let mut cand: Vec<(i64, i64, usize)> = vec![];
     for (q, &i) in at.iter().enumerate() {
         let n = if sc.dstar_big[i] == 1 { 2 } else { 1 };
         for dy in 0..n { for dx in 0..n {
             let (x, y) = (px[q] + scr_w() / 2 + dx, py[q] + scr_h() / 2 + dy);
             if x < 0 || x >= scr_w() || y < 0 || y >= scr_h() { continue; }
-            let p = (y * scr_w() + x) as usize;
-            if win[p].is_some() || !seen.insert(p) { continue; }
-            hit.push((p, i));
+            if win[(y * scr_w() + x) as usize].is_some() { continue; }
+            cand.push((y, x, i));
         } }
     }
+    let first = one_each(o, &cand.iter().map(|c| [c.0, c.1]).collect::<Vec<_>>(), false);
+    let hit: Vec<(usize, usize)> = (0..cand.len()).filter(|&k| first[k]).map(|k| ((cand[k].0 * scr_w() + cand[k].1) as usize, cand[k].2)).collect();
     if std::env::var("STADIUM_DEBUG").is_ok() { eprintln!("dope stars: {} dirs, {} ahead, {} pixels, sky {}", d[0].len(), at.len(), hit.len(), win.iter().filter(|s| s.is_none()).count()); }
     let l: V = hit.iter().map(|h| sc.dstar_l[h.1]).collect();
     for c in 0..3 {
@@ -587,6 +591,29 @@ pub fn dope_stars<O: Ops>(o: &mut O, w: &World, cam: &Cam, win: &[Option<Src_>],
         for (q, h) in hit.iter().enumerate() { col[c][h.0] = s[q]; }
     }
     hit.iter().map(|h| h.0).collect()
+}
+
+/// Of places (row, column; 0 or more), which one of each place is kept: the first of those at one place (`last`:
+/// the last). The card sorter puts them in order (by row, then column; those at one place in their order), and
+/// CARDIAC compares each with its neighbour in that order (the one before it, or with `last` the one after it): a
+/// later row, or the same row and a later column, is another place.
+pub fn one_each<O: Ops>(o: &mut O, places: &[[i64; 2]], last: bool) -> Vec<bool> {
+    let n = places.len();
+    let mut keep = vec![true; n];
+    if n < 2 { return keep; }
+    let deck = sorter::order(places, &[sorter::up(4), sorter::up(4)]);
+    // each card and the next in the deck
+    let (a, b) = (&deck[..n - 1], &deck[1..]);
+    let (ya, xa): (V, V) = (a.iter().map(|&i| places[i][0]).collect(), a.iter().map(|&i| places[i][1]).collect());
+    let (yb, xb): (V, V) = (b.iter().map(|&i| places[i][0]).collect(), b.iter().map(|&i| places[i][1]).collect());
+    let row = o.lt(v(&ya), v(&yb));
+    let col = o.lt(v(&xa), v(&xb));
+    for k in 0..n - 1 {
+        if row[k] == 1 || col[k] == 1 { continue; }
+        // the same place: the later card (or with `last` the earlier) is not kept
+        keep[if last { a[k] } else { b[k] }] = false;
+    }
+    keep
 }
 
 /// The tone curve: each channel's light (held to 0..60,000) to its byte by the printed table.
@@ -609,29 +636,29 @@ pub fn skin<O: Ops>(o: &mut O, t: &Tables, sc: &Scene, sh: &Show, ang: &V, z: &V
     // columns: the angle (millionths of a turn) times 2 pi 125 / 0.525, thousandths: ang 1.496
     let colk = o.lin(&[(v(ang), Some(K(1496)))]);
     let colk = o.div(v(&colk), K(1000), 0);
-    let mut lit = vec![0i64; n];
+    let mut rows_lit: Vec<V> = vec![];
     for (y0, y1, dirn) in [(1100i64, 1940i64, 1i64), (2220, 3060, -1)] {
         // the row: (y1 - z) 16 / 8.4, thousandths
         let r = o.sum(&[(v(z), -1)], y1);
         let r = o.lin(&[(v(&r), Some(K(16_000)))]);
         let r = o.div(v(&r), K(y1 - y0), 0);
         // the column, scrolled 3 a frame: wrapped by the frame's offset (mod the marquee) and the printed wrap
-        let off = { let s = s_lin(&[(f, Some(3 * dirn))], o); let q = s_div(s, len, o); s_lin(&[(s, None), (q, Some(-len))], o) };
+        let off = { let s = s_lin(&[(f, Some(3 * dirn))], o); let q = s_div(s, len, o); let nl = s_neg(len, o); s_lin(&[(s, None), (q, Some(nl))], o) };
         let (ci, cf) = split1000(o, &colk);
         let ci = o.sum(&[(v(&ci), 1)], off);
         let ci = o.tabo(&t.mq_wrap, 2000, v(&ci));
         let (ri, rf) = split1000(o, &r);
         let dot_c = o.tab(&t.dot, v(&cf));
         let dot_r = o.tab(&t.dot, v(&rf));
-        for i in 0..n {
-            if !(0..16).contains(&ri[i]) { continue; }
-            let on = mq.at(0, ri[i] as usize, ci[i] as usize, 0) > 127;
-            if !on { continue; }
-            let val = if dot_c[i] == 1 && dot_r[i] == 1 { 1000 } else { 400 };
-            lit[i] = lit[i].max(val);
-        }
+        // the row's level at each place (0, 400 or 1000), by the marquee's dot and the punched flags
+        let lit: V = (0..n).map(|i| {
+            if !(0..16).contains(&ri[i]) || mq.at(0, ri[i] as usize, ci[i] as usize, 0) <= 127 { 0 }
+            else if dot_c[i] == 1 && dot_r[i] == 1 { 1000 } else { 400 }
+        }).collect();
+        rows_lit.push(lit);
     }
-    let lit = o.sum(&[(v(&lit), 1)], 0);
+    // where both rows land, the brighter (CARDIAC's max)
+    let lit = o.max(v(&rows_lit[0]), v(&rows_lit[1]));
     // the hue: ang 3 + f 0.05 radians, as turns; each colour 0.5 + 0.5 sin(hue + 2.1 k) by the printed table
     let f05 = s_lin(&[(f, Some(7958))], o);
     let hue = o.lin(&[(v(ang), Some(K(3))), (K(f05), None)]);

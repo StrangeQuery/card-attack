@@ -2,6 +2,8 @@
 // and the reference (reference.rs, which works them out in ordinary Rust): the timeline (which shape each frame shows,
 // where the cube is going, how far a turn has got), and the shapes as boxes whose corners are sums of the cube's axes
 // at a few sizes. Nothing here is worked out: it says which numbers make which, as a card sorter's plugboard would.
+// The timeline counts through its parts by their lengths; a step within a part is given as the frame and where the
+// part starts (Step), and the machines work out the step.
 #![allow(dead_code)]
 
 /// Frames: coming toward us, its faces going to ivory as the pips fizz in from the approach's MORPH0th frame (a die
@@ -42,55 +44,62 @@ pub const PIP: usize = 14;
 /// The axes after each axis, in turn: (u, w) for a face along a.
 pub const AFTER: [(usize, usize); 3] = [(1, 2), (2, 0), (0, 1)];
 
+/// A step: a number as it is, or one counted from a part's start (`first` at frame `at`, one more a frame: at frame f,
+/// first + f - at, which the machines work out).
+#[derive(Clone, Copy, Debug)]
+pub enum Step { Is(i32), Since { first: i32, at: i32, f: i32 } }
+
 /// The die: its faces' colour step (j of 8 from the plain cube's colour to ivory), its pips' step (j of 4; None: none).
 #[derive(Clone, Copy, Debug)]
-pub struct Die { pub colour: i32, pub pips: Option<i32> }
+pub struct Die { pub colour: Step, pub pips: Option<Step> }
 
 /// How big the Rubik's cube is: as it is; splitting from the die (step j of 7: 1.08 less 0.08 j / 7); in its pop
 /// (step k: 1 + 0.06 sin(30 min(k, 6) degrees)).
 #[derive(Clone, Copy, Debug)]
-pub enum Scale { One, Split(i32), Pop(i32) }
+pub enum Scale { One, Split(Step), Pop(Step) }
 
 /// The Rubik's cube: the moves of the solve done, the move turning (its index, step j of n), its size.
 #[derive(Clone, Copy, Debug)]
-pub struct Rubik { pub done: usize, pub turn: Option<(usize, i32, i32)>, pub scale: Scale }
+pub struct Rubik { pub done: usize, pub turn: Option<(usize, Step, i32)>, pub scale: Scale }
 
-/// Where the cube is: coming toward us (step k of 18), still at the near place, or roaming (frame k of the roam).
+/// Where the cube is: coming toward us (step k of 18, the frame itself), still at the near place, or roaming (frame k
+/// of the roam).
 #[derive(Clone, Copy, Debug)]
-pub enum Place { Approach(i32), Still, Roam(i32) }
+pub enum Place { Approach(i32), Still, Roam(Step) }
 
 /// A frame: its number, the 0.12 s steps the pop has added to the tumble's time, where the cube is, and what it is
 /// (the die, the Rubik's cube, or the die crossfading into the Rubik's cube at step j of 7).
 #[derive(Clone, Copy, Debug)]
-pub enum Shape { Die(Die), Rubik(Rubik), Split(Die, Rubik, i32) }
+pub enum Shape { Die(Die), Rubik(Rubik), Split(Die, Rubik, Step) }
 #[derive(Clone, Copy, Debug)]
-pub struct Frame { pub i: i32, pub extra: i32, pub place: Place, pub shape: Shape }
+pub struct Frame { pub i: i32, pub extra: Step, pub place: Place, pub shape: Shape }
 
 pub fn frames(turns: &[i32]) -> usize { APPROACH + DIE_HOLD + SPLIT + turns.iter().sum::<i32>() as usize + POP + TAIL }
 
 pub fn frame(turns: &[i32], f: usize) -> Frame {
-    let full = Die { colour: 8, pips: Some(4) };
+    let full = Die { colour: Step::Is(8), pips: Some(Step::Is(4)) };
+    let since = |first: i32, at: usize| Step::Since { first, at: at as i32, f: f as i32 };
     let at = |shape, place, extra| Frame { i: f as i32, extra, place, shape };
-    let mut k = f;
-    if k < APPROACH {
-        let die = if k < MORPH0 { Die { colour: 0, pips: None } } else if k < MORPH0 + IVORY_IN {
-            let j = k - MORPH0;
-            Die { colour: j as i32 + 1, pips: (j >= 4).then_some(j as i32 - 3) }
+    if f < APPROACH {
+        // the colour's steps from 1 at MORPH0, the pips' from 1 four frames on
+        let die = if f < MORPH0 { Die { colour: Step::Is(0), pips: None } } else if f < MORPH0 + IVORY_IN {
+            Die { colour: since(1, MORPH0), pips: (f >= MORPH0 + 4).then(|| since(1, MORPH0 + 4)) }
         } else { full };
-        return at(Shape::Die(die), Place::Approach(k as i32), 0)
+        return at(Shape::Die(die), Place::Approach(f as i32), Step::Is(0))
     }
-    k -= APPROACH;
-    if k < DIE_HOLD { return at(Shape::Die(full), Place::Still, 0) }
-    k -= DIE_HOLD;
-    if k < SPLIT { return at(Shape::Split(full, Rubik { done: 0, turn: None, scale: Scale::Split(k as i32 + 1) }, k as i32 + 1), Place::Still, 0) }
-    k -= SPLIT;
+    // each part from its first frame: the die held, the split, each move of the solve, the pop, the roam
+    let mut start = APPROACH;
+    if f < start + DIE_HOLD { return at(Shape::Die(full), Place::Still, Step::Is(0)) }
+    start += DIE_HOLD;
+    if f < start + SPLIT { return at(Shape::Split(full, Rubik { done: 0, turn: None, scale: Scale::Split(since(1, start)) }, since(1, start)), Place::Still, Step::Is(0)) }
+    start += SPLIT;
     for (m, &n) in turns.iter().enumerate() {
-        if k < n as usize { return at(Shape::Rubik(Rubik { done: m, turn: Some((m, k as i32 + 1, n)), scale: Scale::One }), Place::Still, 0) }
-        k -= n as usize;
+        if f < start + n as usize { return at(Shape::Rubik(Rubik { done: m, turn: Some((m, since(1, start), n)), scale: Scale::One }), Place::Still, Step::Is(0)) }
+        start += n as usize;
     }
-    if k < POP { return at(Shape::Rubik(Rubik { done: turns.len(), turn: None, scale: Scale::Pop(k as i32) }), Place::Still, k as i32) }
-    k -= POP;
-    at(Shape::Rubik(Rubik { done: turns.len(), turn: None, scale: Scale::One }), Place::Roam(k as i32), POP as i32)
+    if f < start + POP { return at(Shape::Rubik(Rubik { done: turns.len(), turn: None, scale: Scale::Pop(since(0, start)) }), Place::Still, since(0, start)) }
+    start += POP;
+    at(Shape::Rubik(Rubik { done: turns.len(), turn: None, scale: Scale::One }), Place::Roam(since(0, start)), Step::Is(POP as i32))
 }
 
 /// A term of a sum: a sign and a size (its index).

@@ -6,6 +6,8 @@
 pub use cardiac_host::{asm, cardiac, live, native, overlay};
 pub use cardiac_host::{build, carrying, compiled, finish, hand, machine_file, numbers, one, patched, read, reference, rust, rust_or, Compiled, Host, Machine};
 pub mod json;
+/// The card sorter: cards put in order by the numbers they hold, a column a pass.
+pub mod sorter;
 pub mod tables;
 pub mod fx;
 pub mod machines;

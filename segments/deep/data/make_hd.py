@@ -174,6 +174,13 @@ def main():
     L.append("fish_at " + " ".join(map(str, fo)))
     L.append("bell_w " + " ".join(map(str, BELL_W)))
     L.append("bell_at " + " ".join(map(str, bo)))
+    # the sizes as the machines take them: 7 and 500 times a fish's width, 14 and 500 times its height (the level
+    # test and the texel steps, the walk's middle texel in thousandths), 500 times a bell's
+    L.append("fish_w7 " + " ".join(str(7 * w) for w in FISH_W))
+    L.append("fish_w500 " + " ".join(str(500 * w) for w in FISH_W))
+    L.append("fish_h14 " + " ".join(str(14 * h) for h in FISH_H))
+    L.append("fish_h500 " + " ".join(str(500 * h) for h in FISH_H))
+    L.append("bell_w500 " + " ".join(str(500 * w) for w in BELL_W))
     L.append("bubble_at " + " ".join(str(o) for o, _, _ in bi))
     L.append("bubble_side " + " ".join(str(s) for _, s, _ in bi))
     L.append("bubble_phases " + " ".join(str(p) for _, _, p in bi))

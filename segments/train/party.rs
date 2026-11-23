@@ -24,15 +24,17 @@ pub fn rays_for<O: Ops>(o: &mut O, cam: &Cam, need: &[usize]) -> [V; 3] {
     let sel: Vec<usize> = (0..want.len()).filter(|&i| want[i]).collect();
     let mut out: [V; 3] = [vec![0; N_PIX()], vec![0; N_PIX()], vec![0; N_PIX()]];
     if sel.is_empty() { return out; }
+    // ten times twice f, and its negative, on the machines
+    let (f10, nf10) = (kl(o, &[(cam.f2, Some(10))]), kl(o, &[(cam.f2, Some(-10))]));
     for i in 0..3 {
         let xq: V = sel.iter().map(|&s| 2 * (s % 4) as i64 * q as i64 + 1 - W()).collect();
         let yq: V = sel.iter().map(|&s| H() - 1 - 2 * (s / 4) as i64).collect();
         let s = { let k_ = kl(o, &[(cam.f2, Some(cam.b[2][i]))]); o.lin(&[(v(&xq), Some(K(cam.b[0][i]))), (v(&yq), Some(K(cam.b[1][i]))), (K(k_), None)]) };
         let s = o.lin(&[(v(&s), Some(K(7)))]);
-        let va = o.div(v(&s), K(10 * cam.f2), 0);
-        let rest = o.lin(&[(v(&s), None), (v(&va), Some(K(-10 * cam.f2)))]);
-        let f0 = { let t = o.lin(&[(v(&rest), Some(K(1000)))]); o.div(v(&t), K(10 * cam.f2), 0) };
-        let step = one({ let t = o.lin(&[(K(cam.b[0][i]), Some(K(14_000)))]); o.div(v(&t), K(10 * cam.f2), 0) });
+        let va = o.div(v(&s), K(f10), 0);
+        let rest = o.lin(&[(v(&s), None), (v(&va), Some(K(nf10)))]);
+        let f0 = { let t = o.lin(&[(v(&rest), Some(K(1000)))]); o.div(v(&t), K(f10), 0) };
+        let step = one({ let t = o.lin(&[(K(cam.b[0][i]), Some(K(14_000)))]); o.div(v(&t), K(f10), 0) });
         let walks: Vec<(i64, i64, i64, i64)> = (0..va.len()).map(|j| (q as i64, va[j], step, f0[j])).collect();
         let r = o.walkc(&walks);
         for (j, &s) in sel.iter().enumerate() { let base = (s / 4) * wd + (s % 4) * q; out[i][base..base + q].copy_from_slice(&r[j * q..(j + 1) * q]); }
@@ -98,15 +100,11 @@ pub fn train_compose<O: Ops>(o: &mut O, w: &World, _k: i64, lo: &TParts) -> Vec<
     let sc = &w.sc;
     let parent = |p: usize| -> usize { ((p / fw) / 2) * lw + (p % fw) / 2 };
     let lsubj = |q: usize| lo.g.mat[q] >= 0 && train_subject(w, lo.g.mat[q] as usize);
-    let subj_near = |p: usize| -> Option<usize> {
-        let q = parent(p);
-        if lsubj(q) { return Some(q); }
-        let (x, y) = ((q % lw) as i64, (q / lw) as i64);
-        for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1)] {
-            let (a, b) = (x + dx, y + dy);
-            if a >= 0 && b >= 0 && (a as usize) < lw && (b as usize) < lh { let r = b as usize * lw + a as usize; if lsubj(r) { return Some(r); } }
-        }
-        None
+    // a half-resolution pixel's neighbour (0 itself, then the eight round it in a fixed order), if on the screen
+    const NEAR: [(i64, i64); 9] = [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1)];
+    let next_to = |q: usize, (dx, dy): (i64, i64)| -> Option<usize> {
+        let (a, b) = ((q % lw) as i64 + dx, (q / lw) as i64 + dy);
+        (a >= 0 && b >= 0 && (a as usize) < lw && (b as usize) < lh).then(|| b as usize * lw + a as usize)
     };
     o.stage("p_subjects");
     let cam = lo.cam;
@@ -115,7 +113,7 @@ pub fn train_compose<O: Ops>(o: &mut O, w: &World, _k: i64, lo: &TParts) -> Vec<
     let mut over = vec![false; n_pix];
     let subj_l: Vec<bool> = (0..lw * lh).map(lsubj).collect();
     if subj_l.iter().any(|&s| s) {
-        let (near, far) = visible(sc, cam.z_cm / 100);
+        let (near, far) = lo.vis.clone();
         let near: Vec<usize> = near.into_iter().filter(|&t| train_subject(w, sc.world.mat[t])).collect();
         let far: Vec<usize> = far.into_iter().filter(|&t| train_subject(w, sc.world.mat[t])).collect();
         let two: Vec<bool> = sc.world.mat.iter().map(|&m| sc.mats[m].kind == kind::TREE || sc.mats[m].kind == kind::LED).collect();
@@ -152,20 +150,31 @@ pub fn train_compose<O: Ops>(o: &mut O, w: &World, _k: i64, lo: &TParts) -> Vec<
                 let t = finish_v(o, w, &vl, &c, &h, &ad);
                 for (kk, &j) in shade.iter().enumerate() { ds[j] = [t[0][kk], t[1][kk], t[2][kk]]; }
             }
-            let low = |p: usize| -> [i64; 3] { let q = subj_near(p).unwrap_or(parent(p)); std::array::from_fn(|ch| lo.img[3 * q + ch] as i64) };
+            // which half-resolution pixel's colour each pixel takes where it isn't all shaded again: its own where that
+            // is a subject's, else the first of its neighbours that is (the first flag set, by tr_near: the first of
+            // the largest), else its own
+            let mut from: Vec<usize> = vis.iter().map(|&p| parent(p)).collect();
+            let ask: Vec<usize> = (0..vis.len()).filter(|&j| wv[j] > 0 && !lsubj(from[j])).collect();
+            if !ask.is_empty() {
+                let flags: Vec<Vec<i64>> = ask.iter().map(|&j| NEAR.iter().map(|&d| next_to(from[j], d).map_or(0, |r| lsubj(r) as i64)).collect()).collect();
+                let refs: Vec<&[i64]> = flags.iter().map(|f| f.as_slice()).collect();
+                let win = o.nearest(&refs);
+                for (k, &j) in ask.iter().enumerate() { from[j] = next_to(from[j], NEAR[win[k]]).unwrap(); }
+            }
+            let low = |j: usize| -> [i64; 3] { let q = from[j]; std::array::from_fn(|ch| lo.img[3 * q + ch] as i64) };
             let mixj: Vec<usize> = (0..vis.len()).filter(|&j| wv[j] > 0 && wv[j] < 1000).collect();
             if !mixj.is_empty() {
                 let t: V = mixj.iter().map(|&j| wv[j]).collect();
                 let t = o.div(v(&t), K(10), 0);
                 for ch in 0..3 {
                     let a: V = mixj.iter().map(|&j| ds[j][ch]).collect();
-                    let b: V = mixj.iter().map(|&j| low(vis[j])[ch]).collect();
+                    let b: V = mixj.iter().map(|&j| low(j)[ch]).collect();
                     let m = o.mix(v(&a), v(&b), v(&t));
                     for (kk, &j) in mixj.iter().enumerate() { ds[j][ch] = m[kk]; }
                 }
             }
             for (j, &p) in vis.iter().enumerate() {
-                let d = if wv[j] >= 1000 { low(p) } else { ds[j] };
+                let d = if wv[j] >= 1000 { low(j) } else { ds[j] };
                 for ch in 0..3 { out[3 * p + ch] = d[ch] as u8; }
                 over[p] = true;
             }

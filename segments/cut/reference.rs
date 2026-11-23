@@ -1,4 +1,4 @@
-// Cut reference: the same segments, dissolves, stutters and captions, in ordinary Rust, at 192x96 (96x48 segments doubled);
+// Cut reference: the same segments, stutters and captions, in ordinary Rust, at 192x96 (96x48 segments doubled);
 // then the frames made at 1536x768 (un-pixelated, or under a layer), in order. Args: font.json, the cut file, the demo folder.
 use std::io::Write;
 const W: usize = 96; const H: usize = 48;    // the segments' frames; the cut is twice that, 192x96
@@ -9,7 +9,7 @@ const WHITE: [u8; 3] = [240, 240, 240];
 mod demokit;   // the tables, shared with the machines and the host
 const BAYER: [i32; 16] = demokit::tables::widen(demokit::tables::BAYER4);
 fn ints(s: &str) -> Vec<i64> { s.split(|c: char| !c.is_ascii_digit() && c != '-').filter(|t| !t.is_empty()).map(|t| t.parse().unwrap()).collect() }
-struct Seg { video: String, start: usize, len: usize, big: bool, hd: bool, reverse: bool, mix: usize, stutter: Vec<usize>, hold: usize, gap: usize, word: Option<Vec<Vec<u8>>>, caps: Vec<(usize, usize, String)>,
+struct Seg { video: String, start: usize, len: usize, big: bool, hd: bool, reverse: bool, stutter: Vec<usize>, hold: usize, gap: usize, caps: Vec<(usize, usize, String)>,
     freeze: Vec<(usize, Vec<usize>)>, unpix: [usize; 3], overs: Vec<(String, usize, usize, usize, usize, usize, usize)> }
 impl Seg {
     // frames shown, with the freezes and repeats; and which of the segment's frames shows at t (after frame a, a
@@ -22,12 +22,6 @@ impl Seg {
     }
 }
 const HW: usize = 1536; const HH: usize = 768;
-fn dissolve(a: &[u8], b: &[u8], level: i32) -> Vec<u8> {
-    let mut o = a.to_vec();
-    for y in 0..H2 { for x in 0..W2 { if BAYER[(y % 4) * 4 + x % 4] < level { let k = (y * W2 + x) * 3; o[k..k + 3].copy_from_slice(&b[k..k + 3]); } } }
-    o
-}
-fn level(k: usize, n: usize) -> i32 { (16 * (k + 1) / (n + 1)) as i32 }
 fn main() {
     let a: Vec<String> = std::env::args().collect();
     let js = std::fs::read_to_string(&a[1]).unwrap();
@@ -39,24 +33,19 @@ fn main() {
         let lb = after.find('[').unwrap(); let rb = after.find(']').unwrap();
         font.insert(ch, ints(&after[lb + 1..rb])); rest = &after[rb + 1..];
     }
-    let (mut segs, mut in_n, mut out_n, mut black_n): (Vec<Seg>, usize, usize, usize) = (Vec::new(), 0, 0, 0);
+    let mut segs: Vec<Seg> = Vec::new();
     for l in std::fs::read_to_string(&a[2]).unwrap().trim().lines() {
         let p: Vec<&str> = l.split(' ').collect();
         match p[0] {
-            "seg" => segs.push(Seg { video: p[2].into(), start: p[3].parse().unwrap(), len: p[4].parse().unwrap(), big: p[5..].contains(&"192x96"), hd: p[5..].contains(&"1536x768"), reverse: p[5..].contains(&"reverse"), mix: 0, stutter: vec![], hold: 0, gap: 0, word: None, caps: vec![], freeze: vec![], unpix: [0; 3], overs: vec![] }),
+            "seg" => segs.push(Seg { video: p[2].into(), start: p[3].parse().unwrap(), len: p[4].parse().unwrap(), big: p[5..].contains(&"192x96"), hd: p[5..].contains(&"1536x768"), reverse: p[5..].contains(&"reverse"), stutter: vec![], hold: 0, gap: 0, caps: vec![], freeze: vec![], unpix: [0; 3], overs: vec![] }),
             "freeze" => { let a: usize = p[1].parse().unwrap(); segs.last_mut().unwrap().freeze.push((a, vec![a; p[2].parse().unwrap()])) }
             "repeat" => segs.last_mut().unwrap().freeze.push((p[1].parse().unwrap(), p[2..].iter().map(|v| v.parse().unwrap()).collect())),
             "unpixelate" => segs.last_mut().unwrap().unpix = [p[1].parse().unwrap(), p[2].parse().unwrap(), p[3].parse().unwrap()],
             "over" => { let (w, h) = p[2].split_once('x').unwrap(); let n: Vec<usize> = p[3..7].iter().map(|v| v.parse().unwrap()).collect();
                 segs.last_mut().unwrap().overs.push((p[1].into(), w.parse().unwrap(), h.parse().unwrap(), n[0], n[1], n[2], n[3])) }
-            "word" => segs.last_mut().unwrap().word = Some(std::fs::read_to_string(format!("{}/{}", a[3], p[1])).unwrap().lines().map(|l| l.bytes().map(|b| b - b'0').collect()).collect()),
             "hold" => segs.last_mut().unwrap().hold = p[1].parse().unwrap(),
             "gap" => segs.last_mut().unwrap().gap = p[1].parse().unwrap(),
-            "mix" => segs.last_mut().unwrap().mix = p[1].parse().unwrap(),
             "stutter" => segs.last_mut().unwrap().stutter = p[1..].iter().map(|v| v.parse().unwrap()).collect(),
-            "in" => in_n = p[1].parse().unwrap(),
-            "out" => out_n = p[1].parse().unwrap(),
-            "black" => black_n = p[1].parse().unwrap(),
             _ => segs.last_mut().unwrap().caps.push((p[1].parse().unwrap(), p[2].parse().unwrap(), p[3..].join(" "))),
         }
     }
@@ -70,14 +59,14 @@ fn main() {
     let frame = |s: &Seg, t: usize| if s.big { raw(s, t) } else { double(&raw(s, t)) };
     let lit = |line: &Vec<char>, g: usize, x: usize| x % 4 < 3 && { let c = font[&line[x / 4]][g]; [c / 100, c / 10 % 10, c % 10][x % 4] == 1 };
     let black = vec![0u8; fb2];
-    let mut frames: Vec<Vec<u8>> = Vec::new(); let mut words: Vec<(usize, usize, &Vec<Vec<u8>>)> = Vec::new();
+    let mut frames: Vec<Vec<u8>> = Vec::new();
     let mut whose: Vec<Option<(usize, usize)>> = Vec::new();   // the segment and its frame each frame of the cut shows as itself
     for (i, s) in segs.iter().enumerate() {
         if s.hd { for t in 0..s.shown() + s.hold { frames.push(black.clone()); whose.push(Some((i, t))); } continue; }   // 1536x768: shown in its place, black here
-        let head = if i > 0 { segs[i - 1].mix + segs[i - 1].stutter.iter().sum::<usize>() } else { 0 };
+        let head = if i > 0 { segs[i - 1].stutter.iter().sum::<usize>() } else { 0 };
         let mut last = Vec::new();
         let len = s.shown();
-        for t in head..len - s.mix {
+        for t in head..len {
             let mut img = raw(s, t);
             if let Some((at, len, text)) = s.caps.iter().find(|c| t >= c.0 && t < c.0 + c.1) {
                 let u = (t - at) as i32; let fade = 16.min(u).min(*len as i32 - 1 - u);
@@ -89,28 +78,15 @@ fn main() {
                     let k = (y * W + x) * 3; img[k..k + 3].copy_from_slice(if on { &WHITE } else { &[0, 0, 0] });
                 } }
             }
-            let mut img = if s.big { assert!(s.caps.is_empty()); img } else { double(&img) };
-            if i == 0 && t < in_n { img = dissolve(&black, &img, level(t, in_n)); }
-            if i == segs.len() - 1 && t >= len - out_n { img = dissolve(&img, &black, (16 * (t - (len - out_n) + 1) / out_n) as i32); }
+            let img = if s.big { assert!(s.caps.is_empty()); img } else { double(&img) };
             frames.push(img.clone()); last = img; whose.push(Some((i, t)));
         }
         for _ in 0..s.hold { frames.push(last.clone()); whose.push(*whose.last().unwrap()); }
         for _ in 0..s.gap { frames.push(black.clone()); whose.push(None); }
-        if let Some(w) = &s.word { words.push((frames.len() - 16, s.mix + 32, w)); }
-        for k in 0..s.mix { frames.push(dissolve(&frame(s, len - s.mix + k), &frame(&segs[i + 1], k), level(k, s.mix))); whose.push(None); }
         // a stutter: beats taking turns, this segment's last frame, then the next one's as it runs underneath
         let beats: Vec<usize> = s.stutter.iter().enumerate().flat_map(|(b, &n)| std::iter::repeat_n(b, n)).collect();
         for (k, b) in beats.into_iter().enumerate() { frames.push(if b % 2 == 0 { frame(s, len - 1) } else { frame(&segs[i + 1], k) }); whose.push(None); }
     }
-    for _ in 0..black_n { frames.push(black.clone()); whose.push(None); }
-    for (at, len, bits) in words { for u in 0..len {   // a big line over the dissolve: in over 6, held, out over 6
-        let fade = (if u < 6 { 16 * (u + 1) / 6 } else if u < len - 6 { 16 } else { 16 * (len - u) / 6 }) as i32;
-        let img = &mut frames[at + u];
-        for yy in 0..H2 { for xx in 0..W2 {
-            let t = bits[yy / 2][xx / 2]; if t == 0 || BAYER[(yy % 4) * 4 + xx % 4] >= fade { continue; }
-            let i = (yy * W2 + xx) * 3; img[i..i + 3].copy_from_slice(if t == 1 { &[250, 250, 250] } else { &[0, 0, 0] });
-        } }
-    } }
     let mut out = std::io::stdout().lock();
     for f in &frames { out.write_all(f).unwrap(); }
     // at 1536x768: a 1536x768 segment's frame averaged over b x b blocks (rounded half up), or the 192x96 frame eight

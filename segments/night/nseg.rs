@@ -21,7 +21,8 @@ pub fn night_frame<O: Ops>(o: &mut O, nw: &NightWorld, k: i64) -> Vec<u8> { nigh
 pub fn dissolve_camera<O: Ops>(o: &mut O, nw: &NightWorld) -> Vec<String> {
     let ac = nw.aud_c;
     (F_HAND - DISSOLVE..=F_HAND).map(|f| {
-        let cam = night_cam(o, nw, 10 * design_f(nw, f), false);
+        let df = design_f(o, nw, f);
+        let cam = night_cam(o, nw, 10 * df, false);
         // the eye: (x - BX - C.x, z - C.z, y - C.y), mm to cm
         let ex = one({ let t = o.lin(&[(K(cam.eye[0]), None), (K(10 * BX), Some(K(-1))), (K(ac[0]), Some(K(-10)))]); o.div(v(&t), K(10), 0) });
         let ey = one({ let t = o.lin(&[(K(cam.eye[2]), None), (K(ac[2]), Some(K(-10)))]); o.div(v(&t), K(10), 0) });

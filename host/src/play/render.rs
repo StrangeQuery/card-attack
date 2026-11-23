@@ -78,7 +78,7 @@ pub fn main(a: &[String]) {
     }
     let demo = crate::demo_dir();
     let started = Instant::now();
-    let cut = Arc::new(Cut::parse(&demo, &crate::read(&demo, "cut/cut.txt")));
+    let cut = Arc::new(Cut::parse(&crate::read(&demo, "cut/cut.txt")));
     let frames = cut.frames.len();
     // the soundtrack first, on its own thread, while the workers start on the pictures
     let wav = std::env::temp_dir().join(format!("card-attack-{}.s16", std::process::id()));

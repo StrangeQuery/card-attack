@@ -67,7 +67,7 @@ the three waves' phases there (5x + 3y, 6z and 9y).
    squared in hundreds and the rest, `polyroot` the square root by odd numbers, `polyunitize` each part by long
    division) and turned (`polydot`).
 5. The splits: the k-th split cuts triangle 7919 k (mod 7680) at the middle of an edge. Which triangle that is, the
-   host works out itself with a multiplication and a remainder; `polydot` works out the middle corner.
+   train's operations work out (a product and a remainder); `polydot` works out the middle corner.
 6. Each triangle's normals to carry: half each corner's own and half the triangle's mean (`polydot` the mean,
    `polymix` five times the sum, in thousandths), and `polymix` counts the triangles.
 7. Each edge: the rows it meets (`polyrows`, whose middles are from its upper end to short of its lower), and x,

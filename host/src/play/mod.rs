@@ -118,7 +118,7 @@ pub fn main(a: &[String]) {
     let workers: usize = arg(a, "--workers").unwrap_or_else(|| std::thread::available_parallelism().map_or(8, |n| n.get()).saturating_sub(2).max(1));
     let file: String = arg(a, "--cut").unwrap_or_else(|| "cut/cut.txt".into());
     let dir = crate::fx::cut::cut_dir(&file);
-    let cut = Arc::new(Cut::parse(&demo, &crate::read(&demo, &file)));
+    let cut = Arc::new(Cut::parse(&crate::read(&demo, &file)));
     if has("--dry-run") || has("--check") {
         live::dry_run(&demo, cut, &dir, workers, has("--check"), has("--as-shown"));
         return;

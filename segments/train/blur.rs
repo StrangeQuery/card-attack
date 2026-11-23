@@ -31,8 +31,10 @@ pub fn blur_lines(tb: &Tb) -> BlurLines {
 pub struct Motion { pub dir: V, pub len: V, pub h: V }
 
 pub fn velocities<O: Ops>(o: &mut O, w: &World, cam: &Cam, k: i64, g: &GBuf) -> Motion {
-    let ca = camera(o, &w.sc.t, 10 * k - 2);
-    let cb = camera(o, &w.sc.t, 10 * k + 2);
+    let ta = kl(o, &[(k, Some(10)), (-2, None)]);
+    let tb = kl(o, &[(k, Some(10)), (2, None)]);
+    let ca = camera(o, &w.sc.t, ta);
+    let cb = camera(o, &w.sc.t, tb);
     velocities_c(o, w, cam, &ca, &cb, g, &[(2, [0, 0, 2800])])
 }
 
@@ -40,7 +42,7 @@ pub fn velocities<O: Ops>(o: &mut O, w: &World, cam: &Cam, k: i64, g: &GBuf) -> 
 /// number) moving through the world over the shutter (mm, as the eye moves: the other train's 2800 toward us).
 pub fn velocities_c<O: Ops>(o: &mut O, w: &World, cam: &Cam, ca: &Cam, cb: &Cam, g: &GBuf, movers: &[(u8, [i64; 3])]) -> Motion {
     let tb = &w.tb;
-    let de = { let d: [V; 3] = std::array::from_fn(|j| o.lin(&[(K(cb.eye[j]), None), (K(-ca.eye[j]), None)])); [one(d[0].clone()), one(d[1].clone()), one(d[2].clone())] };
+    let de = { let d: [V; 3] = std::array::from_fn(|j| o.lin(&[(K(cb.eye[j]), None), (K(ca.eye[j]), Some(K(-1)))])); [one(d[0].clone()), one(d[1].clone()), one(d[2].clone())] };
     let tr = |o: &mut O, extra: [i64; 3]| -> [i64; 3] {
         std::array::from_fn(|r| {
             let t = o.lin(&[(K(cam.b[r][0]), Some(K(de[0]))), (K(cam.b[r][0]), Some(K(extra[0]))), (K(cam.b[r][1]), Some(K(de[1]))), (K(cam.b[r][1]), Some(K(extra[1]))), (K(cam.b[r][2]), Some(K(de[2]))), (K(cam.b[r][2]), Some(K(extra[2])))]);
@@ -108,9 +110,10 @@ pub fn velocities_c<O: Ops>(o: &mut O, w: &World, cam: &Cam, ca: &Cam, cb: &Cam,
             o.div(v(&t), K(1000), 0)
         });
         let z = o.max(v(&r[2]), K(1));
-        let x = o.lin(&[(v(&r[0]), Some(K(50 * c.f2)))]);
+        let (f50, nf50) = (kl(o, &[(c.f2, Some(50))]), kl(o, &[(c.f2, Some(-50))]));
+        let x = o.lin(&[(v(&r[0]), Some(K(f50)))]);
         let x = o.div(v(&x), v(&z), 0);
-        let y = o.lin(&[(v(&r[1]), Some(K(-50 * c.f2)))]);
+        let y = o.lin(&[(v(&r[1]), Some(K(nf50)))]);
         let y = o.div(v(&y), v(&z), 0);
         (x, y)
     };
@@ -138,6 +141,7 @@ pub fn motion_blur<O: Ops>(o: &mut O, w: &World, bl: &BlurLines, mo: &Motion, ra
     let pix_d: Vec<usize> = (0..N_PIX()).map(|p| { let (x, y) = (p % W() as usize, p / W() as usize); mo.dir[(y / 2) * bw + x / 2] as usize }).collect();
     let line = tb.t(blur_name("blur_line"));
     let place = tb.t(blur_name("blur_place"));
+    let lens = tb.t(blur_name("blur_len"));
     let any_hot = hot.iter().any(|h| h.iter().any(|&x| x != 0));
     let chans = if any_hot { 6 } else { 3 };
     let src: Vec<V> = (0..3).map(|c| col[c].clone()).chain((0..3).map(|c| hot[c].clone())).collect();
@@ -146,21 +150,30 @@ pub fn motion_blur<O: Ops>(o: &mut O, w: &World, bl: &BlurLines, mo: &Motion, ra
         let users: Vec<usize> = (0..N_PIX()).filter(|&p| pix_d[p] == dd && pix_h[p] > 0 && (rate[p] < 4 || (p % 2 == 0 && (p / W() as usize) % 2 == 0))).collect();
         if users.is_empty() { continue; }
         let lines = &bl.dirs[dd];
-        // each line's span: from the first user's start less one to the last user's end
-        let mut span: std::collections::BTreeMap<usize, (i64, i64)> = Default::default();
-        for &p in &users {
-            let (l, k, hh) = (line.data[dd * N_PIX() + p] as usize, place.data[dd * N_PIX() + p], pix_h[p]);
-            let e = span.entry(l).or_insert((i64::MAX, i64::MIN));
-            e.0 = e.0.min(k - hh - 1);
-            e.1 = e.1.max(k + hh);
-        }
-        let spans: Vec<(usize, i64, i64)> = span.iter().map(|(&l, &(a, b))| (l, a.max(0), b.min(lines[l].len() as i64 - 1))).collect();
-        let at: std::collections::HashMap<usize, usize> = spans.iter().scan(0usize, |acc, &(l, a, b)| { let s = *acc; *acc += (b - a + 1) as usize; Some((l, s)) }).collect();
-        // the users' ends (machine-worked: k - h - 1 and k + h, held to the line), the count between
+        // the users' ends (machine-worked: k - h - 1 and k + h, held to the line's last place: its length in the
+        // printed table less 1, for each line with users, on the machines), the count between
+        let lu: V = users.iter().map(|&p| line.data[dd * N_PIX() + p]).collect();
         let ku: V = users.iter().map(|&p| place.data[dd * N_PIX() + p]).collect();
         let hu: V = users.iter().map(|&p| pix_h[p]).collect();
-        let hi_lim: V = users.iter().map(|&p| lines[line.data[dd * N_PIX() + p] as usize].len() as i64 - 1).collect();
+        let mut used = vec![false; lens.w];
+        for &l in &lu { used[l as usize] = true; }
+        let ls: Vec<usize> = (0..lens.w).filter(|&l| used[l]).collect();
+        let lastv = o.sum(&[(v(&ls.iter().map(|&l| lens.data[dd * lens.w + l]).collect()), 1)], -1);
+        let mut last_of = vec![0; lens.w];
+        for (j, &l) in ls.iter().enumerate() { last_of[l] = lastv[j]; }
+        let hi_lim: V = lu.iter().map(|&l| last_of[l as usize]).collect();
         let (a, b, n) = o.ends(&ku, &hu, &hi_lim);
+        // each line's span: from its users' first start (at least 0) to their last end, the first cards of each
+        // line's pocket when the card sorter puts the users in order by line and start, and by line and end, last first
+        let mut span: std::collections::BTreeMap<usize, (i64, i64)> = Default::default();
+        for i in sorter::order(&(0..users.len()).map(|i| [lu[i], a[i]]).collect::<Vec<_>>(), &[sorter::up(4), sorter::up(4)]) { span.entry(lu[i] as usize).or_insert((a[i].max(0), 0)); }
+        let mut ended = vec![false; lens.w];
+        for i in sorter::order(&(0..users.len()).map(|i| [lu[i], b[i]]).collect::<Vec<_>>(), &[sorter::up(4), sorter::down(4)]) {
+            let l = lu[i] as usize;
+            if !ended[l] { ended[l] = true; span.get_mut(&l).unwrap().1 = b[i]; }
+        }
+        let spans: Vec<(usize, i64, i64)> = span.iter().map(|(&l, &(a, b))| (l, a, b)).collect();
+        let at: std::collections::HashMap<usize, usize> = spans.iter().scan(0usize, |acc, &(l, a, b)| { let s = *acc; *acc += (b - a + 1) as usize; Some((l, s)) }).collect();
         let lnn = o.tab(tb.t("ln_n"), v(&n));
         // the running sums by pieces of 500 places from each span's start (so a sum stays a long); a user's window
         // a + 1 ..= b reaches at most into the next piece

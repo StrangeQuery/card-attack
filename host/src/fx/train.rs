@@ -244,6 +244,90 @@ impl Cardiac {
     }
 }
 
+impl Cardiac {
+    /// Sums of products and addends of any size, by three-card pieces: `lin`'s general way, for `n` items.
+    fn wide(&mut self, terms: &[(A, Option<A>)], n: usize) -> V {
+        // each item's pieces (three cards each): addends as they are (sw_term to take away or widen), products by limbs
+        // (each piece with its item, in the order made; grouped by item, in that order, for the sums)
+        let mut pieces: Vec<(usize, [i32; 3])> = vec![];
+        let mut addends: Vec<(usize, i32, i64)> = vec![];      // item, take away, value
+        let mut prods: Vec<(usize, i64, i64)> = vec![];        // item, a, b
+        for (a, b) in terms {
+            match b {
+                None => for i in 0..n { addends.push((i, 0, a.at(i))); },
+                Some(A::K(k)) if k.abs() <= 9 => for i in 0..n { for _ in 0..k.abs() { addends.push((i, (*k < 0) as i32, a.at(i))); } },
+                Some(b) => for i in 0..n { prods.push((i, a.at(i), b.at(i))); },
+            }
+        }
+        // addends: three cards as they stand, else through sw_term
+        let (mut to_term, mut ends) = (vec![], vec![]);
+        let mut whose = vec![];
+        for &(i, neg, v) in &addends {
+            if v == 0 { continue; }
+            if neg == 0 && v.abs() > CARD { pieces.push((i, three(v))); } else {
+                if v.abs() <= CARD { to_term.extend_from_slice(&[neg, 1, v as i32]) } else { let t = three(v); to_term.extend_from_slice(&[neg, 3, t[0], t[1], t[2]]) }
+                ends.push(to_term.len());
+                whose.push(i);
+            }
+        }
+        let t = self.go_flat("sw_term", &[], &to_term, &ends);
+        for (k, &i) in whose.iter().enumerate() { pieces.push((i, [t[3 * k], t[3 * k + 1], t[3 * k + 2]])); }
+        // products: signs and sizes (sw_mag), each pair of limbs (sw_qis, the quarter squares, sw_qp)
+        let prods: Vec<(usize, i64, i64)> = prods.into_iter().filter(|p| p.1 != 0 && p.2 != 0).collect();
+        if !prods.is_empty() {
+            let mag = |s: &mut Self, vals: &[i64]| -> Vec<[i32; 4]> {
+                let (mut cards, mut ends) = (Vec::with_capacity(4 * vals.len()), Vec::with_capacity(vals.len()));
+                for &v in vals { if v.abs() <= CARD { cards.extend_from_slice(&[1, v as i32]) } else { let t = three(v); cards.extend_from_slice(&[3, t[0], t[1], t[2]]) } ends.push(cards.len()); }
+                s.go_flat("sw_mag", &[], &cards, &ends).chunks(4).map(|c| [c[0], c[1], c[2], c[3]]).collect()
+            };
+            let av: V = prods.iter().map(|p| p.1).collect();
+            let bv: V = prods.iter().map(|p| p.2).collect();
+            let ma = mag(self, &av);
+            let mb = mag(self, &bv);
+            let mut qis = vec![];
+            let mut owner = vec![];
+            for (k, &(i, a, b)) in prods.iter().enumerate() {
+                assert!((a as i128 * b as i128).abs() < 999_000_000, "a product past three cards: {a} {b}");
+                for li in 0..limbs(a) {
+                    for lj in 0..limbs(b) {
+                        if li + lj > 2 { continue; }
+                        qis.extend_from_slice(&[ma[k][3 - li], mb[k][3 - lj], ma[k][0], mb[k][0], 0]);
+                        owner.push((i, li + lj));
+                    }
+                }
+            }
+            let idx = self.go("sw_qis", &[], &qis, 5);
+            let mut qp = Vec::with_capacity(5 * owner.len());
+            for (k, &(_, place)) in owner.iter().enumerate() {
+                let c = &idx[4 * k..4 * k + 4];
+                qp.push(place as i32);
+                qp.extend_from_slice(&self.s.quarter[c[0] as usize][c[1] as usize]);
+                qp.extend_from_slice(&self.s.quarter[c[2] as usize][c[3] as usize]);
+            }
+            let p = self.go("sw_qp", &[], &qp, 5);
+            for (k, &(i, _)) in owner.iter().enumerate() { pieces.push((i, [p[3 * k], p[3 * k + 1], p[3 * k + 2]])); }
+        }
+        // the sums (sw_lsum) where there is more than one piece
+        pieces.sort_by_key(|p| p.0);
+        let mut out = vec![0; n];
+        let (mut items, mut ends) = (Vec::with_capacity(4 * pieces.len()), vec![]);
+        let mut at = vec![];
+        let mut g = 0;
+        while g < pieces.len() {
+            let i = pieces[g].0;
+            let e = g + pieces[g..].iter().take_while(|p| p.0 == i).count();
+            match e - g {
+                1 => out[i] = of_three(&pieces[g].1),
+                k => { items.push(k as i32); for p in &pieces[g..e] { items.extend_from_slice(&p.1); } ends.push(items.len()); at.push(i); }
+            }
+            g = e;
+        }
+        let s = self.go_flat("sw_lsum", &[], &items, &ends);
+        for (k, &i) in at.iter().enumerate() { out[i] = of_three(&s[3 * k..3 * k + 3]); }
+        out
+    }
+}
+
 fn n_of(args: &[A]) -> usize { imp::n_of(args) }
 
 impl Ops for Cardiac {
@@ -270,53 +354,57 @@ impl Ops for Cardiac {
         // another (sign, value)
         let w = terms.iter().map(|(_, k)| k.unsigned_abs() as usize).sum::<usize>() + (c != 0) as usize;
         if n == 0 || w == 0 { return vec![c; n]; }
-        // the w terms as (sign, source), read straight from their vectors: no list of every item's terms built up
-        // front and walked three times; the decks dealt are the same cards
+        // the w terms as (sign, source), read straight from their vectors as each deck is dealt
         let mut tl: Vec<(i32, A)> = Vec::with_capacity(w);
         for &(a, k) in terms { for _ in 0..k.abs() { tl.push((if k > 0 { 1 } else { -1 }, a)); } }
         if c != 0 { tl.push((1, A::K(c))); }
-        // cards whose every partial sum is a card: tr_addc
         let k = w - (c != 0) as usize;
-        let cardy = c.abs() <= CARD && k <= 6 && (0..n).all(|i| {
-            let mut s = c;
-            tl[..k].iter().all(|&(sg, a)| { let x = a.at(i); s += sg as i64 * x; x.abs() <= CARD && s.abs() <= CARD })
-        });
-        if cardy {
+        if k == 0 { return vec![c; n]; }
+        // each item by its values (each compared with a card's or a long's limits; no sums worked out here): cards,
+        // at most six, and a constant that is a card: tr_addc, which punches every such sum whole (thousands and
+        // rest). One or two longs and a constant that is a long, one of them added: tr_add, a machine per case. The
+        // rest: tr_sum. The sum itself is a long (the operation's promise), and tr_add keeps its partial highs in the
+        // accumulator, never on a card, so the order of the terms can't take a partial past one.
+        let okl = |x: i64| x.abs() <= LONG && x >= -999_000;
+        let cardy = c.abs() <= CARD && k <= 6;
+        let (s1, s2) = (tl[0].0, if k == 2 { tl[1].0 } else { 1 });
+        // the added one first
+        let order: Option<[usize; 2]> = if !(k == 1 || k == 2) || !okl(c) { None } else if s1 > 0 { Some([0, 1]) } else if k == 2 && s2 > 0 { Some([1, 0]) } else { None };
+        let (mut ic, mut il, mut is) = (vec![], vec![], vec![]);
+        for i in 0..n {
+            if cardy && tl[..k].iter().all(|&(_, a)| a.at(i).abs() <= CARD) { ic.push(i) }
+            else if order.is_some() && tl[..k].iter().all(|&(_, a)| okl(a.at(i))) { il.push(i) }
+            else { is.push(i) }
+        }
+        let mut out = vec![0; n];
+        if !ic.is_empty() {
             let mut header = [0i32; 8];
             header[0] = c as i32; header[1] = k as i32;
             for (j, t) in tl[..k].iter().enumerate() { header[2 + j] = t.0; }
-            let mut it: Vec<i32> = Vec::with_capacity(n * k);
-            for i in 0..n { for &(_, a) in &tl[..k] { it.push(a.at(i) as i32); } }
-            return self.go("tr_addc", &header[..2 + k], &it, k).into_iter().map(|v| v as i64).collect();
+            let mut it: Vec<i32> = Vec::with_capacity(ic.len() * k);
+            for &i in &ic { for &(_, a) in &tl[..k] { it.push(a.at(i) as i32); } }
+            let r = self.go("tr_addc", &header[..2 + k], &it, k);
+            // (the thousands and the rest share the sum's sign, so they read as a long's two cards do)
+            for (j, &i) in ic.iter().enumerate() { out[i] = of_long(&r[2 * j..2 * j + 2]); }
         }
-        // one or two longs and a constant, the first added, every partial sum a long: tr_add
-        let okl = |x: i64| x.abs() <= LONG && x >= -999_000;
-        if (k == 1 || k == 2) && okl(c) {
-            let (s1, s2) = (tl[0].0, if k == 2 { tl[1].0 } else { 1 });
-            // the added one first
-            let order: Option<[usize; 2]> = if s1 > 0 { Some([0, 1]) } else if k == 2 && s2 > 0 { Some([1, 0]) } else { None };
-            if let Some(ord) = order {
-                let sb = if k == 2 { tl[ord[1]].0 } else { 1 };
-                let (ta, tb) = (tl[ord[0]].1, tl[ord[(k == 2) as usize]].1);
-                let fits = (0..n).all(|i| {
-                    let a = ta.at(i);
-                    let mut sum = a + c;
-                    let ok = okl(a) && okl(sum);
-                    if k == 2 { let b = tb.at(i); sum += sb as i64 * b; ok && okl(b) && okl(sum) } else { ok }
-                });
-                if fits {
-                    let cc = long(c);
-                    let mut it = Vec::with_capacity(2 * k * n);
-                    for i in 0..n { it.extend_from_slice(&long(ta.at(i))); if k == 2 { it.extend_from_slice(&long(tb.at(i))); } }
-                    // by hand, a machine per case
-                    let name = if k == 1 { "tr_add1" } else if sb > 0 { "tr_add2p" } else { "tr_add2m" };
-                    return self.go(name, &[k as i32, sb, cc[0], cc[1]], &it, 2 * k).chunks(2).map(of_long).collect();
-                }
-            }
+        if let (Some(ord), false) = (order, il.is_empty()) {
+            let sb = if k == 2 { tl[ord[1]].0 } else { 1 };
+            let (ta, tb) = (tl[ord[0]].1, tl[ord[(k == 2) as usize]].1);
+            let cc = long(c);
+            let mut it = Vec::with_capacity(2 * k * il.len());
+            for &i in &il { it.extend_from_slice(&long(ta.at(i))); if k == 2 { it.extend_from_slice(&long(tb.at(i))); } }
+            // by hand, a machine per case
+            let name = if k == 1 { "tr_add1" } else if sb > 0 { "tr_add2p" } else { "tr_add2m" };
+            let r = self.go(name, &[k as i32, sb, cc[0], cc[1]], &it, 2 * k);
+            for (j, &i) in il.iter().enumerate() { out[i] = of_long(&r[2 * j..2 * j + 2]); }
         }
-        let mut items: Vec<(i32, i64)> = Vec::with_capacity(n * w);
-        for i in 0..n { for &(sg, a) in &tl { items.push((sg, a.at(i))); } }
-        self.sums(&items, w)
+        if !is.is_empty() {
+            let mut items: Vec<(i32, i64)> = Vec::with_capacity(is.len() * w);
+            for &i in &is { for &(sg, a) in &tl { items.push((sg, a.at(i))); } }
+            let r = self.sums(&items, w);
+            for (j, &i) in is.iter().enumerate() { out[i] = r[j]; }
+        }
+        out
     }
     fn pct(&mut self, a: A, t: A) -> V {
         // the product by quarter squares (tr_qa), over 100 toward zero (tr_pctb)
@@ -400,91 +488,30 @@ impl Ops for Cardiac {
             }
         }
         let addends = terms.iter().all(|(_, b)| matches!(b, None) || matches!(b, Some(A::K(k)) if k.abs() <= 9));
-        if addends && (0..n).all(|i| {
-            let mut s = 0i64;
-            terms.iter().all(|(a, b)| { let k = match b { Some(A::K(k)) => *k, _ => 1 }; let x = a.at(i); s += k * x; x.abs() <= LONG && x >= -999_000 && s.abs() <= LONG && s >= -999_000 })
-        }) {
+        if addends {
+            // sums of longs: each item whose every value is within 999,000 / w in size (w the terms counted with their
+            // multiples; a comparison of each value with a constant) has every partial sum a long in whatever order
+            // it's taken, and goes to `sum`; the others go the three-card way (`wide`)
             let ks: Vec<(A, i64)> = terms.iter().map(|(a, b)| (*a, match b { Some(A::K(k)) => *k, _ => 1 })).collect();
-            return self.sum(&ks, 0);
-        }
-        // each item's pieces (three cards each): addends as they are (sw_term to take away or widen), products by limbs
-        // (each piece with its item, in the order made; grouped by item, in that order, for the sums)
-        let mut pieces: Vec<(usize, [i32; 3])> = vec![];
-        let mut addends: Vec<(usize, i32, i64)> = vec![];      // item, take away, value
-        let mut prods: Vec<(usize, i64, i64)> = vec![];        // item, a, b
-        for (a, b) in terms {
-            match b {
-                None => for i in 0..n { addends.push((i, 0, a.at(i))); },
-                Some(A::K(k)) if k.abs() <= 9 => for i in 0..n { for _ in 0..k.abs() { addends.push((i, (*k < 0) as i32, a.at(i))); } },
-                Some(b) => for i in 0..n { prods.push((i, a.at(i), b.at(i))); },
+            let w: i64 = ks.iter().map(|(_, k)| k.abs()).sum();
+            if w == 0 { return self.sum(&ks, 0); }
+            let lim = 999_000 / w;
+            let (yes, no): (Vec<usize>, Vec<usize>) = (0..n).partition(|&i| ks.iter().all(|&(a, k)| k == 0 || a.at(i).abs() <= lim));
+            if no.is_empty() { return self.sum(&ks, 0); }
+            if !yes.is_empty() {
+                // the two kinds of item apart, each term's values taken for them (a constant stays one)
+                let pick = |idx: &[usize]| -> Vec<Option<V>> { terms.iter().map(|(a, _)| a.len().map(|_| idx.iter().map(|&i| a.at(i)).collect())).collect() };
+                let (vy, vn) = (pick(&yes), pick(&no));
+                let ty: Vec<(A, i64)> = ks.iter().zip(&vy).map(|(&(a, k), v)| (v.as_ref().map_or(a, |v| A::V(v)), k)).collect();
+                let tn: Vec<(A, Option<A>)> = terms.iter().zip(&vn).map(|(&(a, b), v)| (v.as_ref().map_or(a, |v| A::V(v)), b)).collect();
+                let (ry, rn) = (self.sum(&ty, 0), self.wide(&tn, no.len()));
+                let mut out = vec![0; n];
+                for (j, &i) in yes.iter().enumerate() { out[i] = ry[j]; }
+                for (j, &i) in no.iter().enumerate() { out[i] = rn[j]; }
+                return out;
             }
         }
-        // addends: three cards as they stand, else through sw_term
-        let (mut to_term, mut ends) = (vec![], vec![]);
-        let mut whose = vec![];
-        for &(i, neg, v) in &addends {
-            if v == 0 { continue; }
-            if neg == 0 && v.abs() > CARD { pieces.push((i, three(v))); } else {
-                if v.abs() <= CARD { to_term.extend_from_slice(&[neg, 1, v as i32]) } else { let t = three(v); to_term.extend_from_slice(&[neg, 3, t[0], t[1], t[2]]) }
-                ends.push(to_term.len());
-                whose.push(i);
-            }
-        }
-        let t = self.go_flat("sw_term", &[], &to_term, &ends);
-        for (k, &i) in whose.iter().enumerate() { pieces.push((i, [t[3 * k], t[3 * k + 1], t[3 * k + 2]])); }
-        // products: signs and sizes (sw_mag), each pair of limbs (sw_qis, the quarter squares, sw_qp)
-        let prods: Vec<(usize, i64, i64)> = prods.into_iter().filter(|p| p.1 != 0 && p.2 != 0).collect();
-        if !prods.is_empty() {
-            let mag = |s: &mut Self, vals: &[i64]| -> Vec<[i32; 4]> {
-                let (mut cards, mut ends) = (Vec::with_capacity(4 * vals.len()), Vec::with_capacity(vals.len()));
-                for &v in vals { if v.abs() <= CARD { cards.extend_from_slice(&[1, v as i32]) } else { let t = three(v); cards.extend_from_slice(&[3, t[0], t[1], t[2]]) } ends.push(cards.len()); }
-                s.go_flat("sw_mag", &[], &cards, &ends).chunks(4).map(|c| [c[0], c[1], c[2], c[3]]).collect()
-            };
-            let av: V = prods.iter().map(|p| p.1).collect();
-            let bv: V = prods.iter().map(|p| p.2).collect();
-            let ma = mag(self, &av);
-            let mb = mag(self, &bv);
-            let mut qis = vec![];
-            let mut owner = vec![];
-            for (k, &(i, a, b)) in prods.iter().enumerate() {
-                assert!((a as i128 * b as i128).abs() < 999_000_000, "a product past three cards: {a} {b}");
-                for li in 0..limbs(a) {
-                    for lj in 0..limbs(b) {
-                        if li + lj > 2 { continue; }
-                        qis.extend_from_slice(&[ma[k][3 - li], mb[k][3 - lj], ma[k][0], mb[k][0], 0]);
-                        owner.push((i, li + lj));
-                    }
-                }
-            }
-            let idx = self.go("sw_qis", &[], &qis, 5);
-            let mut qp = Vec::with_capacity(5 * owner.len());
-            for (k, &(_, place)) in owner.iter().enumerate() {
-                let c = &idx[4 * k..4 * k + 4];
-                qp.push(place as i32);
-                qp.extend_from_slice(&self.s.quarter[c[0] as usize][c[1] as usize]);
-                qp.extend_from_slice(&self.s.quarter[c[2] as usize][c[3] as usize]);
-            }
-            let p = self.go("sw_qp", &[], &qp, 5);
-            for (k, &(i, _)) in owner.iter().enumerate() { pieces.push((i, [p[3 * k], p[3 * k + 1], p[3 * k + 2]])); }
-        }
-        // the sums (sw_lsum) where there is more than one piece
-        pieces.sort_by_key(|p| p.0);
-        let mut out = vec![0; n];
-        let (mut items, mut ends) = (Vec::with_capacity(4 * pieces.len()), vec![]);
-        let mut at = vec![];
-        let mut g = 0;
-        while g < pieces.len() {
-            let i = pieces[g].0;
-            let e = g + pieces[g..].iter().take_while(|p| p.0 == i).count();
-            match e - g {
-                1 => out[i] = of_three(&pieces[g].1),
-                k => { items.push(k as i32); for p in &pieces[g..e] { items.extend_from_slice(&p.1); } ends.push(items.len()); at.push(i); }
-            }
-            g = e;
-        }
-        let s = self.go_flat("sw_lsum", &[], &items, &ends);
-        for (k, &i) in at.iter().enumerate() { out[i] = of_three(&s[3 * k..3 * k + 3]); }
-        out
+        self.wide(terms, n)
     }
     fn div(&mut self, x: A, d: A, extra: u32) -> V {
         let n = n_of(&[x, d]);
@@ -706,9 +733,10 @@ impl Ops for Cardiac {
         let cnt = self.sum(&[(A::V(&j1), 1), (A::V(&j0), -1)], 0);
         let cnt = self.max(A::V(&cnt), A::K(0));
         let mut found: Vec<(i64, Vec<(i64, i64, i64)>)> = (0..n).map(|i| (rows[i], vec![])).collect();
-        // pieces of at most 998 rows: each piece's first row's offset below the top, 100 row + 50 - a.y
-        let mut pc = vec![];      // (edge, first place along it, rows)
-        for i in 0..n { let mut j = j0[i]; while j < j0[i] + cnt[i] { let m = (j0[i] + cnt[i] - j).min(998); pc.push((i, j, m)); j += m; } }
+        // each edge's rows in the range as one piece (a range of at most 998 rows: a deck's cards): (edge, the first
+        // place along it, j0, and the count, as punched)
+        assert!(range.1 - range.0 <= 998, "crossings over {} rows", range.1 - range.0);
+        let pc: Vec<(usize, i64, i64)> = (0..n).filter(|&i| cnt[i] > 0).map(|i| (i, j0[i], cnt[i])).collect();
         if pc.is_empty() { return found; }
         let np = pc.len();
         // per edge: the run times the first row's offset (1..100) and times 100, each over the height with its
@@ -716,10 +744,10 @@ impl Ops for Cardiac {
         let r100 = self.mul(A::V(&first), A::K(100), 0);
         let ayv: V = edges.iter().map(|e| e.0[1]).collect();
         let offf = self.sum(&[(A::V(&r100), 1), (A::V(&ayv), -1)], 50);
-        let runv: V = edges.iter().map(|e| e.1[0] - e.0[0]).collect();
-        let hv: V = edges.iter().map(|e| e.1[1] - e.0[1]).collect();
-        let runv = self.sum(&[(A::V(&runv), 1)], 0);
-        let hv = self.sum(&[(A::V(&hv), 1)], 0);
+        // the run and the height, each the bottom's less the top's
+        let end = |c: usize, b: bool| -> V { edges.iter().map(|e| if b { e.1[c] } else { e.0[c] }).collect() };
+        let runv = self.sum(&[(A::V(&end(0, true)), 1), (A::V(&end(0, false)), -1)], 0);
+        let hv = self.sum(&[(A::V(&end(1, true)), 1), (A::V(&end(1, false)), -1)], 0);
         let hv1 = self.max(A::V(&hv), A::K(1));
         let a = self.lin(&[(A::V(&runv), Some(A::V(&offf)))]);
         let (q0, r0e) = self.divrem(&a, &hv1, 0);

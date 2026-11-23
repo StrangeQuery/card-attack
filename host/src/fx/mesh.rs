@@ -15,11 +15,12 @@
 //! - **the light** at each face (flat): `polydot` the dots with the light and the half-way vector, `mesh_tone`, the
 //!   highlight from its table (the host fetches it by the index the machine punched), `mesh_mix` the colour from the
 //!   material's tables (`polydot`);
-//! - **the edges** (the swarm's edge machines, `sw_esub` .. `sw_epix`): each edge of a triangle that faces the camera
-//!   walked once, where it crosses each row and the first pixel right of it, so triangles that share it meet exactly;
-//!   its ends' values (depth, or what the corners carry) carried down its rows (`mesh_walk`);
-//! - **the spans** (`mesh_walk`): each triangle's row from its two edges' pixels, every value carried across it, each
-//!   pixel's place punched;
+//! - **the edges** (the swarm's edge machines, `sw_order`, then `sw_esub` .. `sw_epix`): each edge of a triangle that
+//!   faces the camera walked once from the end `sw_order` says is the top, where it crosses each row and the first
+//!   pixel right of it, so triangles that share it meet exactly; its ends' values (depth, or what the corners carry)
+//!   carried down its rows (`mesh_walk`);
+//! - **the spans** (`mesh_ends`, `mesh_walk`): each triangle's row from its two edges' pixels, the left one and the
+//!   count of pixels as `mesh_ends` punches them, every value carried across it, each pixel's place punched;
 //! - **the depth test** (`mesh_depth`): the host sorts the pieces to their pixels, in the triangles' order, as a card
 //!   sorter would; where more than one covers a pixel the machine keeps the nearest.
 //!
@@ -35,7 +36,7 @@ type L = [i32; 2];
 const MACHINES: &[&str] = &["sw_qi", "sw_qp", "sw_lsum", "sw_abs", "sw_divd", "sw_join", "sw_floor", "sw_add", "sw_short",
     "sw_esub", "sw_erows", "sw_eclip", "sw_eend", "sw_ewalk", "sw_ecross", "sw_epix",
     "sw_mag", "sw_qis", "sw_term", "sw_shift", "sw_floor3", "sw_sign", "sw_ang", "sw_sin", "sw_card", "sw_wide2",
-    "polydot", "mesh_front", "mesh_tone", "mesh_half", "mesh_mix", "mesh_walk", "mesh_depth", "mesh_near"];
+    "sw_order", "polydot", "mesh_front", "mesh_tone", "mesh_half", "mesh_mix", "mesh_walk", "mesh_ends", "mesh_depth", "mesh_near"];
 
 /// A model as the data prints it (make_mesh.py).
 pub struct Model {
@@ -466,19 +467,19 @@ impl Kit {
         let channels = if matches!(shading, Shading::Flat | Shading::Depth) { 1 } else { 4 };
         stage(host, &mut drawn.steps, 3, &mut from);
 
-        // each edge once, its top end first (the sorter's order by y; a level edge meets no row)
+        // each edge once, its top end first (1 from sw_order where the first end is below the second; a level edge
+        // meets no row)
         let mut index: BTreeMap<(usize, usize), usize> = BTreeMap::new();
         let mut ends: Vec<(usize, usize)> = vec![];
         for &k in &front {
             let t = model.t[k];
             for e in 0..3 {
                 let (i, j) = (t[e], t[(e + 1) % 3]);
-                index.entry((i.min(j), i.max(j))).or_insert_with(|| {
-                    ends.push(if at[j].1 < at[i].1 { (j, i) } else { (i, j) });
-                    ends.len() - 1
-                });
+                index.entry((i.min(j), i.max(j))).or_insert_with(|| { ends.push((i, j)); ends.len() - 1 });
             }
         }
+        let below = self.go(host, "sw_order", &[], &ends.iter().map(|&(i, j)| [at[i].1, at[j].1].concat()).collect::<Vec<_>>());
+        for (k, e) in ends.iter_mut().enumerate() { if below[6 * k + 4] == 1 { *e = (e.1, e.0); } }
         drawn.edges = ends.len();
         let places: Vec<((L, L), (L, L))> = ends.iter().map(|&(a, b)| ((at[a].0, at[a].1), (at[b].0, at[b].1))).collect();
         let cross = self.crossings(host, &places);
@@ -506,10 +507,10 @@ impl Kit {
         assert_eq!(at_w, walked.len());
         stage(host, &mut drawn.steps, 4, &mut from);
 
-        // each triangle's spans: from its two edges' pixels on each row, the values carried across
+        // each triangle's spans: from its two edges' pixels on each row, the left first and the count of pixels as
+        // mesh_ends punches them (none where the two meet), the values carried across
         struct Span { tri: usize, row: i32, n: usize }
-        let mut spans = vec![];
-        let (mut depth_items, mut chan_items) = (vec![], vec![]);
+        let mut rows_of = vec![];
         for &k in &front {
             let t = model.t[k];
             let mut by_row: BTreeMap<i32, Vec<(i32, [i32; 4])>> = BTreeMap::new();
@@ -517,23 +518,30 @@ impl Kit {
                 let (i, j) = (t[e], t[(e + 1) % 3]);
                 for &(row, px, v) in &on_rows[index[&(i.min(j), i.max(j))]] { by_row.entry(row).or_default().push((px, v)); }
             }
-            for (row, mut cr) in by_row {
+            for (row, cr) in by_row {
                 assert_eq!(cr.len(), 2, "a triangle's row met {} edges", cr.len());
-                // the sorter's order across the row
-                if cr[1].0 < cr[0].0 { cr.swap(0, 1); }
-                let ((pa, va), (pb, vb)) = (cr[0], cr[1]);
-                if pa == pb { continue; }
-                assert!(pb - pa <= 998, "a span of {} pixels", pb - pa);
-                spans.push(Span { tri: k, row, n: (pb - pa) as usize });
-                depth_items.push(vec![pa, pb, va[0], vb[0]]);
-                for ch in 1..channels { chan_items.push(vec![pa, pb, va[ch], vb[ch]]); }
+                rows_of.push((k, row, [cr[0], cr[1]]));
             }
+        }
+        let order = self.go(host, "mesh_ends", &[], &rows_of.iter().map(|(_, _, cr)| vec![cr[0].0, cr[1].0]).collect::<Vec<_>>());
+        let mut spans = vec![];
+        let (mut depth_items, mut chan_items) = (vec![], vec![]);
+        for (q, &(k, row, mut cr)) in rows_of.iter().enumerate() {
+            if order[2 * q] == 1 { cr.swap(0, 1); }
+            let n = order[2 * q + 1];
+            if n == 0 { continue; }
+            assert!((1..=998).contains(&n), "a span of {n} pixels");
+            let ((pa, va), (pb, vb)) = (cr[0], cr[1]);
+            spans.push(Span { tri: k, row, n: n as usize });
+            depth_items.push(vec![pa, pb, va[0], vb[0]]);
+            for ch in 1..channels { chan_items.push(vec![pa, pb, va[ch], vb[ch]]); }
         }
         let depths = self.go(host, "mesh_walk", &[1], &depth_items);
         let chans = self.go(host, "mesh_walk", &[0], &chan_items);
         // the pieces, each at its pixel (place punched) in the triangles' order
         let (hw, hh) = ((w / 2) as i32, (h / 2) as i32);
         let mut pieces: Vec<(u32, [i32; 4])> = Vec::with_capacity(depths.len() / 2);
+        let mut places: Vec<[i64; 2]> = Vec::with_capacity(depths.len() / 2);
         let (mut dat, mut cat) = (0, 0);
         for s in &spans {
             for kx in 0..s.n {
@@ -542,6 +550,7 @@ impl Kit {
                 if channels == 4 { for ch in 0..3 { v[ch + 1] = chans[cat + ch * s.n + kx]; } } else if shading == Shading::Depth { v[1] = d; } else { let c3 = face_rgb[&s.tri]; v[1..].copy_from_slice(&c3); }
                 if (-hw..hw).contains(&x) && (-hh..hh).contains(&s.row) {
                     pieces.push((((s.row + hh) as u32) * w as u32 + (x + hw) as u32, v));
+                    places.push([s.row as i64, x as i64]);
                 }
             }
             dat += 2 * s.n;
@@ -549,22 +558,18 @@ impl Kit {
         }
         assert_eq!(dat, depths.len());
         drawn.pieces = pieces.len();
-        // sorted to their pixels (stable: the triangles' order kept), the nearest kept where more than one is
-        pieces.sort_by_key(|p| p.0);
+        // sorted to their pixels by row, then column (the card sorter: the triangles' order kept), the nearest kept
+        // where more than one is
         let mut winners: Vec<(u32, [i32; 4])> = vec![];
         let mut contested: Vec<(u32, Vec<i32>)> = vec![];
-        let mut i = 0;
-        while i < pieces.len() {
-            let mut j = i + 1;
-            while j < pieces.len() && pieces[j].0 == pieces[i].0 { j += 1; }
-            if j == i + 1 {
-                winners.push((pieces[i].0, pieces[i].1));
+        for g in sorter::groups(&places, &[sorter::CARD, sorter::CARD]) {
+            if g.len() == 1 {
+                winners.push(pieces[g[0]]);
             } else {
-                let mut deck = vec![(j - i) as i32];
-                for p in &pieces[i..j] { deck.extend(p.1); }
-                contested.push((pieces[i].0, deck));
+                let mut deck = vec![g.len() as i32];
+                for &i in &g { deck.extend(pieces[i].1); }
+                contested.push((pieces[g[0]].0, deck));
             }
-            i = j;
         }
         if shading == Shading::Carry {
             let near = self.go(host, "mesh_near", &[], &contested.iter().map(|c| c.1.clone()).collect::<Vec<_>>());

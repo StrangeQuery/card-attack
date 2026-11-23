@@ -8,33 +8,102 @@
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Mode { New, Old, Cab }
 
-/// The lists of the world's triangles a frame considers (the prototype's visible_night; the ride's visible() for
-/// the old world): near (mm) and far (cm, those reaching 800 m off or more). The host's sorting, by the cards'
-/// punched places against the camera's (metres).
-pub fn night_visible(nw: &NightWorld, cam: &Cam, mode: Mode) -> (Vec<usize>, Vec<usize>) {
+/// What night_visible() picks the world's triangles by, worked out at the start on the machines from the triangles'
+/// extents (metres): for each mode's triangles, spans of the camera's place along (cz, metres) for which a frame
+/// considers one, lo < cz < hi (a crown of the night's world in two spans, short of its tree's full model and past
+/// it); and for every triangle where it is near, zhi - 800 < cz < zlo + 800 and xmid - 740 < cx < xmid + 740 (cx the
+/// camera's place across, metres).
+#[derive(Default)]
+pub struct NightCull { pub old: Spans, pub new: Spans, pub near: [V; 4] }
+
+/// Spans of the camera's place: each one's triangle (in order), lo and hi.
+#[derive(Default)]
+pub struct Spans { pub k: Vec<usize>, pub lo: V, pub hi: V }
+
+/// The bounds. The ride's world (Old): lo = zlo - 2600 (small things zlo - 900), hi = zhi + 5. The night's (New): lo
+/// = zlo - 1600, hi = zhi + 1400 (small things zlo - 650 and zhi + 650). A tree's full model within 260 m (lo at least
+/// iz - 260, and in the night's world hi at most iz + 260), its crown beyond (hi at most iz - 259; in the night's
+/// world also a span from lo at least iz + 259).
+pub fn night_cull<O: Ops>(o: &mut O, nw: &NightWorld) -> NightCull {
     let sc = &nw.w.sc;
-    let (cz, cx) = (cam.z_cm / 100, cam.eye_cm[0] / 100);
-    let (mut near, mut far) = (vec![], vec![]);
-    for k in 0..sc.world.tris.len() {
-        let (zlo, zhi) = (sc.zlo[k], sc.zhi[k]);
-        let s = if mode == Mode::Old {
-            if !nw.old[k] { continue; }
-            let mut s = zhi > cz - 5 && zlo < cz + 2600;
-            s &= !nw.small_old[k] || zlo < cz + 900;
-            let close = sc.iz[k] < cz + 260;
-            s && (sc.lod[k] == 0 || (sc.lod[k] == 1 && close) || (sc.lod[k] == 2 && !close))
-        } else {
-            if !nw.new[k] { continue; }
-            let mut s = zhi > cz - 1400 && zlo < cz + 1600;
-            s &= !sc.small[k] || (zlo < cz + 650 && zhi > cz - 650);
-            let close = (sc.iz[k] - cz).abs() < 260;
-            s && (sc.lod[k] == 0 || (sc.lod[k] == 1 && close) || (sc.lod[k] == 2 && !close))
-        };
-        if !s { continue; }
-        let off = (zlo - cz).abs().max((zhi - cz).abs()).max((sc.xmid[k] - cx).abs() + 60);
-        if off >= 800 { far.push(k) } else { near.push(k) }
+    let of = |x: &V, ks: &[usize]| -> V { ks.iter().map(|&k| x[k]).collect() };
+    let spans = |o: &mut O, on: &[bool], small: &[bool], d: [i64; 4], both: bool| -> Spans {
+        let ks: Vec<usize> = (0..on.len()).filter(|&k| on[k]).collect();
+        let (zlo, zhi) = (of(&sc.zlo, &ks), of(&sc.zhi, &ks));
+        let sm: V = ks.iter().map(|&k| small[k] as i64).collect();
+        let (a, b) = (o.sum(&[(v(&zlo), 1)], d[0]), o.sum(&[(v(&zlo), 1)], d[1]));
+        let mut lo = o.sel(&sm, v(&a), v(&b));
+        let (a, b) = (o.sum(&[(v(&zhi), 1)], d[2]), o.sum(&[(v(&zhi), 1)], d[3]));
+        let mut hi = o.sel(&sm, v(&a), v(&b));
+        let lod: Vec<i64> = ks.iter().map(|&k| sc.lod[k]).collect();
+        let iz = of(&sc.iz, &ks);
+        let full: Vec<usize> = (0..ks.len()).filter(|&j| lod[j] == 1).collect();
+        let z = o.sum(&[(v(&of(&iz, &full)), 1)], -260);
+        let m = o.max(v(&of(&lo, &full)), v(&z));
+        for (i, &j) in full.iter().enumerate() { lo[j] = m[i]; }
+        if both {
+            let z = o.sum(&[(v(&of(&iz, &full)), 1)], 260);
+            let m = o.min(v(&of(&hi, &full)), v(&z));
+            for (i, &j) in full.iter().enumerate() { hi[j] = m[i]; }
+        }
+        let crown: Vec<usize> = (0..ks.len()).filter(|&j| lod[j] == 2).collect();
+        let z = o.sum(&[(v(&of(&iz, &crown)), 1)], -259);
+        let short = o.min(v(&of(&hi, &crown)), v(&z));
+        let past = if both { let z = o.sum(&[(v(&of(&iz, &crown)), 1)], 259); o.max(v(&of(&lo, &crown)), v(&z)) } else { vec![] };
+        let mut s = Spans::default();
+        let mut c = 0;
+        for j in 0..ks.len() {
+            if lod[j] == 2 {
+                s.k.push(ks[j]); s.lo.push(lo[j]); s.hi.push(short[c]);
+                if both { s.k.push(ks[j]); s.lo.push(past[c]); s.hi.push(hi[j]); }
+                c += 1;
+            } else { s.k.push(ks[j]); s.lo.push(lo[j]); s.hi.push(hi[j]); }
+        }
+        s
+    };
+    let old = spans(o, &nw.old, &nw.small_old, [-900, -2600, 5, 5], false);
+    let new = spans(o, &nw.new, &sc.small, [-650, -1600, 650, 1400], true);
+    let (zlo, zhi, xmid) = (v(&sc.zlo), v(&sc.zhi), v(&sc.xmid));
+    let near = [o.sum(&[(zhi, 1)], -800), o.sum(&[(zlo, 1)], 800), o.sum(&[(xmid, 1)], -740), o.sum(&[(xmid, 1)], 740)];
+    NightCull { old, new, near }
+}
+
+/// The lists of the world's triangles a frame considers (the prototype's visible_night; the ride's visible() for
+/// the old world): near (mm) and far (cm, those reaching 800 m off or more). By the bounds worked out at the start
+/// against the camera's place (metres), on the machines: cz < hi for the mode's spans, then lo < cz for those; then
+/// the four tests for near, each on those that passed the last.
+pub fn night_visible<O: Ops>(o: &mut O, nw: &NightWorld, cam: &Cam, mode: Mode) -> (Vec<usize>, Vec<usize>) {
+    let (cz, cx) = (metres(o, cam.z_cm), metres(o, cam.eye_cm[0]));
+    let s = if mode == Mode::Old { &nw.cull.old } else { &nw.cull.new };
+    let ahead = o.lt(K(cz), v(&s.hi));
+    let j1: Vec<usize> = (0..s.k.len()).filter(|&j| ahead[j] == 1).collect();
+    let lo: V = j1.iter().map(|&j| s.lo[j]).collect();
+    let within = o.lt(v(&lo), K(cz));
+    let shown: Vec<usize> = (0..j1.len()).filter(|&i| within[i] == 1).map(|i| s.k[j1[i]]).collect();
+    // near: zhi - 800 < cz, cz < zlo + 800, xmid - 740 < cx, cx < xmid + 740
+    let nb = &nw.cull.near;
+    let mut keep: Vec<usize> = (0..shown.len()).collect();
+    for (b, x, below) in [(&nb[0], cz, true), (&nb[1], cz, false), (&nb[2], cx, true), (&nb[3], cx, false)] {
+        let bs: V = keep.iter().map(|&i| b[shown[i]]).collect();
+        let f = if below { o.lt(v(&bs), K(x)) } else { o.lt(K(x), v(&bs)) };
+        keep = (0..keep.len()).filter(|&i| f[i] == 1).map(|i| keep[i]).collect();
     }
+    let mut is_near = vec![false; shown.len()];
+    for &i in &keep { is_near[i] = true; }
+    let (mut near, mut far) = (vec![], vec![]);
+    for (i, &k) in shown.iter().enumerate() { if is_near[i] { near.push(k) } else { far.push(k) } }
     (near, far)
+}
+
+/// Whether a moving model is far: the largest of its first corner's offsets from the eye past 60,000 (cm). Each
+/// offset, on the machines, against 60,000 and -60,000; the six flags added up.
+pub fn mover_far<O: Ops>(o: &mut O, c: [i64; 3], eye: [i64; 3]) -> bool {
+    let d = o.lin(&[(v(&c.to_vec()), None), (v(&eye.to_vec()), Some(K(-1)))]);
+    let a: V = [60_000; 3].into_iter().chain(d.iter().copied()).collect();
+    let b: V = d.iter().copied().chain([-60_000; 3]).collect();
+    let f = o.lt(v(&a), v(&b));
+    let t: Vec<(A, i64)> = f.iter().map(|&x| (K(x), 1)).collect();
+    one(o.sum(&t, 0)) > 0
 }
 
 /// A list of triangles moved for the frame: their corners (cm) moved, their normals turned by rows of thousandths if
@@ -94,16 +163,16 @@ pub fn drone_pose<O: Ops>(o: &mut O, nw: &NightWorld, tenths: i64) -> ([[i64; 3]
 
 /// What each pixel sees, for the frame: the world's lists, what moves, the ground (streets past the town's edge in
 /// the night's world), the nearest kept (the trees' leaves cut out).
-pub fn night_gbuffer<O: Ops>(o: &mut O, nw: &NightWorld, cam: &Cam, scr: &Screen, f: i64, mode: Mode) -> (GBuf, [V; 3], Vec<(u8, Mesh)>, V) {
+pub fn night_gbuffer<O: Ops>(o: &mut O, nw: &NightWorld, cam: &Cam, scr: &Screen, f: i64, mode: Mode, vis: &(Vec<usize>, Vec<usize>)) -> (GBuf, [V; 3], Vec<(u8, Mesh)>, V) {
     let w = &nw.w;
     let sc = &w.sc;
     let ray = rays(o, cam);
     let mut g = GBuf { iz: vec![0; N_PIX()], mat: vec![-1; N_PIX()], n: [vec![0; N_PIX()], vec![0; N_PIX()], vec![0; N_PIX()]], src: vec![0; N_PIX()], tri: vec![0; N_PIX()] };
-    let (near, far) = night_visible(nw, cam, mode);
+    let (near, far) = vis;
     let two: Vec<bool> = sc.world.mat.iter().map(|&m| sc.mats[m].kind == kind::TREE || nw.nocull[m]).collect();
     o.stage("geometry");
-    let dn = draw(o, &w.tb, cam, &sc.world, &sc.world.corners, &two, &near, false, 1);
-    let df = draw(o, &w.tb, cam, &sc.world, &sc.world.corners, &two, &far, true, 1);
+    let dn = draw(o, &w.tb, cam, &sc.world, &sc.world.corners, &two, near, false, 1);
+    let df = draw(o, &w.tb, cam, &sc.world, &sc.world.corners, &two, far, true, 1);
     let mut movers: Vec<(u8, Mesh)> = vec![];
     if mode != Mode::Old {
         // our own train, from outside once we're through the windscreen
@@ -111,11 +180,13 @@ pub fn night_gbuffer<O: Ops>(o: &mut O, nw: &NightWorld, cam: &Cam, scr: &Screen
             let t0 = one(o.lin(&[(K(BX), None)]));
             movers.push((4, placed(o, &nw.own, None, [t0, 0, TIP])));
         }
+        // the frame's tenths, on the machines
+        let tenths = kl(o, &[(f, Some(10))]);
         if f >= F_BTN - 2 {
-            let (r, at) = drone_pose(o, nw, 10 * f);
+            let (r, at) = drone_pose(o, nw, tenths);
             movers.push((3, placed(o, &nw.drone, Some(r), at)));
         }
-        let bp = blimp_at(o, nw, &[10 * f]);
+        let bp = blimp_at(o, nw, &[tenths]);
         let at: [i64; 3] = std::array::from_fn(|c| one({ let t = o.lin(&[(K(bp[c][0]), None), (K(if c == 0 { 10 * BX } else { 0 }), None)]); o.div(v(&t), K(10), 0) }));
         movers.push((5, placed(o, &nw.blimp, None, at)));
     }
@@ -124,8 +195,7 @@ pub fn night_gbuffer<O: Ops>(o: &mut O, nw: &NightWorld, cam: &Cam, scr: &Screen
         let all: Vec<usize> = (0..m.tris.len()).collect();
         let two: Vec<bool> = m.mat.iter().map(|&q| nw.nocull[q]).collect();
         // near or far by its place
-        let c = m.corners[0];
-        let far = (c[0] - cam.eye_cm[0]).abs().max((c[2] - cam.eye_cm[2]).abs()).max((c[1] - cam.eye_cm[1]).abs()) > 60_000;
+        let far = mover_far(o, m.corners[0], cam.eye_cm);
         drawn.push((*src, draw(o, &w.tb, cam, m, &m.corners, &two, &all, far, 1)));
     }
     let refs: Vec<(u8, &Drawn, &Mesh)> = drawn.iter().map(|(src, d)| (*src, d, if *src == 1 { &sc.world } else { &movers.iter().find(|(s, _)| s == src).unwrap().1 })).collect();
@@ -235,13 +305,15 @@ pub fn night_render<O: Ops>(o: &mut O, nw: &NightWorld, f: i64, mode: Mode) -> V
 /// length; where balloons and sparks were laid over; the frame's full-resolution camera, light, sky maps, airship and
 /// movers.
 pub struct Parts { pub img: Vec<u8>, pub col: [V; 3], pub hot: [V; 3], pub add: [V; 3], pub g: GBuf, pub wiz: V, pub ov: [V; 3], pub mlen: V, pub laid: Vec<bool>,
-    pub cam: Cam, pub l: NightLight, pub map: SkyMap, pub round: SkyMap, pub fx: FrameAir, pub movers: Vec<(u8, Mesh)> }
+    pub cam: Cam, pub l: NightLight, pub map: SkyMap, pub round: SkyMap, pub fx: FrameAir, pub movers: Vec<(u8, Mesh)>,
+    /// the world's triangles the frame considers (near, far)
+    pub vis: (Vec<usize>, Vec<usize>) }
 
 pub fn night_render_parts<O: Ops>(o: &mut O, nw: &NightWorld, f: i64, mode: Mode) -> Parts {
     let w = &nw.w;
     o.stage("camera");
     let mut l = night_light(o, nw, f);
-    let cam_full = night_cam(o, nw, 10 * f, mode == Mode::Cab);
+    let cam_full = { let t = kl(o, &[(f, Some(10))]); night_cam(o, nw, t, mode == Mode::Cab) };
     let cam = res_cam(o, &cam_full);
     let scr = screen_for(nw, cam.f2);
     if std::env::var("NIGHT_DEBUG").is_ok() { eprintln!("frame {f} {mode:?}: eye {:?} b {:?} f2 {} night {} black {} e {} beat {}", cam.eye, cam.b, cam.f2, l.night, l.black, l.e, l.beat); }
@@ -249,7 +321,8 @@ pub fn night_render_parts<O: Ops>(o: &mut O, nw: &NightWorld, f: i64, mode: Mode
     let nt = sky_night(o, nw, &l, &cam);
     let bk = nt.bk;
     l.env.night = Some(nt);
-    let (g, ray, movers, wiz) = night_gbuffer(o, nw, &cam, scr, f, mode);
+    let vis = night_visible(o, nw, &cam, mode);
+    let (g, ray, movers, wiz) = night_gbuffer(o, nw, &cam, scr, f, mode, &vis);
     let fx = frame_air(o, nw, f);
     o.stage("skymap");
     let (map, round) = night_sky_maps(o, nw, &l.env, &cam, e, bk);
@@ -271,12 +344,22 @@ pub fn night_render_parts<O: Ops>(o: &mut O, nw: &NightWorld, f: i64, mode: Mode
     o.stage("mirrors");
     let solid: Vec<usize> = (0..N_PIX()).filter(|&p| g.mat[p] >= 0 && rep[p] == p).collect();
     let mirrors = {
-        let n_paddy = solid.iter().filter(|&&p| g.mat[p] == kind::PADDY).count();
-        let n_water = solid.iter().filter(|&&p| g.mat[p] == kind::WATER).count();
-        let cands = || { let (a, _) = night_visible(nw, &cam, mode); a };
+        // how many pixels show the paddies and the river: their flags' running sums on the machines
+        let fp: V = solid.iter().map(|&p| (g.mat[p] == kind::PADDY) as i64).collect();
+        let fw: V = solid.iter().map(|&p| (g.mat[p] == kind::WATER) as i64).collect();
+        let count = |o: &mut O, f: &V| -> i64 {
+            // (in lists of at most 500,000, so each running sum is a long; the lists' totals added)
+            let parts: Vec<&[i64]> = f.chunks(500_000).collect();
+            if parts.is_empty() { return 0; }
+            let s = o.runsum(&parts);
+            let mut at = 0;
+            let ends: Vec<(A, Option<A>)> = parts.iter().map(|q| { at += q.len(); (K(s[at - 1]), None) }).collect();
+            if ends.len() == 1 { s[at - 1] } else { one(o.lin(&ends)) }
+        };
+        let (n_paddy, n_water) = (count(o, &fp), count(o, &fw));
         Mirrors {
-            paddy: (n_paddy > 50).then(|| Mirror1 { g: mirror_gbuf_of(o, w, &cam, None, LAND, &ray, &cands(), &scr.nlq7), h: LAND }),
-            water: (n_water > 50).then(|| Mirror1 { g: mirror_gbuf_of(o, w, &cam, None, RIVER, &ray, &cands(), &scr.nlq7), h: RIVER }),
+            paddy: (n_paddy > 50).then(|| Mirror1 { g: mirror_gbuf_of(o, w, &cam, None, LAND, &ray, &vis.0, &scr.nlq7), h: LAND }),
+            water: (n_water > 50).then(|| Mirror1 { g: mirror_gbuf_of(o, w, &cam, None, RIVER, &ray, &vis.0, &scr.nlq7), h: RIVER }),
         }
     };
     if std::env::var("NIGHT_KINDS").is_ok() {
@@ -312,7 +395,7 @@ pub fn night_render_parts<O: Ops>(o: &mut O, nw: &NightWorld, f: i64, mode: Mode
     let out = finish_v(o, w, &scr.vlev, &col, &hot, &add);
     let mut img = vec![0u8; N_PIX() * 3];
     for c in 0..3 { for p in 0..N_PIX() { img[3 * p + c] = out[c][p] as u8; } }
-    Parts { img, col, hot, add, g, wiz, ov, mlen: mo.len, laid, cam: cam_full, l, map, round, fx, movers }
+    Parts { img, col, hot, add, g, wiz, ov, mlen: mo.len, laid, cam: cam_full, l, map, round, fx, movers, vis }
 }
 
 /// The sky's pixels: the dusk's (where it still shows) at every fourth pixel each way, its ridges and the sun's core,
@@ -337,8 +420,9 @@ pub fn night_sky_pixels<O: Ops>(o: &mut O, nw: &NightWorld, env: &Env, e: i64, c
     let sun_on = |o: &mut O| -> Option<(i64, i64)> {
         let s: [i64; 3] = std::array::from_fn(|r| one({ let t = o.lin(&[(K(cam.b[r][0]), Some(K(env.sun[0]))), (K(cam.b[r][1]), Some(K(env.sun[1]))), (K(cam.b[r][2]), Some(K(env.sun[2])))]); o.div(v(&t), K(1000), 0) }));
         if s[2] <= 0 || env.sun_col == [0, 0, 0] { return None; }
-        let sx = one({ let t = o.lin(&[(K(s[0]), Some(K(cam.f2)))]); o.div(v(&t), K(2 * s[2]), 0) }) + W() / 2;
-        let sy = H() / 2 - one({ let t = o.lin(&[(K(s[1]), Some(K(cam.f2)))]); o.div(v(&t), K(2 * s[2]), 0) });
+        let d2 = kl(o, &[(s[2], Some(2))]);
+        let sx = one({ let t = o.lin(&[(K(s[0]), Some(K(cam.f2)))]); o.div(v(&t), K(d2), 0) }) + W() / 2;
+        let sy = H() / 2 - one({ let t = o.lin(&[(K(s[1]), Some(K(cam.f2)))]); o.div(v(&t), K(d2), 0) });
         Some((sx, sy))
     };
     let sun_xy = if dusk { sun_on(o) } else { None };

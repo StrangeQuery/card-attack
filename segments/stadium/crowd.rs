@@ -107,8 +107,9 @@ pub fn crowd<O: Ops>(o: &mut O, t: &Tables, lt: &LightTabs, sc: &Scene, cam: &Ca
     let sq: [V; 3] = std::array::from_fn(|c| o.tabo(&lt.sq, 5000, v(&dm[c])));
     let d2 = o.sum(&[(v(&sq[0]), 1), (v(&sq[1]), 1), (v(&sq[2]), 1)], 0);
     let within = o.lt(v(&d2), K(NEAR_CM * NEAR_CM / 100));
+    // (put in order on the card sorter; the dancers come in by number, and equal distances keep that order)
     let mut near: Vec<(i64, usize)> = (0..cand.len()).filter(|&j| within[j] == 1).map(|j| (d2[j], seen[cand[j]])).collect();
-    near.sort();
+    sorter::sort(&mut near, &[sorter::up(6)], |t| [t.0]);
     let near: Vec<usize> = near.into_iter().take(if light_hd() { NEAR_N_HD } else { NEAR_N }).map(|x| x.1).collect();
     if std::env::var("STADIUM_DEBUG").is_ok() { eprintln!("near {:?}", near.iter().take(8).collect::<Vec<_>>()); }
     let mut is_near = vec![false; n];
@@ -230,8 +231,8 @@ fn sprites<O: Ops>(o: &mut O, t: &Tables, lt: &LightTabs, sc: &Scene, cam: &Cam,
     let txs = o.min(v(&txs), v(&awm));
     // the first pixel at or right of the left edge, each row
     let pxl = { let a = o.sum(&[(v(&xs), 1)], 49); o.divmod(v(&a), K(100)).0 };
-    // the sprites; their pieces nearest first (the host sorts them by their depths), a pixel already covered by a
-    // nearer one's left out (it could never be the nearest)
+    // the sprites; their pieces nearest first (the card sorter puts them in order by their depths), every opaque
+    // texel's piece kept (which is nearest on each pixel is CARDIAC's nearest, in `resolve`)
     let mut sp = vec![];
     let mut sp_j = vec![];
     let (mut r_at, mut c_at) = (vec![0usize; live.len()], vec![0usize; live.len()]);
@@ -248,8 +249,7 @@ fn sprites<O: Ops>(o: &mut O, t: &Tables, lt: &LightTabs, sc: &Scene, cam: &Cam,
         }
     }
     let mut order: Vec<usize> = (0..live.len()).collect();
-    order.sort_by_key(|&q| (std::cmp::Reverse(izm[q]), q));
-    let mut covered = vec![false; npix()];
+    sorter::sort(&mut order, &[sorter::down(6)], |&q| [izm[q]]);
     let hw = scr_w() / 2;
     for &q in &order {
         let s = &sp[q];
@@ -263,10 +263,8 @@ fn sprites<O: Ops>(o: &mut O, t: &Tables, lt: &LightTabs, sc: &Scene, cam: &Cam,
                 let x = pxl[ar + r] + c as i64;
                 if x < -hw || x >= hw { continue; }
                 let p = ((row + scr_h() / 2) * scr_w() + x + hw) as usize;
-                if covered[p] { continue; }
                 let tx = txs[ac + c] as usize;
                 if atl.ats(s.k, ty, tx, 0) == 0 { continue; }
-                covered[p] = true;
                 out.px.push(p as u32);
                 out.iz.push(izm[q]);
                 out.sid.push(q as u32);

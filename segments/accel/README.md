@@ -46,31 +46,33 @@ The host (`host/src/fx/accel.rs`, `accel_hd.rs` and `accel_jump.rs`) does this b
   the row up), a traffic sprite's pixel (the sprite's start plus 8 times the sum of its row times its width and
   its column), and the dither's threshold by the pixel's place in the 4 x 4 matrix (its row and column, each mod 4). It holds the index
   of the landing's falloff table at 191, the table's last entry.
-- It sorts the lamp posts and the traffic far to near by the distance `dalong` punched. For the walls it gathers the
+- It puts the lamp posts and the traffic in order far to near by the distance `dalong` punched, on the card sorter
+  (`host/src/sorter.rs`). For the walls it gathers the
   candidates that land on each pixel, in the order they were drawn, and `anear` picks the nearest.
 - It reuses output. The machines that work each item of a deck alone punch the same cards for the same input, so
   the host runs each distinct input once and copies the cards to its repeats. Where a blend's two inputs are the
-  same colour (two texels, two texel rows, or all four of our car's samples) the host copies that colour, which is
-  what the blend punches for it.
+  same colour (two texels, two texel rows, or all four of our car's samples: their differences on `asum`, each
+  against 0) the host copies that colour, which is what the blend punches for it.
 - It places pixels. It turns a machine's row and column into a place in the frame, adds the offsets to a light's
   or a picture's pixel to find where each glow, flare, ghost, shadow and sprite pixel lands, and drops the ones that
   fall off the screen. A glow, the shadow's ellipse and a ghost are worked out on one side of their middle and
   mirrored to the other by the host. The host works out how far out from a light's pixel a glow can still land on the
   screen (from the light's place and the screen's edges) and asks the machines for only those offsets; a flare's
-  box is the light's pixel less and plus the reach `afway` punched, held to the screen by the host. The calls'
+  box is the places its ways out give (as far as the reach `afway` punched), held to the screen by the host, and a
+  ghost's is its middle less and plus its radius on `asum`, held to the screen. The calls'
   shadow is the letters' pixels 3 down and 3 across.
-- It makes a few signs and choices itself. The along part of each ray is `aray` dealt the turn's sine negated by
-  the host; `amoff` is dealt the sign of the ray's across part, which the host finds by comparing it with 0. A
+- It makes a few signs and choices itself. `amoff` is dealt the sign of the ray's across part, which the host finds by comparing it with 0. A
   traffic sprite is the stored one whose width is the first at least as wide as `atwth` punched, found by the
   host's comparisons.
 - It leaves some things out by comparing the machines' numbers itself. A light makes a glow only if its strength is
   over 10; lamps and headlights make flares only if it is over 60; the ghosts come only from the strongest light,
   when that is a headlight over 225. A spark is not drawn if a place of its head or tail on the screen reaches
-  990 or -990 pixels. The ten brightest sparks light up, sorted by the brightness the sums punched.
+  990 or -990 pixels. The ten brightest sparks light up, put in order on the card sorter by the
+  brightness the sums punched.
 - It picks by frame number what the frame calls for: which part of the jump the frame is in, which sparks are
   alight (the frame less each spark's first frame, from 0 to 7), and whether the calls show. The frames since the
-  landing (`f - F_LAND`) are worked out on the host and dealt to the sums for the landing's wag and pitch and the
-  car's height as it lands.
+  landing (`f - F_LAND`) are worked out by the sums, for the landing's wag and pitch and the car's height as it
+  lands.
 
 Assets made ahead of time are used as demos have always used them:
 
@@ -119,7 +121,7 @@ files the two halves and lays the calls on.
   `alane` adds them up and rounds. The three machines run once, on CARDIAC, at the start of the segment's render,
   for all 243 frames from the camera's first to the car's last, and every frame reads its place from that run. The
   camera's height on the grade is `acam`'s, and its rays across and along the street `aray`'s (the along rays from
-  the sine the host negates).
+  the negated sine, chosen by a third card).
 - **What's nearer.** The walls are laid over the street where they are nearer, in both halves. The host gathers
   the wall pixels that land on each pixel of the frame, keeping their order, and deals them with the pixel's own
   distance to `anear`, which punches the winner; the host copies the winner's colour and distance in. Lamp posts,
@@ -178,7 +180,7 @@ Cells per machine (96 at most; a machine in two phases gives its data, then each
 
 | Part | Machines (cells) |
 |---|---|
-| The camera, the lane, what's nearer | `aphase` 84, `aswerve` 73, `alane` 57, `acam` 81, `aray` 76, `anear` 46, `athree` 39 |
+| The camera, the lane, what's nearer | `aphase` 84, `aswerve` 73, `alane` 57, `acam` 81, `aray` 95, `anear` 46, `athree` 39 |
 | The march | `amz` 7 + 26 / 59, `amx` 4 + 37 / 48, `afine` 83, `amoff` 83, `amul` 93, `amrow` 92, `amlamp` 95, `ampool` 74, `amrows` 95, `amnum` 55, `amlerp` 93 |
 | The street's rows and covers | `asrow` 81, `asgap` 74, `asdash` 64, `around` 18, `asmat` 58, `aswide` 46, `aslong` 71, `asedge` 37, `ascov` 92, `ascut` 75, `akover` 54, `amix` 86 |
 | The walls | `awprep` 44, `awq` 85, `awfar` 71, `awx` 60, `awtf` 54, `awte` 55, `awfoot` 88, `awclip` 17, `awalk` 82, `awup` 88, `awbay` 42, `awtex` 66, `awblend` 73, `awcol` 87 |

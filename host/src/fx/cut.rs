@@ -1,33 +1,28 @@
 //! The cut: every effect in running order (cut.txt), from the effects' own verified videos, joined on CARDIAC.
-//! "mix N" dissolves a segment into the next over N frames (they overlap); "in N" / "out N" dissolve from and to
-//! black at the very start and end; "black N" holds N black frames at the end; "hold N" holds a segment's last frame
-//! N frames more; "gap N" puts N black frames after it. A dissolve machine per row dithers the incoming picture over
-//! the outgoing one. "word FILE" after a "mix" covers that dissolve with a big line: the big word machine dithers it
-//! in over 6 frames, holds it across the dissolve and out over 6. "cap at len TEXT" puts a caption up:
-//! a caption machine per box row dithers it in at the top left, in the listing's font. "stutter N1 N2 ..." cuts
-//! back and forth into the next segment instead: beats of N1, N2, ... frames, the first holding this segment's last
-//! frame, the next showing the next segment's own frames as it runs on underneath, and so on; the two overlap by
-//! the beats' total, as for a mix, and the next segment carries on from there.
+//! "hold N" holds a segment's last frame N frames more; "gap N" puts N black frames after it. "cap at len TEXT" puts
+//! a caption up: a caption machine per box row dithers it in at the top left, in the listing's font. "stutter N1 N2
+//! ..." cuts back and forth into the next segment: beats of N1, N2, ... frames, the first holding this segment's last
+//! frame, the next showing the next segment's own frames as it runs on underneath, and so on; the two overlap by the
+//! beats' total, and the next segment carries on from there.
 //! The cut is 192x96. A segment drawn at 96x48 (most) has each pixel filed four times, after its caption; one drawn
-//! at 192x96 says so after its frame count ("seg ... 192x96") and is filed as it is. The dissolves and big words are
-//! dithered at 192x96, each row in two halves of 96 pixels. "reverse" on a segment line plays its frames backwards.
+//! at 192x96 says so after its frame count ("seg ... 192x96") and is filed as it is. "reverse" on a segment line
+//! plays its frames backwards.
 //! A segment drawn at 1536x768 (the climax) says "1536x768": the cut files a black frame in its place at 192x96 and
 //! lists which of its frames goes there in cut/hd.txt ("frame video f" a line), so the film is shown at 1536x768 with
-//! every 192x96 frame's pixels each filed 64 times (the live player); no mix, stutter, caption or
-//! word may touch it.
+//! every 192x96 frame's pixels each filed 64 times (the live player); no stutter or caption may touch it.
 //! A segment can switch size at a frame: two segment lines, the same effect's two videos, the second starting where
 //! the first ends. "freeze AT N" holds the segment's frame AT for N frames more, and it carries on after; "repeat AT
 //! F1 F2 ..." shows its frames F1, F2, ... after its frame AT (a stutter, a judder), then carries on from AT + 1.
 //! "unpixelate N8 N4 N2" on a 1536x768 segment shows its first N8 frames averaged over 8 x 8 blocks (192x96's
 //! pixels), the next N4 over 4 x 4, the next N2 over 2 x 2, then sharp: a block mean machine per row of blocks per
-//! channel. "over FILE WxH X Y AT LEN" lays a full-resolution layer over the segment's own frames AT..AT+LEN (not its
-//! mixes): FILE is frames of W x H pixels, red, green, blue and cover (0-32, in 32nds), one a frame (the last held),
-//! a file on disk or what an effect files (the UI kit's layers, ui/NAME.rgba: read through the live runtime, so the
-//! player takes it from memory),
-//! placed at X, Y of the 1536x768 frame; the segment's frame is filed 64 times a pixel (8 x 8) beneath it, and a mix
-//! machine per row run mixes each covered pixel toward the layer by its cover. A frame un-pixelated or under a layer
-//! is made at 1536x768: the cut files it in video_hd.rgb beside cut.txt and lists it in hd.txt like the others; at
-//! 192x96 it files the frame without the layer (black for a 1536x768 segment's).
+//! channel. "over FILE WxH X Y AT LEN" lays a full-resolution layer over the segment's own frames AT..AT+LEN (not a
+//! stutter's beats): FILE is frames of W x H pixels, red, green, blue and cover (0-32, in 32nds), one a frame (the
+//! last held), a file on disk or what an effect files (the UI kit's layers, ui/NAME.rgba: read through the live
+//! runtime, so the player takes it from memory), placed at X, Y of the 1536x768 frame; the segment's frame is filed
+//! 64 times a pixel (8 x 8) beneath it, and a mix machine per row run mixes each covered pixel toward the layer by
+//! its cover. A frame un-pixelated or under a layer is made at 1536x768: the cut files it in video_hd.rgb beside
+//! cut.txt and lists it in hd.txt like the others; at 192x96 it files the frame without the layer (black for a
+//! 1536x768 segment's).
 use crate::fx::listing::Listing;
 use crate::*;
 use std::collections::HashMap;
@@ -42,7 +37,7 @@ pub struct Cap { at: usize, len: usize, text: String }
 
 /// A layer over a segment: its video (frames of w x h, RGB and cover), its place, and the segment's frames it covers.
 pub struct Over { pub video: String, w: usize, h: usize, x: usize, y: usize, at: usize, len: usize }
-pub struct Seg { pub video: String, start: usize, pub len: usize, pub big: bool, pub hd: bool, reverse: bool, mix: usize, stutter: Vec<usize>, hold: usize, gap: usize, word: Option<Vec<Vec<i32>>>, caps: Vec<Cap>,
+pub struct Seg { pub video: String, start: usize, pub len: usize, pub big: bool, pub hd: bool, reverse: bool, stutter: Vec<usize>, hold: usize, gap: usize, caps: Vec<Cap>,
     /// After the segment's frame AT, its frames F1, F2, ... (a freeze: AT N times).
     repeats: Vec<(usize, Vec<usize>)>, unpixelate: [usize; 3], pub overs: Vec<Over> }
 
@@ -67,15 +62,13 @@ impl Seg {
 }
 
 /// How one frame of the cut is made. The frames are made from the segments' videos by the composer (on CARDIAC, the
-/// dissolves), one at a time, in any order: by `render` here, and by the live player.
+/// captions, block means and layers), one at a time, in any order: by `render` here, and by the live player.
 #[derive(Clone)]
 pub enum Step {
-    /// Segment s's frame t at 192x96; dissolved in from black at a level, or out to black.
-    Pic { s: usize, t: usize, fade_in: Option<i32>, fade_out: Option<i32> },
+    /// Segment s's frame t at 192x96, with its caption.
+    Pic { s: usize, t: usize },
     /// Segment s's frame t at 192x96, as it is (a stutter's beat).
     Plain { s: usize, t: usize },
-    /// Segment a's frame ta dissolving into segment b's frame tb, at a level (0-16).
-    Mix { a: usize, ta: usize, b: usize, tb: usize, level: i32 },
     Black,
     /// Frame t of a 1536x768 segment (its video's frame f), a black frame in the 192x96 cut.
     Hd { s: usize, t: usize, f: usize },
@@ -86,26 +79,23 @@ pub enum Step {
 pub struct Sharp { pub block: usize, pub overs: Vec<(usize, usize, usize)> }
 
 /// The cut, planned from cut.txt: its segments, and how each frame is made.
-pub struct Cut { pub segs: Vec<Seg>, pub frames: Vec<Step>, pub sharp: Vec<Sharp>, words: Vec<(usize, usize, usize)> }
+pub struct Cut { pub segs: Vec<Seg>, pub frames: Vec<Step>, pub sharp: Vec<Sharp> }
 
 impl Cut {
-    pub fn read(demo: &Path) -> Cut { Cut::parse(demo, &read(demo, "cut/cut.txt")) }
+    pub fn read(demo: &Path) -> Cut { Cut::parse(&read(demo, "cut/cut.txt")) }
 
-    pub fn parse(demo: &Path, text: &str) -> Cut {
-        let (mut segs, mut in_n, mut out_n, mut black_n) = (Vec::<Seg>::new(), 0, 0, 0);
+    pub fn parse(text: &str) -> Cut {
+        let mut segs = Vec::<Seg>::new();
         for l in text.trim().lines() {
             let p: Vec<&str> = l.split(' ').collect();
             let n = || p[1].parse::<usize>().unwrap();
             let num = |i: usize| p[i].parse::<usize>().unwrap_or_else(|_| panic!("cut.txt: {l}"));
             match p[0] {
-                "seg" => segs.push(Seg { video: p[2].into(), start: p[3].parse().unwrap(), len: p[4].parse().unwrap(), big: p[5..].iter().any(|o| match *o { "192x96" => true, "reverse" | "1536x768" => false, o => panic!("cut.txt: {o}") }), hd: p[5..].contains(&"1536x768"), reverse: p[5..].contains(&"reverse"), mix: 0, stutter: vec![], hold: 0, gap: 0, word: None, caps: vec![],
+                "seg" => segs.push(Seg { video: p[2].into(), start: p[3].parse().unwrap(), len: p[4].parse().unwrap(), big: p[5..].iter().any(|o| match *o { "192x96" => true, "reverse" | "1536x768" => false, o => panic!("cut.txt: {o}") }), hd: p[5..].contains(&"1536x768"), reverse: p[5..].contains(&"reverse"), stutter: vec![], hold: 0, gap: 0, caps: vec![],
                     repeats: vec![], unpixelate: [0; 3], overs: vec![] }),
                 "hold" => segs.last_mut().unwrap().hold = n(),
                 "gap" => segs.last_mut().unwrap().gap = n(),
-                "mix" => segs.last_mut().unwrap().mix = n(),
                 "stutter" => segs.last_mut().unwrap().stutter = p[1..].iter().map(|v| v.parse().unwrap()).collect(),
-                "word" => segs.last_mut().unwrap().word = Some(tables::digits(&read(demo, p[1]))),
-                "in" => in_n = n(), "out" => out_n = n(), "black" => black_n = n(),
                 "cap" => segs.last_mut().unwrap().caps.push(Cap { at: n(), len: p[2].parse().unwrap(), text: p[3..].join(" ") }),
                 "freeze" | "repeat" => {
                     let s = segs.last_mut().unwrap();
@@ -124,39 +114,30 @@ impl Cut {
                 o => panic!("cut.txt: {o}"),
             }
         }
-        let level = |k: usize, n: usize| (16 * (k + 1) / (n + 1)) as i32;
         let mut frames: Vec<Step> = vec![];
-        let mut words: Vec<(usize, usize, usize)> = vec![];   // (first frame, frames, segment whose word)
         let last = segs.len() - 1;
         for (i, s) in segs.iter().enumerate() {
             let len = s.shown();
             if s.hd {   // a black frame in its place, and where its frame goes
-                let into = i > 0 && (segs[i - 1].mix > 0 || !segs[i - 1].stutter.is_empty());
-                assert!(!into && s.mix == 0 && s.stutter.is_empty() && s.word.is_none() && s.caps.is_empty() && s.gap == 0, "{}: a 1536x768 segment is cut to and from, nothing over it", s.video);
-                assert!(!(i == 0 && in_n > 0) && !(i == last && out_n > 0), "{}: no fade on a 1536x768 segment", s.video);
+                let into = i > 0 && !segs[i - 1].stutter.is_empty();
+                assert!(!into && s.stutter.is_empty() && s.caps.is_empty() && s.gap == 0, "{}: a 1536x768 segment is cut to and from, nothing over it", s.video);
                 for t in 0..len + s.hold { frames.push(Step::Hd { s: i, t, f: s.frame_at(t.min(len - 1)) }); }
                 continue;
             }
             assert!(s.unpixelate == [0; 3], "{}: unpixelate is for a 1536x768 segment", s.video);
-            assert!(s.mix == 0 || !segs[i + 1].hd, "{}: no mix into a 1536x768 segment", s.video);
-            let (head, tail) = (if i > 0 { segs[i - 1].mix + segs[i - 1].stutter.iter().sum::<usize>() } else { 0 }, s.mix);
-            assert!(s.stutter.is_empty() || (tail == 0 && i < last), "{}: a stutter cuts to a next segment, with no mix", s.video);
-            for t in head..len - tail {
+            let head = if i > 0 { segs[i - 1].stutter.iter().sum::<usize>() } else { 0 };
+            assert!(s.stutter.is_empty() || i < last, "{}: a stutter cuts to a next segment", s.video);
+            for t in head..len {
                 if s.big { assert!(s.caps.is_empty(), "{}: captions are drawn at 96x48 only", s.video) }
-                let fade_in = (i == 0 && t < in_n).then(|| level(t, in_n));
-                let fade_out = (i == last && t + out_n >= len).then(|| (16 * (t + out_n - len + 1) / out_n) as i32);
-                frames.push(Step::Pic { s: i, t, fade_in, fade_out });
+                frames.push(Step::Pic { s: i, t });
             }
             for _ in 0..s.hold { let l = frames.last().unwrap().clone(); frames.push(l); }
             for _ in 0..s.gap { frames.push(Step::Black); }
-            if s.word.is_some() { words.push((frames.len() - 16, tail + 32, i)); }   // in 6, held over the dissolve, out 6
-            for k in 0..tail { frames.push(Step::Mix { a: i, ta: len - tail + k, b: i + 1, tb: k, level: level(k, tail) }); }
             let mut k = 0;
             for (beat, &n) in s.stutter.iter().enumerate() {
                 for _ in 0..n { frames.push(if beat % 2 == 0 { Step::Plain { s: i, t: len - 1 } } else { Step::Plain { s: i + 1, t: k } }); k += 1; }
             }
         }
-        for _ in 0..black_n { frames.push(Step::Black); }
         // what is done at 1536x768: the un-pixelate steps, and the layers over the segments' own frames
         let sharp: Vec<Sharp> = frames.iter().map(|st| {
             let (s, t) = match *st { Step::Pic { s, t, .. } | Step::Hd { s, t, .. } => (s, t), _ => return Sharp { block: 1, overs: vec![] } };
@@ -166,9 +147,7 @@ impl Cut {
             let overs = seg.overs.iter().enumerate().filter(|(_, o)| t >= o.at && t < o.at + o.len).map(|(k, o)| (s, k, t - o.at)).collect();
             Sharp { block, overs }
         }).collect();
-        let hd: Vec<usize> = (0..frames.len()).filter(|&n| matches!(frames[n], Step::Hd { .. }) || sharp[n].block > 1 || !sharp[n].overs.is_empty()).collect();
-        for &(at, len, _) in &words { assert!(hd.iter().all(|&f| f < at || f >= at + len), "a big word over a 1536x768 frame"); }
-        Cut { segs, frames, sharp, words }
+        Cut { segs, frames, sharp }
     }
 
     /// Whether frame n is made at 1536x768 by the composer (un-pixelated, or under a layer).
@@ -186,7 +165,7 @@ impl Cut {
 
     /// The videos a frame needs: its segments', and its layers'.
     pub fn uses(&self, n: usize) -> Vec<&str> {
-        let mut v: Vec<&str> = match self.frames[n] { Step::Pic { s, .. } | Step::Plain { s, .. } | Step::Hd { s, .. } => vec![&self.segs[s].video], Step::Mix { a, b, .. } => vec![&self.segs[a].video, &self.segs[b].video], Step::Black => vec![] };
+        let mut v: Vec<&str> = match self.frames[n] { Step::Pic { s, .. } | Step::Plain { s, .. } | Step::Hd { s, .. } => vec![&self.segs[s].video], Step::Black => vec![] };
         v.extend(self.sharp[n].overs.iter().map(|&(s, k, _)| self.segs[s].overs[k].video.as_str()));
         v
     }
@@ -197,7 +176,6 @@ impl Cut {
         let mut v = match self.frames[n] {
             Step::Pic { s, t, .. } | Step::Plain { s, t } => vec![at(s, t)],
             Step::Hd { s, f, .. } => vec![(self.segs[s].video.as_str(), f)],
-            Step::Mix { a, ta, b, tb, .. } => vec![at(a, ta), at(b, tb)],
             Step::Black => vec![],
         };
         v.extend(self.sharp[n].overs.iter().map(|&(s, k, f)| (self.segs[s].overs[k].video.as_str(), f)));
@@ -206,48 +184,32 @@ impl Cut {
 
     /// The segments a frame shows.
     pub fn shows(&self, n: usize) -> Vec<usize> {
-        match self.frames[n] { Step::Pic { s, .. } | Step::Plain { s, .. } | Step::Hd { s, .. } => vec![s], Step::Mix { a, b, .. } => vec![a, b], Step::Black => vec![] }
+        match self.frames[n] { Step::Pic { s, .. } | Step::Plain { s, .. } | Step::Hd { s, .. } => vec![s], Step::Black => vec![] }
     }
-
-    /// The big words over frame n, in the order they are laid on: (segment whose word, fade).
-    fn words_at(&self, n: usize) -> Vec<(usize, i32)> {
-        self.words.iter().filter(|&&(at, len, _)| n >= at && n < at + len).map(|&(at, len, s)| {
-            let u = n - at;
-            (s, if u < 6 { 16 * (u + 1) / 6 } else if u < len - 6 { 16 } else { 16 * (len - u) / 6 } as i32)
-        }).collect()
-}
 }
 
-/// The cut's machines: the dissolve, the big word, the caption's; the block mean and the layer's mix.
-pub struct Composer { mix: Machine, big: Machine, cwid: Machine, cap: Machine, li: Listing, mean: Machine, over: Machine }
+/// The cut's machines: the caption's, the block mean and the layer's mix.
+pub struct Composer { cwid: Machine, cap: Machine, li: Listing, mean: Machine, over: Machine }
 
 impl Composer {
     pub fn new(demo: &Path) -> Self {
-        Composer { mix: one(demo, "cut/original/mix.asm"), big: one(demo, "overlays/original/big.asm"), cwid: one(demo, "overlays/original/cwid.asm"), cap: one(demo, "overlays/original/cap.asm"), li: Listing::new(demo),
+        Composer { cwid: one(demo, "overlays/original/cwid.asm"), cap: one(demo, "overlays/original/cap.asm"), li: Listing::new(demo),
             mean: rust(demo, "blockmean"), over: rust(demo, "umix") }
     }
 
     /// Frame n of the cut at 192x96 (black for a 1536x768 one), from the segments' videos (`video` gives each).
     pub fn frame(&self, host: &mut Host, cut: &Cut, n: usize, video: &dyn Fn(&str) -> Arc<Vec<u8>>) -> Vec<u8> {
         let frame_of = |s: &Seg, t: usize| -> Vec<u8> { let (f, n) = (s.frame_at(t), if s.big { FRAME2 } else { FRAME }); video(&s.video)[f * n..(f + 1) * n].to_vec() };
-        let at2 = |s: &Seg, t: usize| if s.big { frame_of(s, t) } else { doubled(&frame_of(s, t)) };
-        let black = vec![0u8; FRAME2];
-        let mut img = match cut.frames[n] {
-            Step::Pic { s, t, fade_in, fade_out } => {
+        match cut.frames[n] {
+            Step::Pic { s, t } => {
                 let s = &cut.segs[s];
                 let mut img = frame_of(s, t);
                 if !s.big { self.caption(host, &mut img, s, t); }
-                let mut img = if s.big { img } else { doubled(&img) };
-                if let Some(l) = fade_in { img = dissolve2(host, &self.mix, &black, &img, l); }
-                if let Some(l) = fade_out { img = dissolve2(host, &self.mix, &img, &black, l); }
-                img
+                if s.big { img } else { doubled(&img) }
             }
-            Step::Plain { s, t } => at2(&cut.segs[s], t),
-            Step::Mix { a, ta, b, tb, level } => dissolve2(host, &self.mix, &at2(&cut.segs[a], ta), &at2(&cut.segs[b], tb), level),
-            Step::Black | Step::Hd { .. } => black,
-        };
-        for (s, fade) in cut.words_at(n) { big_word2(host, &self.big, &mut img, cut.segs[s].word.as_ref().unwrap(), fade); }
-        img
+            Step::Plain { s, t } => { let s = &cut.segs[s]; if s.big { frame_of(s, t) } else { doubled(&frame_of(s, t)) } }
+            Step::Black | Step::Hd { .. } => vec![0u8; FRAME2],
+        }
     }
 
     /// Frame n at 1536x768, for a frame `composed_hd` says is made so: a 1536x768 segment's frame averaged over its
@@ -300,7 +262,7 @@ pub fn cut_dir(cut: &str) -> String { Path::new(cut).parent().unwrap().to_string
 pub fn render(demo: &Path, refbin: &str, file: Option<&str>) {
     let file = file.unwrap_or("cut/cut.txt");
     let dir = cut_dir(file);
-    let cut = Cut::parse(demo, &read(demo, file));
+    let cut = Cut::parse(&read(demo, file));
     let composer = Composer::new(demo);
     let mut videos: HashMap<String, Arc<Vec<u8>>> = HashMap::new();
     for v in cut.segs.iter().filter(|s| !s.hd).map(|s| s.video.clone()) {
@@ -386,27 +348,4 @@ fn doubled(img: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(FRAME2);
     for y in 0..H2 { for x in 0..W2 { let i = ((y / 2) * W + x / 2) * 3; out.extend_from_slice(&img[i..i + 3]); } }
     out
-}
-
-/// The dissolve machine per half row at 192x96: a dissolves into b at level (0-16).
-fn dissolve2(host: &mut Host, mix: &Machine, a: &[u8], b: &[u8], level: i32) -> Vec<u8> {
-    let mut img = vec![0u8; FRAME2];
-    for y in 0..H2 { for half in [0, W] {
-        let at = (y * W2 + half) * 3;
-        let mut deck = vec![level, y as i32];
-        for i in (at..at + W * 3).step_by(3) { deck.extend([a[i], a[i + 1], a[i + 2], b[i], b[i + 1], b[i + 2]].map(|v| v as i32)); }
-        for (i, v) in host.go1(mix, &[&deck], W * 3).into_iter().enumerate() { img[at + i] = v as u8; }
-    } }
-    img
-}
-
-/// The big word machine per half row at 192x96: the 96x48 bitmap, each bit over four pixels, laid over at fade.
-fn big_word2(host: &mut Host, big: &Machine, img: &mut [u8], bits: &[Vec<i32>], fade: i32) {
-    for y in 0..H2 { for half in [0, W] {
-        let at = (y * W2 + half) * 3;
-        let row = &mut img[at..at + W * 3];
-        let mut deck = vec![fade, y as i32];
-        for x in 0..W { deck.extend([bits[y / 2][(half + x) / 2], row[3 * x] as i32, row[3 * x + 1] as i32, row[3 * x + 2] as i32]); }
-        for (i, v) in host.go1(big, &[&deck], W * 3).into_iter().enumerate() { row[i] = v as u8; }
-    } }
 }

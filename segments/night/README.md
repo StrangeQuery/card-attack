@@ -126,6 +126,12 @@ has no machines of its own.
   logarithms), then over the shaded frame the airship's running lights, the beams (each drawn along its longer axis on
   the screen, its Gaussian across by logarithms), balloons, fireworks, photo flashes, the stars; the train's blur,
   lens and tone. The first 24 frames mix the ride's world with the night's, 130-141 the cab's with the platform's.
+- **Which triangles** (`night_visible`, [`nframe.rs`](nframe.rs)): as the train's, by bounds the machines work out at
+  the start from the triangles' extents (each mode's spans of the camera's place along, a crown of the night's world
+  in two spans, short of its tree's full model and past it; and the bounds for near: both of a triangle's ends within
+  800 m along, its middle within 740 m across), compared on the machines each frame with the camera's place in metres. The frame's lists are worked
+  out once and kept for the mirrors and the full-resolution pass. A mover (the airship, the drone, our own train) is
+  far when the largest of its offsets from the eye is past 600 m, its offsets compared on the machines.
 - **Printed tables** (`data/tables.bin`, `make_tables.py`): logarithms and back, the lamps' distance functions, the
   beams' Gaussian, the hull's seams and grime, and the airship's picture by its two coordinates (an asset made ahead
   of time, which CARDIAC samples and lights).
@@ -134,20 +140,12 @@ The host deals, fetches from printed tables and tables CARDIAC works out, and co
 of its own that decides what is in the picture, and the train's operations pick their machines by working sums out
 on the host first (see the [train](../train)). The host's arithmetic here is this:
 
-- **Culling and level of detail.** `night_visible` ([`nframe.rs`](nframe.rs)) decides which of the world's triangles
-  a frame draws, which model of a tree it uses (the full model within 260 m, the crown beyond) and whether a triangle
-  goes in the near list (millimetres) or the far one (centimetres), by subtractions, absolute values, maxima and
-  comparisons on the host between the camera's place (CARDIAC's, divided by 100 on the host) and the triangles'
-  extents (scene data).
 - **The lamps and lights.** [`npost.rs`](npost.rs) and [`nmat.rs`](nmat.rs) pick the pixels each tube, street light,
   headlight and up-light can reach, and the street lights near enough the camera to count, by comparing the places
   the machines punched with each light's on the host (within 100 m, 40 m along, 500 m of the camera, 25 m of a spot,
-  and so on).
-- **The balloons' and photo flashes' boxes.** For each balloon the host works out the box of pixels round it from the
-  place and radius the machines punched (`(cx - r - 100) / 100` across, `(cy - 120 r / 100 - 100) / 100` down and the
-  like, a product, divisions and sums), and the pixel of a balloon too small to draw as a disc by dividing its place
-  by 100 and holding it on the screen. A flash's box is its place less and plus its reach, over 100, worked out the
-  same way. The machines then work out each pixel in the box.
+  and so on). The headlights' reach along (ahead of the cab's nose, within 150 m) is compared on the machines.
+- **The balloons' and photo flashes' boxes.** The machines work out each balloon's box of pixels round it and the
+  pixel of one too small to draw as a disc, and each flash's box; the host holds them on the screen.
 - **The screen's table for the lens.** The screen's numbers are worked out on CARDIAC at the start for several focal
   lengths; each frame the host picks the one nearest the frame's focal length (CARDIAC's) by comparing the
   differences itself.

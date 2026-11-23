@@ -73,9 +73,10 @@ seabed is the smooth map as before, textured with the same strata (Doom's flat t
 switch sits in the fog.
 
 **The camera and the script.** Each frame's numbers (where the camera is, its forward, right and up vectors in
-300ths and hundredths, the light, the phases, where the jellyfish, kelp, seagrass and fish are, the torch's aim)
-are worked out on CARDIAC by `script.rs`, written once against the train's operations: the host runs it with the
-train's machines, the reference natively. It flies the prototype's path (the straight lines from lip to lip, the
+300ths and hundredths, the light, the phases, where the jellyfish, kelp, seagrass and fish are, the torch's aim,
+and the camera's place across, its place from the portal's middle and the portal's plane, each split into its
+parts) are worked out on CARDIAC by `script.rs`, written once against the train's operations: the host runs it with
+the train's machines, the reference natively. It flies the prototype's path (the straight lines from lip to lip, the
 eased pitch, the drift, the turn to the point it swims at) in whole numbers: angles in billionths of a turn, places, sines and
 fractions in millionths, sines and arctangents from printed tables (every 10,000th of a turn; every thousandth of a
 ratio) read between their entries, longer products card by card and the arctangent's ratio by long division a digit
@@ -94,7 +95,7 @@ before 110 along the view. Once for the whole dive, `dnorm` and `droot` find eac
 
 **The march, per screen column.** A slice is a map row. Each column starts at its bottom pixel; `dslice` (three
 phases) is dealt the pixel's ray and the slice's map row, reads the row as far as the ray needs (the cards before it ten at a time), and punches hit,
-too far, above everything, or the ray one slice on. Near, a ray is under a block when the even number of units above
+too far, above everything, the ray one slice on, and the next slice's number. Near, a ray is under a block when the even number of units above
 its own whole units is no higher than the column's height, so the snapping is a comparison, not a division. When a pixel settles, `dwalks` puts the next pixel up at the
 same slice (a pixel above hits no nearer), adding its step ten at a time, every column's in one run. The host only carries each column's
 cards from slice to slice and deals the next row: a card sorter.
@@ -157,7 +158,7 @@ is 0..255 before it files it.
 | `dtenth` | 54 | s tenths of a step |
 | `dlimit` | 75 | The last slice before 110 along the view |
 | `dnorm`, `droot` | 82, 39 | Once: a pixel's ray length |
-| `dslice` | 16 data + 79 / 59 / 65 | The march: one column, one slice (blocks near, smooth far) |
+| `dslice` | 17 data + 78 / 59 / 69 | The march: one column, one slice (blocks near, smooth far) |
 | `dwalks` | 90 | Rays k slices on, many a run |
 | `ublocks`, `ucolumn`, `udescend`, `uside`, `upick` | 95, 89, 72, 96, 44 | Near: the blocks about a column; which face the ray went in by, and where |
 | `utop`, `ucorner`, `uriser`, `ucrest` | 91, 60, 74, 54 | Near: the light on each face, crevices, edges catching the light |
@@ -291,8 +292,8 @@ relief (bumps, pits, dents, scratches, crust, barnacle clusters and the crevices
 Python ahead of time, onto the surfaces, as a lightmap is ([Quake](https://en.wikipedia.org/wiki/Lightmap), 1996): the light comes
 from a fixed way onto things that don't move. `data/knob.txt` holds the pages, the sticky turn's values and
 shudders (keyed by hand, frame by frame, not simulated), the printed tables (the haze looking into lit water, the water's light by rows, the glows'
-fall-offs, the lightning's glow by distance along and across) and the random cards (the silt's blobs, the flakes, the
-tremble, the arcs).
+fall-offs, the lightning's glow by distance along and across) and the random numbers (the silt's blobs, the flakes, the
+tremble, the arcs; the silt's, the flakes', the shudder's and the arcs' printed already scaled).
 
 **Each frame, on CARDIAC.** The frame's numbers are the swarm's sums: the dial's value and its glow (hundredths,
 0.55 + 0.45 v / 10, times 1 + 1.6 p as it powers up), how far the scale has lit, the ink's colour for each number;
@@ -312,15 +313,16 @@ powers up, the knob shuddering as it sticks).
   the ink's colour; then `umix` hazes it by the dive's fog at its distance (the host holds the distance at 199, the
 table's last entry, before it fetches). The rock first, then the plate, then the
   knob, each over the last.
-- *The dial's glow on the water*, every 4 x 4 pixels the knob doesn't wholly cover: e across and down from the
+- *The dial's glow on the water*, every 4 x 4 pixels the knob doesn't wholly cover (`k_sum` counts the knob's
+  pixels in each, at most 16): e across and down from the
   dial's middle (the swarm's sums, a column and a row at a time), `k_index` its place in the fall-off table, the
   amount (the table times the glow) mixed in 256ths (`k_mix256`).
 - *Silt* (two puffs as the knob sticks): each blob's place and size by the sums, `k_index`, the fall-off by its
   age, `k_sum` the blobs' amounts per 4 x 4 pixels (at most 141), `k_mix256`.
 - *Flakes* shaken loose (140 squares from the click): their places and sizes by the sums, `umix`.
 - *Lightning:* each arc's start on the rim, its way out (the swarm's angle) and its ten steps and forks (the sines),
-  from knob.txt's random cards, which the host turns into angles and lengths by a constant before the sums use them
-  (for example `(r - 500) * 159_155`, a card less 500 times a constant); how many arcs there are and how far they
+  from knob.txt's random numbers, which `data/make_knob.py` prints already turned into angles and lengths (for
+  example a card less 500 times 159,155); how many arcs there are and how far they
   reach are worked out by the sums from how far the power-up has come, except on frames 331 and 350..352, which have
   fixed numbers of their own, as does every frame's line width; each line drawn
   along its longer way (`hd_walk` punches the first and last row it covers in each column, or column in each row; the
@@ -349,7 +351,7 @@ straight across a triangle on the screen (the prototype ray cast every pixel twi
 edges); the models' outlines are 96 corners round, their rows a fraction of a unit to 5 units apart; the dial's glow,
 the silt and the lightning's glow are worked out every 4 x 4 pixels; the lightning is drawn a column (or row) at a
 time and its glow goes by each line's distance, summed over the lines (a joint counted once), not a blurred drawing;
-its random choices are knob.txt's cards, not the prototype's; the dial's frame is the stopped camera's (the
+its random choices are knob.txt's numbers, not the prototype's; the dial's frame is the stopped camera's (the
 prototype's turned with the camera on the way in); the ink lit from the click is a mix toward each number's colour
 that frame (the prototype's sum goes to white the same way); the cosines are the sines a quarter turn on, and the
 lightning's angle is taken in hundredths of a pixel (the swarm's angle takes sizes under 100000).

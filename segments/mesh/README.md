@@ -52,20 +52,21 @@ depth, in hundredths of a pixel from the middle; the depth less the scene's zero
 fetches the highlight from its table and the colour's two parts from the material's tables by the indices the
 machines punched; `mesh_mix` adds them to the ambient, at most 255.
 
-**The edges** (the swarm's edge machines, `sw_esub` to `sw_epix`): each edge of a triangle that faces the camera is
-walked once, top end first: the rows it meets and where it crosses each (two long divisions an edge, the remainders
+**The edges** (the swarm's edge machines, `sw_order`, then `sw_esub` to `sw_epix`): each edge of a triangle that
+faces the camera is walked once, top end first (`sw_order` says which end is the top): the rows it meets and where it crosses each (two long divisions an edge, the remainders
 carried), and the first pixel whose middle is at or right of it. Its ends' values (the depth, and the three numbers
 the corners carry) are carried down its rows by `mesh_walk`: at the j-th of n rows, the top's plus the change times (j + 1) / (n
 + 1), cut toward 0.
 
-**The spans** (`mesh_walk`): each triangle's row runs from its two edges' pixels (the host sorts the two), and every
-value is carried across the same way, the depth's walk punching each pixel's place.
+**The spans** (`mesh_ends`, `mesh_walk`): each triangle's row runs from its two edges' pixels (`mesh_ends` punches
+which is the left and how many pixels the span has, none where the two meet), and every value is carried across the
+same way, the depth's walk punching each pixel's place.
 
 **The depth test** (`mesh_depth`): the host sorts the pieces to their pixels, keeping the triangles' order. A pixel
 with one piece takes it, and where there are more the machine keeps the nearest (the least depth, the first of
 equals). `mesh_near` does the same for pieces that carry three numbers of their own.
 
-The host deals, carries, sorts the pieces and the two crossings of a row, fetches from the tables by the machines'
+The host deals, carries, sorts the pieces, fetches from the tables by the machines'
 indices, and copies the computed pixels into the frame. When it reads a model it works out the model's radius with a
 floating-point square root; that is used only as a bound on how big a corner's sums can get (to choose how many cards
 they need), never as a value dealt to a machine.
@@ -104,12 +105,13 @@ let (drawn, pixels) = kit.pixels(&mut host, &mut c, &model, &place, &view, &mate
 | `mesh_front` | 16 | Which triangles face the camera |
 | `mesh_tone` | 37 | The light's two dots made ready: the diffuse in hundredths, the highlight's index |
 | `mesh_mix` | 56 | A colour: the ambient plus the material's two parts, at most 255 |
+| `mesh_ends` | 27 | A span's two crossings in order, and its count of pixels |
 | `mesh_walk` | 85 | A value down an edge's rows or across a span's pixels |
 | `mesh_depth` | 49 | The nearest piece on each pixel |
 | `mesh_near` | 50 | The nearest piece on each pixel, with the three numbers it carries |
 | polys' | | `polydot` (every dot product, the material's tables) |
 | the swarm's arithmetic | | `sw_qi`, `sw_qis`, `sw_qp`, `sw_lsum`, `sw_term`, `sw_mag`, `sw_shift`, `sw_abs`, `sw_divd`, `sw_join`, `sw_floor`, `sw_floor3`, `sw_add`, `sw_short`, `sw_card`, `sw_ang`, `sw_sin` |
-| the swarm's edges | | `sw_esub`, `sw_erows`, `sw_eclip`, `sw_eend`, `sw_ewalk`, `sw_ecross`, `sw_epix` |
+| the swarm's edges | | `sw_order`, `sw_esub`, `sw_erows`, `sw_eclip`, `sw_eend`, `sw_ewalk`, `sw_ecross`, `sw_epix` |
 
 In the accel segment's render, the kit's own machines and `polydot` run 1,109M of its 18,793M instructions.
 

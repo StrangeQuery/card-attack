@@ -7,8 +7,9 @@ pictures are its pixels exactly. Input data, like a font: nothing here is worked
 - sprites.txt: every small picture the desk shows, as the prototype draws it: the icons (plain, selected, the floppy
   opened), the pointers (the arrow, the watch's eight hands), the Alarm Clock's small clock, the windows' parts of a
   fixed size (the close box and its starburst, the zoom box, the scroll arrows, the grow box, the Note Pad's turned
-  corner), the alert's OK button (and pressed), the screen's rounded corners, the insertion point. Each: `sprite NAME
-  OX OY W H`, its place from its anchor, then H rows, `.` nothing, `o` white, `X` black.
+  corner), the alert's OK button (and pressed), the screen's rounded corners, the insertion point, the desktop's 50%
+  grey over the whole screen (`desktop`). Each: `sprite NAME OX OY W H`, its place from its anchor, then H rows, `.`
+  nothing, `o` white, `X` black.
 - tables.txt: the tunnel's tables. `slope` for r = 0..127 (the slope r / 128 of a block's offset, smaller over larger,
   taken at the middle of its step): the angle in 800ths of a turn (0-100) and 200 (sec - 1), the secant less one in
   200ths (0-82). `ring` for each distance R2 = 0..620 from the middle in half pixels: how far along the tunnel (20 a
@@ -305,6 +306,7 @@ def main():
     sprites()
     boom_sprites()
     crash_sprites()
+    bits("desktop", D.desktop(), np.ones((H, W), bool))
     lines = ["# the Mac's sprites: see make_data.py"]
     for name, ox, oy, rows in SPRITES:
         lines.append(f"sprite {name} {ox} {oy} {len(rows[0]) if rows else 0} {len(rows)}")

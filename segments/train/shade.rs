@@ -6,7 +6,9 @@ pub struct Screen { pub vlev: V, pub nlq7: V, pub lq: V }
 
 pub struct World { pub sc: Scene, pub tb: Tb, pub scr: Screen, pub tun: TunnelMaps, pub lines: BlurLines, pub wires: Wires, pub sh: Shadows, pub ghosts: Vec<Ghost>, pub skyk: SkyConsts,
     /// the screen's numbers and the blur's lines at half the resolution (the party version's world)
-    pub scr_h: Screen, pub lines_h: BlurLines }
+    pub scr_h: Screen, pub lines_h: BlurLines,
+    /// what the frames' triangles are picked by (frame.rs)
+    pub cull: Cull }
 
 impl World {
     /// The screen's numbers for the resolution drawn.
@@ -39,6 +41,13 @@ pub fn load<O: Ops>(o: &mut O, dir: &str) -> World {
     let mut tb = Tb::read(&format!("{dir}/train/data/tables.bin"));
     // the half resolution's blur lines (data/tables_h.bin, make_tables.py --half), if made
     if let Ok(true) = std::fs::exists(format!("{dir}/train/data/tables_h.bin")) { for (k, v) in Tb::read(&format!("{dir}/train/data/tables_h.bin")).0 { tb.0.insert(k, v); } }
+    // the words' shadows (overlays.rs): their ink moved 2 pixels down and right, laid out once
+    for (ink, sh) in [("ink_code", "ink_code_sh"), ("ink_brag", "ink_brag_sh")] {
+        let src = &tb.t(ink).data;
+        let wd = (W() * res()) as usize;
+        let data: V = (0..src.len()).map(|p| if p % wd >= 2 && p / wd >= 2 { src[p - 2 * wd - 2] } else { 0 }).collect();
+        tb.0.insert(sh.to_string(), Tab { name: sh, data, w: 0 });
+    }
     let scr = screen(o, &tb);
     let tun = tunnel_maps(o, &tb);
     let lines = blur_lines(&tb);
@@ -46,12 +55,13 @@ pub fn load<O: Ops>(o: &mut O, dir: &str) -> World {
     let sh = shadow_maps(o, &tb, &sc);
     let ghosts = ghost_sprites(o);
     let skyk = sky_consts_all(o, &tb);
+    let cull = cull_bounds(o, &sc);
     // at half the resolution (the screen's base by the full screen's distances: the same vignette)
     set_res(2);
     let scr_h = screen(o, &tb);
     let lines_h = if tb.0.contains_key("blur_line_h") { blur_lines(&tb) } else { BlurLines { dirs: vec![] } };
     set_res(1);
-    World { sc, tb, scr, tun, lines, wires, sh, ghosts, skyk, scr_h, lines_h }
+    World { sc, tb, scr, tun, lines, wires, sh, ghosts, skyk, scr_h, lines_h, cull }
 }
 
 /// The screen's numbers, once, each a function of the pixel's squared distance from the middle s (pixels squared:
@@ -107,7 +117,9 @@ pub fn render_v<O: Ops>(o: &mut O, w: &World, k: i64, party: bool) -> Vec<u8> {
 /// the linear colours (cards and the part past 999) and the lens's light, what each pixel sees and the world's own
 /// depth behind the subjects, each 2x2 block's blur length, and the frame's full-resolution camera, light and sky.
 pub struct TParts { pub img: Vec<u8>, pub add: [V; 3], pub g: GBuf, pub wiz: V, pub mlen: V,
-    pub cam: Cam, pub day: bool, pub e: i64, pub map: SkyMap, pub round: SkyMap, pub front: Option<i64>, pub fmap: Option<SMap>, pub kr: i64 }
+    pub cam: Cam, pub day: bool, pub e: i64, pub map: SkyMap, pub round: SkyMap, pub front: Option<i64>, pub fmap: Option<SMap>, pub kr: i64,
+    /// the world's triangles the frame considers (near, far)
+    pub vis: (Vec<usize>, Vec<usize>) }
 
 pub fn render_parts<O: Ops>(o: &mut O, w: &World, k: i64) -> TParts {
     // the ride's time from here on (before 0 while departing)
@@ -118,7 +130,8 @@ pub fn render_parts<O: Ops>(o: &mut O, w: &World, k: i64) -> TParts {
     let cam_full = { let t = kl(o, &[(k, Some(10))]); camera(o, &sc.t, t) };
     let cam = res_cam(o, &cam_full);
     o.stage("geometry");
-    let (g, ray, front, wiz) = gbuffer(o, w, &cam, k);
+    let vis = { let cz = metres(o, cam.z_cm); visible(o, w, cz) };
+    let (g, ray, front, wiz) = gbuffer(o, w, &cam, k, &vis);
     o.stage("skymap");
     let env = if cam.z_cm < TUN0 + 1000 { &DAY } else { &DUSK };
     let e = exposure(o, tb, cam.z_cm);
@@ -215,11 +228,13 @@ pub fn render_parts<O: Ops>(o: &mut O, w: &World, k: i64) -> TParts {
     o.stage("mirrors");
     let solid: Vec<usize> = (0..N_PIX()).filter(|&p| g.mat[p] >= 0 && rep[p] == p).collect();
     let mirrors = if env.day { Mirrors { paddy: None, water: None } } else {
-        let n_paddy = solid.iter().filter(|&&p| g.mat[p] == kind::PADDY).count();
-        let n_water = solid.iter().filter(|&&p| g.mat[p] == kind::WATER).count();
+        // how many of the pixels are paddy and water: running sums of the flags on the machines, the last of each
+        let fp: V = solid.iter().map(|&p| (g.mat[p] == kind::PADDY) as i64).collect();
+        let fw: V = solid.iter().map(|&p| (g.mat[p] == kind::WATER) as i64).collect();
+        let (n_paddy, n_water) = if solid.is_empty() { (0, 0) } else { let s = o.runsum(&[&fp, &fw]); (s[solid.len() - 1], s[2 * solid.len() - 1]) };
         Mirrors {
-            paddy: (n_paddy > 50).then(|| Mirror1 { g: mirror_gbuf(o, w, &cam, k, LAND, &ray), h: LAND }),
-            water: (n_water > 50).then(|| Mirror1 { g: mirror_gbuf(o, w, &cam, k, RIVER, &ray), h: RIVER }),
+            paddy: (n_paddy > 50).then(|| Mirror1 { g: mirror_gbuf(o, w, &cam, k, LAND, &ray, &vis), h: LAND }),
+            water: (n_water > 50).then(|| Mirror1 { g: mirror_gbuf(o, w, &cam, k, RIVER, &ray, &vis), h: RIVER }),
         }
     };
     if std::env::var("TRAIN_COUNT").is_ok() { let r = |q: u8| solid.iter().filter(|&&p| rate[p] == q).count(); eprintln!("frame {k}: sky {} solid {} ({} {} {} {}) of {}", skyp.len(), solid.len(), r(1), r(2), r(4), r(8), N_PIX()); }
@@ -247,7 +262,7 @@ pub fn render_parts<O: Ops>(o: &mut O, w: &World, k: i64) -> TParts {
     if res() == 1 { overlays(o, &w.tb, k, &mut out); }
     let mut img = vec![0u8; N_PIX() * 3];
     for c in 0..3 { for p in 0..N_PIX() { img[3 * p + c] = out[c][p] as u8; } }
-    TParts { img, add, g, wiz, mlen: mo.len, cam: cam_full, day: env.day, e, map, round, front, fmap, kr: k }
+    TParts { img, add, g, wiz, mlen: mo.len, cam: cam_full, day: env.day, e, map, round, front, fmap, kr: k, vis }
 }
 
 /// The tone curve, the vignette in it: each channel (the card, its tenths past 999 and the lens's light) through the curve by the

@@ -1,9 +1,11 @@
 ; tr_addc by hand: sums of cards, each term added or taken away, and a constant. Deck as tr_addc's: the count, the
-; constant, how many terms (0 to 6), each one's sign (1 or -1); then each sum's terms. Punches each sum (a card).
+; constant, how many terms (0 to 6), each one's sign (1 or -1); then each sum's terms. Punches each sum as two cards,
+; its thousands and the rest, both with the sum's sign (-1234 is -1, -234): seven cards make at most 6,993, which the
+; accumulator's four digits hold, so every sum comes out whole, whatever its partial sums pass on the way.
 ; Against the compiled tr_addc (which walks an array of the signs for every sum): the program writes itself once a
 ; run, from the signs: each term's slot gets ADD t or SUB t, and the slot after the last a jump to the end, so a sum
-; is straight-line code, CLA c, then INP t and ADD t (or SUB t) a term, STO s and OUT s. The sum stays in the
-; accumulator until it's done.
+; is straight-line code, CLA c, then INP t and ADD t (or SUB t) a term. The sum stays in the accumulator until it's
+; done; then STO keeps its last three digits and SFT 03 leaves its thousands.
 start:  INP n
         INP c
         INP k
@@ -45,7 +47,10 @@ s5o:    DAT 0
 s6i:    INP t
 s6o:    DAT 0
 s7i:    JMP fin          ; (after six terms)
-fin:    STO s
+fin:    STO s            ; the rest: the last three digits
+        SFT 03           ; the thousands
+        STO th
+        OUT th
         OUT s
         JMP sum
 done:   HRS 0
@@ -59,3 +64,4 @@ k:      DAT 0
 sg:     DAT 0
 t:      DAT 0
 s:      DAT 0
+th:     DAT 0

@@ -24,6 +24,8 @@ pub struct GBuf {
 pub fn rays<O: Ops>(o: &mut O, cam: &Cam) -> [V; 3] {
     let Q: i64 = W() / 4;
     let ys: V = (0..H()).map(|y| H() - 1 - 2 * y).collect();
+    // ten times twice f, and its negative, on the machines
+    let (f10, nf10) = (kl(o, &[(cam.f2, Some(10))]), kl(o, &[(cam.f2, Some(-10))]));
     let mut out: [V; 3] = [vec![], vec![], vec![]];
     for i in 0..3 {
         // each quarter's first pixel, every row: (x in half pixels 2 x0 + 1 - W)
@@ -31,10 +33,10 @@ pub fn rays<O: Ops>(o: &mut O, cam: &Cam) -> [V; 3] {
         let yq: V = (0..H() as usize).flat_map(|y| std::iter::repeat_n(ys[y], 4)).collect();
         let s = { let k_ = kl(o, &[(cam.f2, Some(cam.b[2][i]))]); o.lin(&[(v(&xq), Some(K(cam.b[0][i]))), (v(&yq), Some(K(cam.b[1][i]))), (K(k_), None)]) };
         let s = o.lin(&[(v(&s), Some(K(7)))]);
-        let va = o.div(v(&s), K(10 * cam.f2), 0);
-        let rest = o.lin(&[(v(&s), None), (v(&va), Some(K(-10 * cam.f2)))]);
-        let f0 = { let t = o.lin(&[(v(&rest), Some(K(1000)))]); o.div(v(&t), K(10 * cam.f2), 0) };
-        let step = one({ let t = o.lin(&[(K(cam.b[0][i]), Some(K(14_000)))]); o.div(v(&t), K(10 * cam.f2), 0) });
+        let va = o.div(v(&s), K(f10), 0);
+        let rest = o.lin(&[(v(&s), None), (v(&va), Some(K(nf10)))]);
+        let f0 = { let t = o.lin(&[(v(&rest), Some(K(1000)))]); o.div(v(&t), K(f10), 0) };
+        let step = one({ let t = o.lin(&[(K(cam.b[0][i]), Some(K(14_000)))]); o.div(v(&t), K(f10), 0) });
         let walks: Vec<(i64, i64, i64, i64)> = (0..va.len()).map(|j| (Q, va[j], step, f0[j])).collect();
         out[i] = o.walkc(&walks);
     }
@@ -204,24 +206,71 @@ pub fn ground<O: Ops>(o: &mut O, w: &World, cam: &Cam, ray: &[V; 3], g: &mut GBu
     }
 }
 
+/// x / 100 cut toward zero (centimetres to metres, as the prototype's int()), on the machines: below 0, the quotient
+/// of x + 99.
+pub fn metres<O: Ops>(o: &mut O, cm: i64) -> i64 {
+    let x = if cm < 0 { kl(o, &[(cm, None), (99, None)]) } else { cm };
+    one(o.divmod(K(x), K(100)).0)
+}
+
+/// What visible() picks the world's triangles by, worked out at the start on the machines from the triangles'
+/// extents (metres): the camera's places along (cz, metres) for which a frame considers each, lo < cz < hi; those
+/// it counts far, cz < far; the triangles this side of the hill (zlo < t0 + 260) and those the tunnel's exit frames
+/// (zhi < t1 + 5, or zlo < t1 + 1200 and xmid within 260 of the line's middle); and for the mirrors, mirror < cz.
+#[derive(Default)]
+pub struct Cull { pub lo: V, pub hi: V, pub far: V, pub hill: Vec<usize>, pub exit: Vec<usize>, pub mirror: V }
+
+/// The bounds: lo = zlo - 2600 (small things zlo - 900), for the full model of a tree at least iz - 260; hi = zhi + 5,
+/// for a crown at most iz - 259; far = zhi - 799; mirror = zlo - 450.
+pub fn cull_bounds<O: Ops>(o: &mut O, sc: &Scene) -> Cull {
+    let n = sc.zlo.len();
+    let (t0, t1) = (TUN0 / 100, TUN1 / 100);
+    let (zlo, zhi, xmid) = (v(&sc.zlo), v(&sc.zhi), v(&sc.xmid));
+    let small: V = sc.small.iter().map(|&s| s as i64).collect();
+    let (a, b) = (o.sum(&[(zlo, 1)], -900), o.sum(&[(zlo, 1)], -2600));
+    let mut lo = o.sel(&small, v(&a), v(&b));
+    let mut hi = o.sum(&[(zhi, 1)], 5);
+    let of = |x: &V, ks: &[usize]| -> V { ks.iter().map(|&k| x[k]).collect() };
+    let full: Vec<usize> = (0..n).filter(|&k| sc.lod[k] == 1).collect();
+    let z = o.sum(&[(v(&of(&sc.iz, &full)), 1)], -260);
+    let m = o.max(v(&of(&lo, &full)), v(&z));
+    for (j, &k) in full.iter().enumerate() { lo[k] = m[j]; }
+    let crown: Vec<usize> = (0..n).filter(|&k| sc.lod[k] == 2).collect();
+    let z = o.sum(&[(v(&of(&sc.iz, &crown)), 1)], -259);
+    let m = o.min(v(&of(&hi, &crown)), v(&z));
+    for (j, &k) in crown.iter().enumerate() { hi[k] = m[j]; }
+    let far = o.sum(&[(zhi, 1)], -799);
+    let flagged = |f: &V| -> Vec<usize> { (0..n).filter(|&k| f[k] == 1).collect() };
+    let hill = flagged(&o.lt(zlo, K(t0 + 260)));
+    // the exit's: the flags weighed 3, 1, 1, 1, more than 2 in all
+    let (e1, e2) = (o.lt(zhi, K(t1 + 5)), o.lt(zlo, K(t1 + 1200)));
+    let (e3, e4) = (o.lt(K(MID / 100 + 30 - 260), xmid), o.lt(xmid, K(MID / 100 + 30 + 260)));
+    let es = o.sum(&[(v(&e1), 3), (v(&e2), 1), (v(&e3), 1), (v(&e4), 1)], 0);
+    let exit = flagged(&o.lt(K(2), v(&es)));
+    Cull { lo, hi, far, hill, exit, mirror: mirror_bounds(o, sc) }
+}
+
+/// The mirrors' bound on each of the world's triangles, zlo - 450 (metres).
+pub fn mirror_bounds<O: Ops>(o: &mut O, sc: &Scene) -> V { o.sum(&[(v(&sc.zlo), 1)], -450) }
+
 /// Which of the world's triangles a frame considers, as the prototype's visible(): ahead within 2.6 km; from the
 /// city and the tunnel's first half only what's this side of the hill; through the exit only what the portal frames;
-/// small things only within 900 m; trees as their full model within 260 m, one crown beyond. The host's sorting, by
-/// the cards' punched places against the camera's (metres). Those reaching 800 m on or more are counted far
-/// (centimetres).
-pub fn visible(sc: &Scene, cz: i64) -> (Vec<usize>, Vec<usize>) {
+/// small things only within 900 m; trees as their full model within 260 m, one crown beyond. Those reaching 800 m on
+/// or more are counted far (centimetres). By the bounds worked out at the start against the camera's place along (cz,
+/// metres), on the machines: cz < hi for the frame's candidates, then lo < cz for those, then cz < far.
+pub fn visible<O: Ops>(o: &mut O, w: &World, cz: i64) -> (Vec<usize>, Vec<usize>) {
     let (t0, t1) = (TUN0 / 100, TUN1 / 100);
-    let (mut near, mut far) = (vec![], vec![]);
-    for k in 0..sc.world.tris.len() {
-        let (zlo, zhi) = (sc.zlo[k], sc.zhi[k]);
-        let mut s = zhi > cz - 5 && zlo < cz + 2600;
-        if cz < t0 + 120 { s &= zlo < t0 + 260; } else if cz < t1 { s &= zhi < t1 + 5 || (zlo < t1 + 1200 && (sc.xmid[k] - MID / 100 - 30).abs() < 260); }
-        s &= !sc.small[k] || zlo < cz + 900;
-        let close = sc.iz[k] < cz + 260;
-        s &= sc.lod[k] == 0 || (sc.lod[k] == 1 && close) || (sc.lod[k] == 2 && !close);
-        if s { if zhi >= cz + 800 { far.push(k) } else { near.push(k) } }
-    }
-    (near, far)
+    let cu = &w.cull;
+    let all: Vec<usize>;
+    let cand: &[usize] = if cz < t0 + 120 { &cu.hill } else if cz < t1 { &cu.exit } else { all = (0..w.sc.zlo.len()).collect(); &all };
+    let of = |x: &V, ks: &[usize]| -> V { ks.iter().map(|&k| x[k]).collect() };
+    let pass = |ks: &[usize], f: &V| -> Vec<usize> { (0..ks.len()).filter(|&j| f[j] == 1).map(|j| ks[j]).collect() };
+    let ahead = pass(cand, &o.lt(K(cz), v(&of(&cu.hi, cand))));
+    let shown = pass(&ahead, &o.lt(v(&of(&cu.lo, &ahead)), K(cz)));
+    let far = o.lt(K(cz), v(&of(&cu.far, &shown)));
+    let (mut near_l, mut far_l) = (vec![], vec![]);
+    for (j, &k) in shown.iter().enumerate() { if far[j] == 1 { far_l.push(k) } else { near_l.push(k) } }
+    (near_l, far_l)
 }
 
 /// The other train's corners this frame: its own places (centimetres, its nose at 0) moved to the other line, its
@@ -247,22 +296,23 @@ pub fn placed_train<O: Ops>(o: &mut O, sc: &Scene, tc: &[[i64; 3]]) -> Mesh {
 }
 
 /// One frame: what each pixel sees.
-pub fn gbuffer<O: Ops>(o: &mut O, w: &World, cam: &Cam, k: i64) -> (GBuf, [V; 3], Option<i64>, V) {
+pub fn gbuffer<O: Ops>(o: &mut O, w: &World, cam: &Cam, k: i64, vis: &(Vec<usize>, Vec<usize>)) -> (GBuf, [V; 3], Option<i64>, V) {
     let sc = &w.sc;
     let ray = rays(o, cam);
     let mut g = GBuf { iz: vec![0; N_PIX()], mat: vec![-1; N_PIX()], n: [vec![0; N_PIX()], vec![0; N_PIX()], vec![0; N_PIX()]], src: vec![0; N_PIX()], tri: vec![0; N_PIX()] };
-    let cz = cam.z_cm / 100;
-    let (near, far) = visible(sc, cz);
+    let (near, far) = vis;
     let two: Vec<bool> = sc.world.mat.iter().map(|&m| sc.mats[m].kind == kind::TREE || sc.mats[m].kind == kind::LED).collect();
-    let dn = draw(o, &w.tb, cam, &sc.world, &sc.world.corners, &two, &near, false, 1);
-    let df = draw(o, &w.tb, cam, &sc.world, &sc.world.corners, &two, &far, true, 1);
+    let dn = draw(o, &w.tb, cam, &sc.world, &sc.world.corners, &two, near, false, 1);
+    let df = draw(o, &w.tb, cam, &sc.world, &sc.world.corners, &two, far, true, 1);
     let (front, tc) = train_corners(o, sc, k);
     let mut lists = vec![(1u8, dn), (1u8, df)];
     let mut front_at = None;
-    if front < cam.z_cm + 300_000 && front + CARS * CAR > cam.z_cm - 500 {
+    // the other train's nose from the camera, on the machines, against its reach and the far list's
+    let ahead = kl(o, &[(front, None), (cam.z_cm, Some(-1))]);
+    if ahead < 300_000 && ahead > -500 - CARS * CAR {
         let all: Vec<usize> = (0..sc.train.tris.len()).collect();
         let none = vec![false; sc.train.tris.len()];
-        let far = front + CARS * CAR >= cam.z_cm + 80_000;
+        let far = ahead >= 80_000 - CARS * CAR;
         let tcf: Vec<[i64; 3]> = if far { tc.clone() } else { tc.clone() };
         let tm = placed_train(o, sc, &tcf);
         lists.push((2u8, draw(o, &w.tb, cam, &tm, &tcf, &none, &all, far, 1)));

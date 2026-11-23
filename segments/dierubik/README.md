@@ -45,7 +45,8 @@ so the film shows frames 0 to 201. The screenshot is the BBS's frame 172, the di
 It uses the [rubik](../rubik) folder's machines where they fit, and four machines of its own. The host deals lists of
 cards, carries what one machine punches to the next, and sorts by punched numbers (the cubies into drawing order, an edge's bounds into rows,
 the pieces of polygons onto their pixels). The host also keeps the schedule (`scene.rs`: which shape a frame
-shows, its step within that phase and which move is turning, by counting frames) and the model's data (which boxes
+shows, which move is turning and where each part starts, by counting frames; a step within a part is worked out by
+`rb_sum` from the frame and the part's start) and the model's data (which boxes
 make each shape, and which of the printed sizes each corner is made of), in the same file, shared with the reference,
 as the UI kit shares its scenes.
 

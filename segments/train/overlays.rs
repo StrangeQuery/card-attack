@@ -13,6 +13,7 @@ fn level_at<O: Ops>(o: &mut O, t: i64, a: i64, b: i64, c: i64, d: i64) -> i64 {
 pub fn overlays<O: Ops>(o: &mut O, tb: &Tb, k: i64, img: &mut [V; 3]) {
     let lv = [level_at(o, k, 4, 4, 34, 8), level_at(o, k, 14, 3, 44, 4)];
     let names = ["ink_code", "ink_brag"];
+    let shadows = ["ink_code_sh", "ink_brag_sh"];
     let boxes = &tb.t("ink_box").data;
     // the panels: each channel times 1 - 0.55 lv
     for (i, &l) in lv.iter().enumerate() {
@@ -26,12 +27,13 @@ pub fn overlays<O: Ops>(o: &mut O, tb: &Tb, k: i64, img: &mut [V; 3]) {
             for (j, &p) in at.iter().enumerate() { img[c][p] = r[j]; }
         }
     }
-    // the words: their shadow (the ink 2 pixels down and right, 0.75), then the ink toward white
+    // the words: their shadow (the ink 2 pixels down and right, laid out at the start; 0.75), then the ink toward white
     for (i, &l) in lv.iter().enumerate() {
         if l <= 0 { continue; }
         let ink = &tb.t(names[i]).data;
-        let at: Vec<usize> = (0..N_PIX()).filter(|&p| { let (x, y) = (p as i64 % W(), p as i64 / W()); ink[p] > 0 || (x >= 2 && y >= 2 && ink[p - 2 * W() as usize - 2] > 0) }).collect();
-        let sh: V = at.iter().map(|&p| { let (x, y) = (p as i64 % W(), p as i64 / W()); if x >= 2 && y >= 2 { ink[p - 2 * W() as usize - 2] } else { 0 } }).collect();
+        let shm = &tb.t(shadows[i]).data;
+        let at: Vec<usize> = (0..N_PIX()).filter(|&p| ink[p] > 0 || shm[p] > 0).collect();
+        let sh: V = at.iter().map(|&p| shm[p]).collect();
         let iv: V = at.iter().map(|&p| ink[p]).collect();
         // percent of each: the shadow 0.75 lv, the ink lv
         let shk = { let t = o.muldiv(v(&sh), K(75), 255); o.muldiv(v(&t), K(l), 100) };

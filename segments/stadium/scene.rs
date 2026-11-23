@@ -24,7 +24,6 @@ pub const NEAR: i64 = 15;
 /// (t = 3 s) to its end (47.25 s; with the weave through the crowd): 44 + 531 frames. The show's clock in twelfths of a second is our frame less 8.
 pub const DISSOLVE: i64 = 44;
 pub const FRAMES: i64 = DISSOLVE + 531;
-pub fn t12_of(k: i64) -> i64 { k - 8 }
 /// The picture cuts to black 3 s before the end (t = 44.25 s).
 pub const CUT_T12: i64 = 531;
 
@@ -90,7 +89,9 @@ impl Tris {
 
 /// A light at a place: colour (ten-thousandths), and its numbers.
 #[derive(Clone, Debug)]
-pub struct Light { pub pos: [i64; 3], pub rgb: [i64; 3], pub phase: i64, pub par: i64, pub mode: i64, pub power: i64 }
+/// (`half_spread` and `gaps`, worked out when the scene is read: half of `power` as an angle in degrees, in millionths
+/// of a turn (a laser fan's half spread), and `par` less 1 (the gaps between a fan's beams).)
+pub struct Light { pub pos: [i64; 3], pub rgb: [i64; 3], pub phase: i64, pub par: i64, pub mode: i64, pub power: i64, pub half_spread: i64, pub gaps: i64 }
 
 /// The dancers' poses: per model the triangles, per (move, phase) the corners, normals, lift.
 pub struct Pose { pub t: Vec<[usize; 3]>, pub nv: usize, pub v: Vec<i64>, pub n: Vec<i64>, pub lift: Vec<i64>, pub ndotv: Vec<i64>, pub su: Vec<i64>, pub sv: Vec<i64>, pub sy: Vec<i64> }
@@ -205,11 +206,8 @@ pub fn read_scene(dir: &str) -> Scene {
     let b = Bin::read(&format!("{dir}/stadium/data/scene.bin"));
     let mut p = Bin::read(&format!("{dir}/stadium/data/pictures.bin"));
     let light = |r: &[i64], kind: u8| -> Light {
-        match kind {
-            0 => Light { pos: [r[0], r[1], r[2]], rgb: [r[3], r[4], r[5]], phase: r[6], par: r[7], mode: 0, power: 1000 },
-            1 => Light { pos: [r[0], r[1], r[2]], rgb: [r[3], r[4], r[5]], power: r[6], phase: r[7], mode: r[8], par: r[9] },
-            _ => Light { pos: [r[0], r[1], r[2]], rgb: [r[3], r[4], r[5]], par: r[6], power: r[7], phase: 0, mode: 0 },
-        }
+        let (power, phase, mode, par) = match kind { 0 => (1000, r[6], 0, r[7]), 1 => (r[6], r[7], r[8], r[9]), _ => (r[7], 0, 0, r[6]) };
+        Light { pos: [r[0], r[1], r[2]], rgb: [r[3], r[4], r[5]], phase, par, mode, power, half_spread: rad((power as f64).to_radians() / 2.0), gaps: par - 1 }
     };
     let rows_of = |name: &str, kind: u8| -> Vec<Light> { let w = b.shape(name)[1]; b.get(name).chunks(w).map(|r| light(r, kind)).collect() };
     let mut poses = vec![];

@@ -61,13 +61,16 @@ impl Stats { fn see(&mut self, k: &'static str, v: i64) { let e = self.0.entry(k
 
 struct Data { table: Vec<i64>, colours: Vec<[i64; 3]>, light: Vec<i64>, moves: Vec<[i64; 3]>, turns: Vec<i32>, pips: Vec<Vec<i32>>, sizes: Vec<i64>, rates: Vec<Vec<i64>>, cubies: Vec<[i32; 3]>, pockets: Vec<Vec<i64>> }
 
+/// A step's number.
+fn step(s: Step) -> i64 { match s { Step::Is(n) => n as i64, Step::Since { first, at, f } => (first + f - at) as i64 } }
+
 /// A polygon on the screen (8ths of a subsample, y down plus 24) and its colour.
 struct Poly { pts: Vec<(i64, i64)>, rgb: [i64; 3] }
 
 /// The matrix: the tumble Ry Rx Rz, as the dot machine makes it, 999 scale, [row][column].
 fn tumble(d: &Data, f: &Frame, st: &mut Stats) -> [[i64; 3]; 3] {
     let r = &d.rates;
-    let angle = |k: usize| clock(&[(f.i as i64, &r[k]), (f.extra as i64, &r[3 + k])]);
+    let angle = |k: usize| clock(&[(f.i as i64, &r[k]), (step(f.extra), &r[3 + k])]);
     let (sy, cy) = sincos(&d.table, angle(0));
     let (sx, cx) = sincos(&d.table, angle(1));
     let (sz, cz) = sincos(&d.table, angle(2));
@@ -83,7 +86,7 @@ fn place(d: &Data, p: Place, st: &mut Stats) -> (i64, i64, i64) {
         Place::Approach(k) => (ease(true, -246, 0, k as i64, 18), ease(true, 89, 0, k as i64, 18), ease(true, 910, 395, k as i64, 18)),
         Place::Still => (0, 0, 395),
         Place::Roam(k) => {
-            let s = |i: usize| sincos(&d.table, clock(&[(k as i64, &d.rates[6 + i])]));
+            let s = |i: usize| sincos(&d.table, clock(&[(step(k), &d.rates[6 + i])]));
             let ((_, ca), (_, cb), (sc, _), (sd, _)) = (s(0), s(1), s(2), s(3));
             let z100 = dot(&[(260, 999), (-260, ca), (120, 999), (-120, cb)]);
             let z70 = dot(&[(395, 999), (182, 999), (-182, ca), (84, 999), (-84, cb)]);
@@ -98,18 +101,18 @@ fn place(d: &Data, p: Place, st: &mut Stats) -> (i64, i64, i64) {
 }
 
 /// The sizes for a shape at distance z70: each 98 x its 500ths (times the scale) / z70.
-fn sizes(d: &Data, z70: i64, scale: Scale, pips: Option<i32>, st: &mut Stats) -> Vec<i64> {
+fn sizes(d: &Data, z70: i64, scale: Scale, pips: Option<Step>, st: &mut Stats) -> Vec<i64> {
     let s500 = match scale {
         Scale::One => 500,
-        Scale::Split(j) => ease(false, 540, 500, j as i64, 7),
-        Scale::Pop(k) => { let (s, _) = sincos(&d.table, clock(&[(hold(k as i64, 0, 6), &d.rates[12])])); dot(&[(500, 999), (30, s)]) }
+        Scale::Split(j) => ease(false, 540, 500, step(j), 7),
+        Scale::Pop(k) => { let (s, _) = sincos(&d.table, clock(&[(hold(step(k), 0, 6), &d.rates[12])])); dot(&[(500, 999), (30, s)]) }
     };
     let mut out: Vec<i64> = d.sizes.iter().map(|&a| {
         let a = if let Scale::One = scale { a } else { muldiv(s500, a, 500) };
         muldiv(a, 98, z70)
     }).collect();
     for &v in &out { st.see("a size (scaled)", v); }
-    out.push(pips.map_or(0, |j| ease(false, 0, out[S017], j as i64, 4)));
+    out.push(pips.map_or(0, |j| ease(false, 0, out[S017], step(j), 4)));
     out
 }
 
@@ -129,7 +132,7 @@ fn shape_polys(d: &Data, f: &Frame, which: Shape, st: &mut Stats) -> Vec<Poly> {
     let mut turning = None;
     if let Some(Rubik { turn: Some((mv, j, n)), .. }) = rubik {
         let [a, s, q] = d.moves[16 + mv];
-        let e = ease(true, 0, 900, j as i64, n as i64);
+        let e = ease(true, 0, 900, step(j), n as i64);
         let rate = [0, e, 0];
         let terms: Vec<(i64, &[i64])> = (0..q.abs()).map(|_| (1, &rate[..])).collect();
         let (sn, cs) = sincos(&d.table, clock(&terms));
@@ -194,7 +197,7 @@ fn shape_polys(d: &Data, f: &Frame, which: Shape, st: &mut Stats) -> Vec<Poly> {
             Material::Plastic => d.colours[PLASTIC],
             Material::Sticker(c) => d.colours[STICKERS + c],
             Material::Pip => d.colours[PIP],
-            Material::DieFace(fc) => { let j = die.unwrap().colour as i64; [0, 1, 2].map(|ch| ease(false, d.colours[PLAIN + fc][ch], d.colours[IVORY][ch], j, 8)) }
+            Material::DieFace(fc) => { let j = step(die.unwrap().colour); [0, 1, 2].map(|ch| ease(false, d.colours[PLAIN + fc][ch], d.colours[IVORY][ch], j, 8)) }
         };
         [0, 1, 2].map(|ch| { let v = 2 * m(base[ch], k); st.see("a colour before held", v); hold(v, 0, 255) })
     };
@@ -303,7 +306,7 @@ fn main() {
         let img = match f.shape {
             Shape::Split(die, rubik, j) => {
                 let (a, b) = (raster(&shape_polys(&d, &f, Shape::Die(die), &mut st), &mut st), raster(&shape_polys(&d, &f, Shape::Rubik(rubik), &mut st), &mut st));
-                let c = ease(false, 0, 32, j as i64, 7);
+                let c = ease(false, 0, 32, step(j), 7);
                 a.iter().zip(&b).map(|(&a, &b)| (a as i64 + (b as i64 - a as i64) * c / 32) as u8).collect()
             }
             s => raster(&shape_polys(&d, &f, s, &mut st), &mut st),

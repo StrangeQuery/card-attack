@@ -41,9 +41,11 @@ pub fn flare<O: Ops>(o: &mut O, w: &World, cam: &Cam, env: &Env, g: &GBuf, add: 
     let bx: Vec<usize> = (sy - 18..=sy + 18).flat_map(|y| (sx - 18..=sx + 18).map(move |x| (x, y)))
         .filter(|&(x, y)| (0..W()).contains(&x) && (0..H()).contains(&y)).map(|(x, y)| (y * W() + x) as usize).collect();
     if bx.is_empty() { return touched; }
+    // (the sky's pixels and all the box's pixels on the screen, each counted by a running sum)
     let flags: V = bx.iter().map(|&p| (g.mat[p] < 0) as i64).collect();
-    let n = o.runsum(&[&flags]);
-    let vis = one({ let t = o.lin(&[(K(*n.last().unwrap()), Some(K(100)))]); o.div(v(&t), K(bx.len() as i64), 0) });
+    let ones: V = vec![1; bx.len()];
+    let n = o.runsum(&[&flags, &ones]);
+    let vis = one({ let t = o.lin(&[(K(n[bx.len() - 1]), Some(K(100)))]); o.div(v(&t), K(n[2 * bx.len() - 1]), 0) });
     let vis = one(o.clamp(K(vis), 0, 100));
     // (the night's: as much as the sun's light is left)
     let vis = if env.unit != 1 { one({ let t = o.lin(&[(K(vis), Some(K(env.sun_col[0])))]); o.div(v(&t), K(65_000), 0) }) } else { vis };

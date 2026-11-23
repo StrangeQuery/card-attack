@@ -43,14 +43,17 @@ printed ahead of time that holds a code for every place 0..511 (the place mod 25
 ([shared](../shared)) colours the codes from `data/ega.txt`, the EGA's sixteen colours with colour 6 the brown (170,
 85, 0) and not dark yellow. For the wipe, `data/wipe.txt` is a schedule printed ahead of time in Python that gives the
 edge's row a frame (16, 32, ... 96). By it the host copies the rows above the edge from the plasma's own frame
-(`plasma/video.rgb`), files the edge's row white, and leaves the rest as the 16-colour frame.
+(`plasma/video.rgb`), files the edge's row from a row `paint16` painted white (the EGA's colour 15), and leaves the
+rest as the 16-colour frame. Each frame's `pl_clock` is dealt the frame and where its count starts among the plasma's
+frames (48 for the intro, 60 after the page).
 
 **The page and the crossfade** are the UI kit's text pages ([`ui`](../ui), `pages.rs`'s `COMPUSERVE`,
 `fx/text.rs`): `ui_page` places each character that has arrived and the cursor after the last; the host fetches each
 glyph's cell from the atlas's IBM CGA 8x8 face by its code (each page pixel 4 x 8 on the frame); deep's `umix` lays
 its ink and paper on. How many characters have arrived at step j (252 j / 6) and the crossfade's cover (32 j / 7)
-are `ui_ease`'s. The crossfade mixes each pair of pixels that meet on the frame once (the plasma's 8 x 8 blocks
-against the page's 4 x 8 pixels), on `umix`, and the host files each where it meets.
+are `ui_ease`'s; the cursor's blink, six frames on and six off from the page's first frame held, is a sum and two
+divisions on the train's operations. The crossfade mixes each pair of pixels that meet on the frame once (the
+plasma's 8 x 8 blocks against the page's 4 x 8 pixels), on `umix`, and the host files each where it meets.
 
 **The brag** is a page too (`VGA_BRAG`, 176x48 in the VGA 8x16 face, two lines centred), shown four times over on a
 black box: a layer with every pixel's cover 32, for the cut's `over` line.

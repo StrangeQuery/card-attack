@@ -6,13 +6,15 @@
 //! The 3D frames, a group of 8 at a time: every number of the scene is a sum worked out by the swarm's arithmetic
 //! machines (swarm_calc): the camera's path (the smoothsteps, the straight lines, the unit vectors), the spin's sine,
 //! the morph (every box's corners and colours a straight line from the Mac's to the PC's), every comparison of the
-//! boxes' own numbers and the eye's on each axis (the sorter's order of them), the light on each face, every corner's
-//! place on the screen, the screen's grid onto its picture. From the comparisons alone the host cuts each face that
-//! faces the eye where other boxes are inside it, joins the pieces' edges where one's corner lies on another's, and
-//! picks at each pixel the piece on the eye's side of the plane that parts it from the others: bookkeeping on the
-//! machines' order. The swarm's machines walk each piece's edges down the rows (spans), its grid machines walk the
-//! screen's picture across its pixels (the host fetches the texels by index), and tn_edge marks each pixel whose
-//! neighbour shows another face's way (the outline) or an object beside nothing (the rim).
+//! boxes' own numbers and the eye's on each axis (the sign of each pair's difference), the light on each face, every
+//! corner's place on the screen, the screen's grid onto its picture. From those signs tn_front says which faces face
+//! the eye, how each is cut where other boxes are inside it, which corners of other pieces lie on each piece's edges
+//! (the host sorts them along the edge on the card sorter), and which of each two pieces is in front, the one on the
+//! eye's side of the plane that parts them; between each two of a row's span ends (sorted on the card sorter) the host
+//! keeps the piece tn_front put in front of the others there. The swarm's machines walk
+//! each piece's edges down the rows (spans), its grid machines walk the screen's picture across its pixels (the host
+//! fetches the texels by index), and tn_edge marks each pixel whose neighbour shows another face's way (the outline)
+//! or an object beside nothing (the rim).
 //!
 //! The Mac's picture on the screen is the cold open's running on: its one-bit tunnel's next pictures with CARD ATTACK
 //! over it, on its own machines (segments/mac) and its sine table run on (tn_macturn).
@@ -113,18 +115,18 @@ const MACHINES: &[&str] = &["sw_qi", "sw_qp", "sw_lsum", "sw_abs", "sw_divd", "s
     "sw_esub", "sw_erows", "sw_eclip", "sw_eend", "sw_ewalk", "sw_ecross", "sw_epix",
     "sw_mag", "sw_qis", "sw_term", "sw_shift", "sw_floor3", "sw_sign", "sw_hund", "sw_isqrt", "sw_isqrt2", "sw_ang", "sw_sin",
     "sw_order", "sw_atan1", "sw_atan2", "sw_quad", "sw_short", "sw_tall", "sw_wide2",
-    "tn_edge", "tn_twist", "tn_cga", "tn_step", "tn_walk", "tn_macturn",
+    "tn_edge", "tn_front", "tn_twist", "tn_cga", "tn_cells", "tn_step", "tn_walk", "tn_macturn",
     // the cold open's (segments/mac), for its tunnel running on
     "mac_offset", "mac_slope", "mac_angle", "mac_reach", "mac_twist", "mac_trow", "mac_dither", "mac_dissolve"];
 
 /// The CGA tunnel's tables (turn/data/cga.txt).
-struct Cga { bayer: Vec<i64>, hi: Vec<i64>, lo: Vec<i64>, pals: Vec<Vec<u8>>, flicks: Vec<usize> }
+struct Cga { bayer: Vec<i64>, hi: Vec<i64>, lo: Vec<i64>, fade: Vec<i64>, across: Vec<i64>, down: Vec<i64>, pals: Vec<Vec<u8>>, flicks: Vec<usize> }
 
 fn read_cga(demo: &Path) -> Cga {
     let text = read(demo, "turn/data/cga.txt");
     let nums = |l: &str| -> Vec<i64> { l.split('#').next().unwrap().split_whitespace().skip(1).map(|v| v.parse().unwrap()).collect() };
     let get = |name: &str| nums(text.lines().find(|l| l.split_whitespace().next() == Some(name)).unwrap());
-    Cga { bayer: get("bayer"), hi: get("hi"), lo: get("lo"),
+    Cga { bayer: get("bayer"), hi: get("hi"), lo: get("lo"), fade: get("fade"), across: get("across"), down: get("down"),
         pals: text.lines().filter(|l| l.starts_with("pal ")).map(|l| nums(l).iter().map(|&v| v as u8).collect()).collect(),
         flicks: get("flicks").iter().map(|&v| v as usize).collect() }
 }
@@ -145,7 +147,11 @@ impl Picture {
     fn at(&self, u: i32, v: i32) -> [u8; 3] { self.texels[v as usize * self.w + u as usize] }
 }
 
-pub struct Turn { m: BTreeMap<&'static str, Machine>, tables: Tables, cga: Cga }
+/// The screen's grid's printed places (turn/data/grid.txt): its columns' and rows' places for the rays (tenths of a
+/// pixel), and each of its bands' first row on the frame and how many rows it has.
+struct GridData { across: Vec<i64>, up: Vec<i64>, top: Vec<usize>, rows: Vec<usize> }
+
+pub struct Turn { m: BTreeMap<&'static str, Machine>, tables: Tables, cga: Cga, grid: GridData }
 
 /// A frame's scene after the sums: its pieces' polygons on the screen (longs), each one's label (its face's way) and
 /// colour, which is the screen's, and the screen's grid.
@@ -158,7 +164,10 @@ impl Turn {
         let mut m = BTreeMap::new();
         for &n in MACHINES { m.insert(n, rust(demo, n)); }
         let tables = super::swarm_calc::load_tables(&read(demo, "swarm/data/tables.txt"));
-        Turn { m, tables, cga: read_cga(demo) }
+        let text = read(demo, "turn/data/grid.txt");
+        let line = |name: &str| -> Vec<i64> { text.lines().find(|l| l.split_whitespace().next() == Some(name)).unwrap().split_whitespace().skip(1).map(|v| v.parse().unwrap()).collect() };
+        let grid = GridData { across: line("across"), up: line("up"), top: line("top").iter().map(|&v| v as usize).collect(), rows: line("rows").iter().map(|&v| v as usize).collect() };
+        Turn { m, tables, cga: read_cga(demo), grid }
     }
 
     /// Run a machine over items: its deck is the count, the header, then the items, at most 999 a run.
@@ -390,15 +399,26 @@ fn boxes(c: &mut Calc, m: N) -> Vec<([N; 3], [N; 3], [N; 3])> {
     out
 }
 
-/// The order of the numbers on one axis, as the machines compared them: each number's rank (equal numbers the same).
-struct Order { rank: BTreeMap<N, usize>, rep: Vec<N> }
+/// The order of the numbers on one axis, as the machines compared them: each pair's sign as sw_sign punched it (below
+/// 0, 0) for the difference in the order they were compared, and for each number the first of those whose sign with
+/// it is 0. The comparisons asked of the signs are tn_front's (`Tests`).
+struct Order { sign: BTreeMap<(N, N), [i32; 2]>, rep: BTreeMap<N, N> }
 impl Order {
-    fn lt(&self, a: N, b: N) -> bool { self.rank[&a] < self.rank[&b] }
-    fn le(&self, a: N, b: N) -> bool { self.rank[&a] <= self.rank[&b] }
-    fn max(&self, a: N, b: N) -> N { if self.lt(a, b) { b } else { a } }
-    fn min(&self, a: N, b: N) -> N { if self.lt(b, a) { b } else { a } }
+    /// A test for tn_front: a's and b's sign, whether 0 counts in, whether the answer is turned over (the pair
+    /// compared the other way round).
+    fn test(&self, a: N, b: N, or_equal: bool) -> [i32; 4] {
+        let with = or_equal as i32;
+        if a == b { return [0, 1, with, 0]; }
+        match self.sign.get(&(a, b)) {
+            Some(&[below, zero]) => [below, zero, with, 0],
+            None => { let [below, zero] = self.sign[&(b, a)]; [below, zero, 1 - with, 1] }
+        }
+    }
+    /// a below b; a at most b.
+    fn lt(&self, a: N, b: N) -> [i32; 4] { self.test(a, b, false) }
+    fn le(&self, a: N, b: N) -> [i32; 4] { self.test(a, b, true) }
     /// One number for all those equal to it.
-    fn canon(&self, a: N) -> N { self.rep[self.rank[&a]] }
+    fn canon(&self, a: N) -> N { self.rep[&a] }
 }
 
 /// Each axis's numbers compared pairwise: (a, b, the sign of a - b: below 0 and 0).
@@ -414,22 +434,34 @@ fn comparisons(c: &mut Calc, values: &[Vec<N>; 3]) -> [Vec<(N, N, N)>; 3] {
     })
 }
 
+/// Each pair's sign as the machine punched it, and each number's first equal: the first of the numbers (in the order
+/// the sums made them) whose sign with it says 0.
 fn order(c: &Calc, values: &[N], cmp: &[(N, N, N)]) -> Order {
-    let mut less: BTreeMap<(N, N), std::cmp::Ordering> = BTreeMap::new();
-    for &(a, b, s) in cmp {
-        let k = c.cards(s);
-        let o = if k[1] == 1 { std::cmp::Ordering::Equal } else if k[0] == 1 { std::cmp::Ordering::Less } else { std::cmp::Ordering::Greater };
-        less.insert((a, b), o);
-        less.insert((b, a), o.reverse());
+    let mut sign: BTreeMap<(N, N), [i32; 2]> = BTreeMap::new();
+    for &(a, b, s) in cmp { let k = c.cards(s); sign.insert((a, b), [k[0], k[1]]); }
+    let vs: Vec<N> = values.iter().copied().collect::<BTreeSet<N>>().into_iter().collect();
+    let zero = |u: N, v: N| sign.get(&(u, v)).or_else(|| sign.get(&(v, u))).unwrap()[1] == 1;
+    let rep = vs.iter().map(|&v| (v, *vs.iter().find(|&&u| u == v || zero(u, v)).unwrap())).collect();
+    Order { sign, rep }
+}
+
+/// tn_front's items: tests all asked (their answers, then whether every one is yes), or pairs of tests (the second's
+/// answer of the first pair whose first is yes).
+struct Tests { items: Vec<Vec<i32>> }
+impl Tests {
+    fn new() -> Self { Tests { items: vec![] } }
+    fn all(&mut self, tests: &[[i32; 4]]) -> usize {
+        let mut v = vec![0, tests.len() as i32];
+        for t in tests { v.extend(t); }
+        self.items.push(v);
+        self.items.len() - 1
     }
-    let mut vs: Vec<N> = values.iter().copied().collect::<BTreeSet<N>>().into_iter().collect();
-    vs.sort_by(|&a, &b| if a == b { std::cmp::Ordering::Equal } else { less[&(a, b)] });
-    let (mut rank, mut rep) = (BTreeMap::new(), vec![]);
-    for (i, &v) in vs.iter().enumerate() {
-        if i == 0 || less[&(vs[i - 1], v)] != std::cmp::Ordering::Equal { rep.push(v); }
-        rank.insert(v, rep.len() - 1);
+    fn first(&mut self, pairs: &[([i32; 4], [i32; 4])]) -> usize {
+        let mut v = vec![1, 2 * pairs.len() as i32];
+        for (a, b) in pairs { v.extend(a); v.extend(b); }
+        self.items.push(v);
+        self.items.len() - 1
     }
-    Order { rank, rep }
 }
 
 /// A piece of a face (see the reference): lo and hi on each axis (numbers), its axis and side, its box.
@@ -438,81 +470,161 @@ struct Piece { lo: [N; 3], hi: [N; 3], axis: usize, side: usize, owner: usize }
 
 fn others(axis: usize) -> (usize, usize) { ((axis + 1) % 3, (axis + 2) % 3) }
 
-/// The pieces of the faces that face the eye, as the reference cuts them, from the order alone.
-fn pieces(bx: &[([N; 3], [N; 3], [N; 3])], eye: [N; 3], o: &[Order; 3]) -> Vec<Piece> {
-    let solid = |b: &([N; 3], [N; 3], [N; 3])| (0..3).all(|k| o[k].lt(b.0[k], b.1[k]));
-    let mut out = vec![];
-    for (b, bb) in bx.iter().enumerate() {
-        if b != SCREEN && !solid(bb) { continue; }
-        for axis in 0..3 {
-            let oa = &o[axis];
-            for side in 0..2 {
-                if b == SCREEN && (axis != 2 || side != 0) { continue; }
-                let cc = if side == 0 { bb.0[axis] } else { bb.1[axis] };
-                if !(if side == 0 { oa.lt(eye[axis], cc) } else { oa.lt(cc, eye[axis]) }) { continue; }
-                let (i, j) = others(axis);
-                let (oi, oj) = (&o[i], &o[j]);
-                let mut rects = vec![[bb.0[i], bb.1[i], bb.0[j], bb.1[j]]];
-                for (ob_i, ob) in bx.iter().enumerate().take(SCREEN) {
-                    if ob_i == b || !solid(ob) || !(oa.lt(ob.0[axis], cc) && oa.lt(cc, ob.1[axis])) { continue; }
-                    let h = [ob.0[i], ob.1[i], ob.0[j], ob.1[j]];
-                    rects = rects.into_iter().flat_map(|r| {
-                        let [a1, a2, b1, b2] = r;
-                        let [j1, j2, l1, l2] = h;
-                        if oi.le(j2, a1) || oi.le(a2, j1) || oj.le(l2, b1) || oj.le(b2, l1) { return vec![r]; }
-                        let (h1, h2, g1, g2) = (oi.max(a1, j1), oi.min(a2, j2), oj.max(b1, l1), oj.min(b2, l2));
-                        let mut v = vec![];
-                        if oj.lt(b1, g1) { v.push([a1, a2, b1, g1]); }
-                        if oj.lt(g2, b2) { v.push([a1, a2, g2, b2]); }
-                        if oi.lt(a1, h1) { v.push([a1, h1, g1, g2]); }
-                        if oi.lt(h2, a2) { v.push([h2, a2, g1, g2]); }
-                        v
-                    }).collect();
-                }
-                for [a1, a2, b1, b2] in rects {
-                    let (mut lo, mut hi) = ([cc; 3], [cc; 3]);
-                    lo[i] = a1; hi[i] = a2; lo[j] = b1; hi[j] = b2;
-                    let canon = |v: [N; 3]| -> [N; 3] { std::array::from_fn(|k| o[k].canon(v[k])) };
-                    out.push(Piece { lo: canon(lo), hi: canon(hi), axis, side, owner: b });
+/// What tn_front punched for each item: a test's answers and the last card whether all are yes, or the one answer.
+struct Answers(Vec<Vec<i32>>);
+impl Answers {
+    fn yes(&self, item: usize) -> bool { *self.0[item].last().unwrap() == 1 }
+    fn each(&self, item: usize, k: usize) -> bool { self.0[item][k] == 1 }
+}
+
+impl Turn {
+    fn tests(&self, host: &mut Host, t: &Tests) -> Answers {
+        let out = self.go(host, "tn_front", &[], &t.items);
+        let mut at = 0;
+        Answers(t.items.iter().map(|it| { let n = if it[0] == 0 { it[1] as usize + 1 } else { 1 }; at += n; out[at - n..at].to_vec() }).collect())
+    }
+
+    /// The pieces of the faces that face the eye, as the reference cuts them, every choice tn_front's: which boxes are
+    /// solid, which faces face the eye, which boxes are cut into each face, and for each rectangle and box whether
+    /// they meet and which of the four parts round the box are left (the ends they take are the ones the same tests
+    /// pick).
+    fn pieces(&self, host: &mut Host, bx: &[([N; 3], [N; 3], [N; 3])], eye: [N; 3], o: &[Order; 3]) -> Vec<Piece> {
+        struct Face { b: usize, axis: usize, side: usize, cc: N }
+        let solid = |t: &mut Tests, b: &([N; 3], [N; 3], [N; 3]), more: &[[i32; 4]]| {
+            let mut v: Vec<[i32; 4]> = (0..3).map(|k| o[k].lt(b.0[k], b.1[k])).collect();
+            v.extend(more);
+            t.all(&v)
+        };
+        let mut t = Tests::new();
+        let solids: Vec<usize> = bx.iter().map(|b| solid(&mut t, b, &[])).collect();
+        let mut faces = vec![];
+        for (b, bb) in bx.iter().enumerate() {
+            for axis in 0..3 {
+                for side in 0..2 {
+                    if b == SCREEN && (axis != 2 || side != 0) { continue; }
+                    let cc = if side == 0 { bb.0[axis] } else { bb.1[axis] };
+                    let item = t.all(&[if side == 0 { o[axis].lt(eye[axis], cc) } else { o[axis].lt(cc, eye[axis]) }]);
+                    faces.push((Face { b, axis, side, cc }, item));
                 }
             }
         }
-    }
-    out
-}
-
-/// Each piece's corners round it, with every other piece's corner on one of its edges put in (by the order).
-fn outlines(ps: &[Piece], o: &[Order; 3]) -> Vec<Vec<[N; 3]>> {
-    let corners = |p: &Piece| -> [[N; 3]; 4] {
-        let (i, j) = others(p.axis);
-        let at = |a: N, b: N| { let mut v = p.lo; v[i] = a; v[j] = b; v };
-        [at(p.lo[i], p.lo[j]), at(p.hi[i], p.lo[j]), at(p.hi[i], p.hi[j]), at(p.lo[i], p.hi[j])]
-    };
-    let all: BTreeSet<[N; 3]> = ps.iter().flat_map(|p| corners(p)).collect();
-    ps.iter().map(|p| {
-        let c = corners(p);
-        let mut pts = vec![];
-        for e in 0..4 {
-            let (a, b) = (c[e], c[(e + 1) % 4]);
-            pts.push(a);
-            let t = (0..3).find(|&k| a[k] != b[k]).unwrap();
-            let (lo, hi) = if o[t].lt(a[t], b[t]) { (a[t], b[t]) } else { (b[t], a[t]) };
-            let mut on: Vec<[N; 3]> = all.iter().filter(|v| (0..3).all(|k| k == t || v[k] == a[k]) && o[t].lt(lo, v[t]) && o[t].lt(v[t], hi)).copied().collect();
-            let up = o[t].lt(a[t], b[t]);
-            on.sort_by(|x, y| { let r = o[t].rank[&x[t]].cmp(&o[t].rank[&y[t]]); if up { r } else { r.reverse() } });
-            pts.extend(on);
+        let a = self.tests(host, &t);
+        let faces: Vec<Face> = faces.into_iter().filter(|(f, item)| (f.b == SCREEN || a.yes(solids[f.b])) && a.yes(*item)).map(|(f, _)| f).collect();
+        // the boxes cut into each face: solid, and its plane between the box's two
+        let mut t = Tests::new();
+        let asked: Vec<Vec<(usize, usize)>> = faces.iter().map(|f| (0..SCREEN).filter(|&ob| ob != f.b).map(|ob| {
+            let o_ = &bx[ob];
+            (ob, solid(&mut t, o_, &[o[f.axis].lt(o_.0[f.axis], f.cc), o[f.axis].lt(f.cc, o_.1[f.axis])]))
+        }).collect()).collect();
+        let a = self.tests(host, &t);
+        let holes: Vec<Vec<usize>> = asked.iter().map(|v| v.iter().filter(|&&(_, item)| a.yes(item)).map(|&(ob, _)| ob).collect()).collect();
+        // each face's rectangles, cut by its boxes in turn (the faces' n-th boxes together)
+        let mut rects: Vec<Vec<[N; 4]>> = faces.iter().map(|f| { let (i, j) = others(f.axis); let bb = &bx[f.b]; vec![[bb.0[i], bb.1[i], bb.0[j], bb.1[j]]] }).collect();
+        let hole = |f: &Face, ob: usize| { let (i, j) = others(f.axis); let h = &bx[ob]; [h.0[i], h.1[i], h.0[j], h.1[j]] };
+        for n in 0.. {
+            let live: Vec<usize> = (0..faces.len()).filter(|&f| n < holes[f].len()).collect();
+            if live.is_empty() { break; }
+            let mut t = Tests::new();
+            let asked: Vec<Vec<(usize, usize)>> = live.iter().map(|&f| {
+                let (i, j) = others(faces[f].axis);
+                let (oi, oj) = (&o[i], &o[j]);
+                let [j1, j2, l1, l2] = hole(&faces[f], holes[f][n]);
+                rects[f].iter().map(|&[a1, a2, b1, b2]| (
+                    t.all(&[oi.lt(a1, j2), oi.lt(j1, a2), oj.lt(b1, l2), oj.lt(l1, b2)]),
+                    t.all(&[oi.lt(a1, j1), oi.lt(j2, a2), oj.lt(b1, l1), oj.lt(l2, b2)]),
+                )).collect()
+            }).collect();
+            let a = self.tests(host, &t);
+            for (&f, asked) in live.iter().zip(asked) {
+                let [j1, j2, l1, l2] = hole(&faces[f], holes[f][n]);
+                rects[f] = rects[f].iter().zip(asked).flat_map(|(&r, (meet, cut))| {
+                    if !a.yes(meet) { return vec![r]; }
+                    let [a1, a2, b1, b2] = r;
+                    let (left, right, below, above) = (a.each(cut, 0), a.each(cut, 1), a.each(cut, 2), a.each(cut, 3));
+                    let g1 = if below { l1 } else { b1 };
+                    let g2 = if above { l2 } else { b2 };
+                    let mut v = vec![];
+                    if below { v.push([a1, a2, b1, g1]); }
+                    if above { v.push([a1, a2, g2, b2]); }
+                    if left { v.push([a1, j1, g1, g2]); }
+                    if right { v.push([j2, a2, g1, g2]); }
+                    v
+                }).collect();
+            }
         }
-        pts
-    }).collect()
-}
-
-/// Whether p is in front of q where both are seen (see the reference), by the order.
-fn front(p: &Piece, q: &Piece, eye: [N; 3], o: &[Order; 3]) -> Option<bool> {
-    for k in 0..3 {
-        if o[k].le(p.hi[k], q.lo[k]) { return Some(o[k].le(eye[k], p.hi[k])); }
-        if o[k].le(q.hi[k], p.lo[k]) { return Some(o[k].le(p.lo[k], eye[k])); }
+        let mut out = vec![];
+        for (f, rs) in faces.iter().zip(rects) {
+            let (i, j) = others(f.axis);
+            for [a1, a2, b1, b2] in rs {
+                let (mut lo, mut hi) = ([f.cc; 3], [f.cc; 3]);
+                lo[i] = a1; hi[i] = a2; lo[j] = b1; hi[j] = b2;
+                let canon = |v: [N; 3]| -> [N; 3] { std::array::from_fn(|k| o[k].canon(v[k])) };
+                out.push(Piece { lo: canon(lo), hi: canon(hi), axis: f.axis, side: f.side, owner: f.b });
+            }
+        }
+        out
     }
-    None
+
+    /// Each piece's corners round it, with every other piece's corner on one of its edges put in, those in the edge's
+    /// way sorted along it by their number that way (the card sorter): which way each edge runs and which corners are
+    /// between its ends, tn_front's.
+    fn outlines(&self, host: &mut Host, c: &Calc, ps: &[Piece], o: &[Order; 3]) -> Vec<Vec<[N; 3]>> {
+        let corners = |p: &Piece| -> [[N; 3]; 4] {
+            let (i, j) = others(p.axis);
+            let at = |a: N, b: N| { let mut v = p.lo; v[i] = a; v[j] = b; v };
+            [at(p.lo[i], p.lo[j]), at(p.hi[i], p.lo[j]), at(p.hi[i], p.hi[j]), at(p.lo[i], p.hi[j])]
+        };
+        let all: BTreeSet<[N; 3]> = ps.iter().flat_map(|p| corners(p)).collect();
+        // each edge: its ends, the axis it runs along, and whether it runs up that axis
+        let mut t = Tests::new();
+        let edges: Vec<Vec<([N; 3], usize, usize)>> = ps.iter().map(|p| {
+            let cs = corners(p);
+            (0..4).map(|e| {
+                let (a, b) = (cs[e], cs[(e + 1) % 4]);
+                let k = (0..3).find(|&k| a[k] != b[k]).unwrap();
+                (a, k, t.all(&[o[k].lt(a[k], b[k])]))
+            }).collect()
+        }).collect();
+        let up = self.tests(host, &t);
+        // the corners on each edge's line, and whether each is between its ends
+        let mut t = Tests::new();
+        let on: Vec<Vec<Vec<([N; 3], usize)>>> = ps.iter().zip(&edges).map(|(p, es)| {
+            let cs = corners(p);
+            es.iter().enumerate().map(|(e, &(a, k, way))| {
+                let b = cs[(e + 1) % 4];
+                let (lo, hi) = if up.yes(way) { (a[k], b[k]) } else { (b[k], a[k]) };
+                all.iter().filter(|v| (0..3).all(|m| m == k || v[m] == a[m])).map(|&v| (v, t.all(&[o[k].lt(lo, v[k]), o[k].lt(v[k], hi)]))).collect()
+            }).collect()
+        }).collect();
+        let between = self.tests(host, &t);
+        edges.iter().zip(on).map(|(es, on)| {
+            let mut pts = vec![];
+            for (&(a, k, way), on) in es.iter().zip(on) {
+                pts.push(a);
+                let mut on: Vec<[N; 3]> = on.into_iter().filter(|&(_, item)| between.yes(item)).map(|(v, _)| v).collect();
+                sorter::sort(&mut on, &[if up.yes(way) { sorter::LONG } else { sorter::down(6) }], |v| [value(c, v[k])]);
+                pts.extend(on);
+            }
+            pts
+        }).collect()
+    }
+
+    /// For each two pieces, whether the first is in front of the second where both are seen (see the reference): on
+    /// the first axis whose plane parts them, the one on the eye's side (tn_front's pairs of tests; none parts them,
+    /// not in front).
+    fn fronts(&self, host: &mut Host, ps: &[Piece], eye: [N; 3], o: &[Order; 3]) -> Vec<Vec<bool>> {
+        let n = ps.len();
+        let mut t = Tests::new();
+        let mut item = vec![vec![usize::MAX; n]; n];
+        for a in 0..n { for b in 0..n {
+            if a == b { continue; }
+            let (p, q) = (&ps[a], &ps[b]);
+            let pairs: Vec<([i32; 4], [i32; 4])> = (0..3).flat_map(|k| [(o[k].le(p.hi[k], q.lo[k]), o[k].le(eye[k], p.hi[k])), (o[k].le(q.hi[k], p.lo[k]), o[k].le(p.lo[k], eye[k]))]).collect();
+            item[a][b] = t.first(&pairs);
+        } }
+        let ans = self.tests(host, &t);
+        (0..n).map(|a| (0..n).map(|b| a != b && ans.yes(item[a][b])).collect()).collect()
+    }
 }
 
 /// A point on the screen: hundredths of a pixel from the middle, across and down, as longs.
@@ -603,8 +715,8 @@ impl Turn {
         for (cam, (bx, values, cmp)) in cams.iter().zip(&all) {
             let o: [Order; 3] = std::array::from_fn(|k| order(&c, &values[k], &cmp[k]));
             let eye: [N; 3] = std::array::from_fn(|k| o[k].canon(cam.eye[k]));
-            let ps = pieces(bx, eye, &o);
-            let shapes = outlines(&ps, &o);
+            let ps = self.pieces(host, bx, eye, &o);
+            let shapes = self.outlines(host, &c, &ps, &o);
             let mut pr = Projector::new();
             let mut seen_pts: BTreeMap<[N; 3], (N, N)> = BTreeMap::new();
             let polys: Vec<Vec<(N, N)>> = shapes.iter().map(|s| s.iter().map(|&p| *seen_pts.entry(p).or_insert_with(|| pr.project(&mut c, cam, p))).collect()).collect();
@@ -665,7 +777,7 @@ impl Turn {
                 for j in j0..=j1 {
                     let mut row = vec![];
                     for i in i0..=i1 {
-                        let (x, y) = (c.num(200 * i - 7675), c.num(3835 - 200 * j));
+                        let (x, y) = (c.num(self.grid.across[i as usize]), c.num(self.grid.up[j as usize]));
                         let fxn = c.num(FX10);
                         // the ray's way: across and up in thousands, along in ten-thousands
                         let d: [N; 3] = std::array::from_fn(|k| {
@@ -751,8 +863,7 @@ impl Turn {
         let l = |c: &Calc, n: N| -> L { let k = c.cards(n); assert_eq!(k.len(), 2); [k[0], k[1]] };
         stages.iter().enumerate().map(|(fi, st)| {
             let eye: [N; 3] = std::array::from_fn(|k| st.o[k].canon(cams[fi].eye[k]));
-            let n = st.ps.len();
-            let front_m: Vec<Vec<bool>> = (0..n).map(|a| (0..n).map(|b| a != b && front(&st.ps[a], &st.ps[b], eye, &st.o).unwrap_or(false)).collect()).collect();
+            let front_m = self.fronts(host, &st.ps, eye, &st.o);
             Scene {
                 polys: polys[fi].iter().map(|p| p.iter().map(|&(x, y)| (l(&c, x), l(&c, y))).collect()).collect(),
                 labels: st.ps.iter().map(|p| (2 * p.axis + p.side) as i32).collect(),
@@ -810,22 +921,27 @@ impl Turn {
 // --- the pixels ---------------------------------------------------------------------------------------------------
 
 impl Turn {
-    /// Each polygon's span on each row it covers (the swarm's edge walks): per polygon, row (-384..383) -> [l, r).
-    fn spans(&self, host: &mut Host, polys: &[Vec<(L, L)>]) -> Vec<BTreeMap<i32, (i32, i32)>> {
+    /// Each polygon's span on each row it covers (the swarm's edge walks): per polygon, by row (0..767), [l, r) (the
+    /// two the same where its crossings meet at a pixel).
+    fn spans(&self, host: &mut Host, polys: &[Vec<(L, L)>]) -> Vec<Vec<Option<(i32, i32)>>> {
         struct Edge { top: (L, L), bottom: (L, L) }
+        // each edge's ends, the top first as sw_order says (1 where the first end is below the second)
+        let ends: Vec<((L, L), (L, L))> = polys.iter().flat_map(|poly| (0..poly.len()).map(|i| (poly[i], poly[(i + 1) % poly.len()]))).collect();
+        let below = self.go(host, "sw_order", &[], &ends.iter().map(|(a, b)| [a.1, b.1].concat()).collect::<Vec<_>>());
         let mut edges = vec![];
         let mut uses: Vec<(usize, usize)> = vec![];
-        let mut seen: BTreeMap<((L, L), (L, L)), usize> = BTreeMap::new();
+        let mut seen: std::collections::HashMap<((L, L), (L, L)), usize> = std::collections::HashMap::new();
+        let mut at = 0;
         for (p, poly) in polys.iter().enumerate() {
-            let n = poly.len();
-            for i in 0..n {
-                let (a, b) = (poly[i], poly[(i + 1) % n]);
-                let (top, bottom) = if b.1 < a.1 { (b, a) } else { (a, b) };
+            for _ in 0..poly.len() {
+                let (a, b) = ends[at];
+                let (top, bottom) = if below[6 * at + 4] == 1 { (b, a) } else { (a, b) };
+                at += 1;
                 let k = *seen.entry((top, bottom)).or_insert_with(|| { edges.push(Edge { top, bottom }); edges.len() - 1 });
                 uses.push((p, k));
             }
         }
-        let mut out: Vec<BTreeMap<i32, (i32, i32)>> = vec![BTreeMap::new(); polys.len()];
+        let mut out: Vec<Vec<Option<(i32, i32)>>> = vec![vec![None; H]; polys.len()];
         if edges.is_empty() { return out; }
         let sub = self.go(host, "sw_esub", &[], &edges.iter().map(|e| [e.top.0, e.top.1, e.bottom.0, e.bottom.1].concat()).collect::<Vec<_>>());
         let rows = self.go(host, "sw_erows", &[], &(0..edges.len()).map(|k| sub[5 * k + 2..5 * k + 5].to_vec()).collect::<Vec<_>>());
@@ -878,12 +994,15 @@ impl Turn {
         for (n, &k) in live.iter().enumerate() {
             for _ in 0..(end[n] - clip[2 * n]) { by_edge[k].push((cross[3 * at], pixels[at])); at += 1; }
         }
-        let mut found: BTreeMap<(usize, i32), Vec<i32>> = BTreeMap::new();
-        for &(p, k) in &uses { for &(row, px) in &by_edge[k] { found.entry((p, row)).or_default().push(px); } }
-        for ((p, row), mut px) in found {
-            px.sort();
-            let (a, b) = (px[0], px[px.len() - 1]);
-            if a != b { out[p].insert(row, (a, b)); }
+        // each polygon's crossings on each row, sorted across it (the card sorter): the first and the last
+        let mut found: Vec<Vec<Vec<i32>>> = vec![vec![vec![]; H]; polys.len()];
+        for &(p, k) in &uses { for &(row, px) in &by_edge[k] { found[p][(row + 384) as usize].push(px); } }
+        for (p, rows) in found.iter_mut().enumerate() {
+            for (y, px) in rows.iter_mut().enumerate() {
+                if px.is_empty() { continue; }
+                sorter::sort(px, &[sorter::CARD], |&v| [v as i64]);
+                out[p][y] = Some((px[0], px[px.len() - 1]));
+            }
         }
         out
     }
@@ -894,9 +1013,9 @@ impl Turn {
         if runs.is_empty() { return vec![]; }
         let (ni, nj) = (g.u[0].len(), g.u.len());
         let rows: BTreeSet<usize> = runs.iter().map(|r| r.0).collect();
-        // the bands (20 rows between two of the grid's rows) the runs are on, and each one's rows on the frame
-        let bands: Vec<usize> = (0..nj - 1).filter(|&jj| { let top = 20 * (g.j0 as usize + jj); rows.range(top..top + 20).next().is_some() }).collect();
-        let on = |jj: usize| -> (usize, usize) { let top = 20 * (g.j0 as usize + jj); (top, 20.min(H - top)) };
+        // the bands (the rows between two of the grid's rows) the runs are on, and each one's rows on the frame (printed)
+        let on = |jj: usize| -> (usize, usize) { let j = g.j0 as usize + jj; (self.grid.top[j], self.grid.rows[j]) };
+        let bands: Vec<usize> = (0..nj - 1).filter(|&jj| { let (top, n) = on(jj); rows.range(top..top + n).next().is_some() }).collect();
         let pairs: Vec<Vec<i32>> = bands.iter().flat_map(|&jj| (0..ni).flat_map(move |ii| [[g.u[jj][ii], g.u[jj + 1][ii]].concat(), [g.v[jj][ii], g.v[jj + 1][ii]].concat()])).collect();
         let steps = self.go(host, "tn_step", &[], &pairs);
         let mut items = vec![];
@@ -926,17 +1045,16 @@ impl Turn {
                 at += 4 * n;
             }
         }
-        // each run's pieces, a cell of the grid each: from the cell's left column toward its right
+        // each run's pieces, a cell of the grid each (tn_cells): from the cell's left column toward its right
+        let cut = self.go(host, "tn_cells", &[], &runs.iter().map(|&(_, a, b)| vec![a, b]).collect::<Vec<_>>());
         let mut pieces = vec![];
-        for (n, &(py, a, b)) in runs.iter().enumerate() {
-            let mut x = a;
-            while x < b {
-                let cell = (x + 768).div_euclid(20);
-                let left = 20 * cell - 768;
-                let end = b.min(left + 20);
-                let ii = (cell - g.i0) as usize;
-                pieces.push((n, ii, py, x - left, end - x));
-                x = end;
+        let mut at = 0;
+        for (n, &(py, _, _)) in runs.iter().enumerate() {
+            loop {
+                let (cell, pass, count, last) = (cut[at], cut[at + 1], cut[at + 2], cut[at + 3]);
+                at += 4;
+                pieces.push((n, (cell - g.i0) as usize, py, pass, count));
+                if last == 1 { break; }
             }
         }
         let pairs: Vec<Vec<i32>> = pieces.iter().flat_map(|&(_, ii, py, _, _)| {
@@ -969,59 +1087,74 @@ impl Turn {
     /// Returns the frame and, for the screen's pixels, their texels.
     fn frame(&self, host: &mut Host, s: &Scene, pic: &Picture) -> (Vec<u8>, Vec<((usize, usize), (i32, i32))>) {
         let spans = self.spans(host, &s.polys);
-        // each row: the pieces' spans, cut at every end, each cut the piece in front of all the others there
-        let mut shown: Vec<Vec<(i32, i32, usize)>> = vec![vec![]; H];
-        for (py, row) in shown.iter_mut().enumerate() {
-            let cy = py as i32 - 384;
-            let here: Vec<(usize, (i32, i32))> = spans.iter().enumerate().filter_map(|(k, m)| m.get(&cy).map(|&sp| (k, sp))).collect();
-            let mut cuts: Vec<i32> = here.iter().flat_map(|(_, (l, r))| [*l, *r]).collect();
-            cuts.sort();
-            cuts.dedup();
-            for w in cuts.windows(2) {
-                let (x0, x1) = (w[0], w[1]);
-                let mut best: Option<usize> = None;
-                for &(k, (l, r)) in &here {
-                    if l > x0 || r < x1 { continue; }
-                    best = Some(match best { None => k, Some(b) => if s.front[k][b] { k } else { b } });
+        // each row as runs from -768 to 768, each the piece it shows or none: the ends of the pieces' spans on it sorted
+        // across (the card sorter), each end bringing its piece in or taking it out, and between two ends the piece in
+        // front of the others in there
+        let mut shown: Vec<Vec<(i32, i32, Option<usize>)>> = Vec::with_capacity(H);
+        let mut inside = vec![0; spans.len()];
+        for py in 0..H {
+            let here: Vec<usize> = (0..spans.len()).filter(|&k| spans[k][py].is_some()).collect();
+            let ends: Vec<(i32, usize, i32)> = here.iter().flat_map(|&k| { let (l, r) = spans[k][py].unwrap(); [(l, k, 1), (r, k, -1)] }).collect();
+            let mut row: Vec<(i32, i32, Option<usize>)> = vec![];
+            let mut put = |a: i32, b: i32, k: Option<usize>| match row.last_mut() { Some(last) if last.2 == k => last.1 = b, _ => row.push((a, b, k)) };
+            let mut from: Option<i32> = None;
+            for g in sorter::groups(&ends.iter().map(|e| [e.0 as i64]).collect::<Vec<_>>(), &[sorter::CARD]) {
+                let x = ends[g[0]].0;
+                match from {
+                    None => if x > -768 { put(-768, x, None) },
+                    Some(x0) => {
+                        let mut best: Option<usize> = None;
+                        for &k in &here {
+                            if inside[k] > 0 { best = Some(match best { None => k, Some(b) => if s.front[k][b] { k } else { b } }); }
+                        }
+                        put(x0, x, best);
+                    }
                 }
-                if let Some(b) = best {
-                    match row.last_mut() { Some(last) if last.1 == x0 && last.2 == b => last.1 = x1, _ => row.push((x0, x1, b)) }
-                }
+                for &i in &g { inside[ends[i].1] += ends[i].2; }
+                from = Some(x);
             }
+            match from { None => put(-768, 768, None), Some(x) => if x < 768 { put(x, 768, None) } }
+            shown.push(row);
         }
-        // what each pixel shows (a face's way, or nothing), as runs; the outline machine's pieces of each row
+        // what each row shows (a face's way, or nothing), as runs
+        let label = |k: Option<usize>| k.map_or(NONE, |k| s.labels[k]);
         let label_runs: Vec<Vec<(i32, i32, i32)>> = shown.iter().map(|row| {
             let mut v: Vec<(i32, i32, i32)> = vec![];
-            let mut x = -768;
             for &(a, b, k) in row {
-                if a > x { v.push((x, a, NONE)); }
-                let l = s.labels[k];
-                match v.last_mut() { Some(last) if last.2 == l && last.1 == a => last.1 = b, _ => v.push((a, b, l)) }
-                x = b;
+                let l = label(k);
+                match v.last_mut() { Some(last) if last.2 == l => last.1 = b, _ => v.push((a, b, l)) }
             }
-            if x < 768 { v.push((x, 768, NONE)); }
             v
         }).collect();
-        let at = |runs: &[(i32, i32, i32)], x: i32| -> i32 { let x = if x < -768 { x + 1536 } else if x >= 768 { x - 1536 } else { x }; runs.iter().find(|r| r.0 <= x && x < r.1).unwrap().2 };
+        // the outline machine's pieces of each row: cut wherever the rows above and below or the row's pieces change
+        // (the runs' starts sorted across, the card sorter), each with what the three rows show there and what the row
+        // shows beside it (across the frame's edges to the other side)
         let mut items = vec![];
-        let mut pieces_of: Vec<Vec<(i32, i32, i32)>> = vec![];
+        let mut pieces_of: Vec<Vec<(i32, i32, i32, Option<usize>)>> = vec![];
         for py in 0..H {
-            let (up, mid, down) = (&label_runs[(py + H - 1) % H], &label_runs[py], &label_runs[(py + 1) % H]);
-            let mut cuts: Vec<i32> = up.iter().chain(mid).chain(down).flat_map(|r| [r.0, r.1]).collect();
-            cuts.sort();
-            cuts.dedup();
-            let mut ps = vec![];
-            for w in cuts.windows(2) {
-                let (a, b) = (w[0], w[1]);
-                let shows = at(mid, a);
-                items.push(vec![a, b, at(up, a), shows, at(down, a), at(mid, a - 1), at(mid, b)]);
-                ps.push((a, b, shows));
+            let (up, mid, down) = (&label_runs[(py + H - 1) % H], &shown[py], &label_runs[(py + 1) % H]);
+            let starts: Vec<(i32, usize, usize)> = up.iter().enumerate().map(|(i, r)| (r.0, 0, i))
+                .chain(mid.iter().enumerate().map(|(i, r)| (r.0, 1, i)))
+                .chain(down.iter().enumerate().map(|(i, r)| (r.0, 2, i))).collect();
+            let mut now = [0usize; 3];
+            let mut ps: Vec<(i32, i32, [i32; 3], Option<usize>)> = vec![];
+            let mut from: Option<i32> = None;
+            for g in sorter::groups(&starts.iter().map(|t| [t.0 as i64]).collect::<Vec<_>>(), &[sorter::CARD]) {
+                let x = starts[g[0]].0;
+                if let Some(a) = from { ps.push((a, x, [up[now[0]].2, label(mid[now[1]].2), down[now[2]].2], mid[now[1]].2)); }
+                for &i in &g { now[starts[i].1] = starts[i].2; }
+                from = Some(x);
             }
-            pieces_of.push(ps);
+            ps.push((from.unwrap(), 768, [up[now[0]].2, label(mid[now[1]].2), down[now[2]].2], mid[now[1]].2));
+            let n = ps.len();
+            for (i, &(a, b, [above, shows, below], _)) in ps.iter().enumerate() {
+                items.push(vec![a, b, above, shows, below, ps[(i + n - 1) % n].2[1], ps[(i + 1) % n].2[1]]);
+            }
+            pieces_of.push(ps.iter().map(|&(a, b, l, k)| (a, b, l[1], k)).collect());
         }
         let marks = self.go(host, "tn_edge", &[], &items);
         // the screen's pixels' texels
-        let screen_runs: Vec<(usize, i32, i32)> = shown.iter().enumerate().flat_map(|(py, row)| row.iter().filter(|r| s.screen[r.2]).map(move |&(a, b, _)| (py, a, b))).collect();
+        let screen_runs: Vec<(usize, i32, i32)> = shown.iter().enumerate().flat_map(|(py, row)| row.iter().filter(|r| r.2.is_some_and(|k| s.screen[k])).map(move |&(a, b, _)| (py, a, b))).collect();
         let tex = match &s.grid { Some(g) => self.texels(host, g, &screen_runs), None => vec![] };
         let mut texel_at: Vec<((usize, usize), (i32, i32))> = vec![];
         for (k, &(py, a, _)) in screen_runs.iter().enumerate() {
@@ -1032,16 +1165,18 @@ impl Turn {
         let mut img = vec![0u8; W * H * 3];
         let mut m = 0;
         for py in 0..H {
-            for &(a, b, shows) in &pieces_of[py] {
+            for &(a, b, shows, k) in &pieces_of[py] {
                 let n = b - a;
                 let kinds: Vec<i32> = if n == 1 { vec![marks[m]] } else if n == 2 { vec![marks[m], marks[m + 1]] } else { vec![marks[m], marks[m + 1], marks[m + 2]] };
                 m += kinds.len();
                 for x in a..b {
                     let mark = if x == a { kinds[0] } else if x == b - 1 { *kinds.last().unwrap() } else { kinds[1] };
                     let px = (x + 768) as usize;
-                    let c = if mark == 1 { if shows == NONE { RIM } else { INK } } else if shows == NONE { [0, 0, 0] } else {
-                        let k = shown[py].iter().find(|r| r.0 <= x && x < r.1).unwrap().2;
-                        if s.screen[k] { let (u, v) = texel_map[&(py, px)]; pic.at(u, v) } else { s.colours[k] }
+                    let c = if mark == 1 { if shows == NONE { RIM } else { INK } } else {
+                        match k {
+                            None => [0, 0, 0],
+                            Some(k) => if s.screen[k] { let (u, v) = texel_map[&(py, px)]; pic.at(u, v) } else { s.colours[k] },
+                        }
                     };
                     img[(py * W + px) * 3..][..3].copy_from_slice(&c);
                 }
@@ -1067,7 +1202,7 @@ impl Turn {
         let mut quarter = vec![];
         for y in 0..100i64 {
             for x in 0..160i64 {
-                let (vx, vy) = (10 * x - 1595, 12 * y - 1194);
+                let (vx, vy) = (cga.across[x as usize], cga.down[y as usize]);
                 let (nx, ny) = (c.num(vx), c.num(vy));
                 let r2 = c.lin(&[(nx, Some(nx), false), (ny, Some(ny), false)]);
                 let r2 = c.within(r2, 4_000_000);
@@ -1128,16 +1263,16 @@ impl Turn {
         out
     }
 
-    /// The CGA picture's indices at time tau: the frame's numbers (the turn, the twist's K, the travel), the turn at
+    /// The CGA picture's indices at frame f (tau, a frame on while fading): the frame's numbers (the turn, the twist's K, the travel), the turn at
     /// each depth (tn_twist), each row's colours (tn_cga); the brag laid on (its page's ink and box), the fade.
     fn cga_frames(&self, host: &mut Host, px: &[Px], frames: &[(usize, bool, i32)], brag: &[u8]) -> Vec<Vec<u8>> {
         let mut c = Calc::new();
         let mut nums = vec![];
-        for &(tau, _, _) in frames {
-            let tau = tau as i64;
+        for &(f, _, fd) in frames {
+            // the frame's time tau (a frame on while fading), on the calculator
+            let tn = c.num(f as i64);
+            let tn = if fd >= 0 { c.addk(tn, 1) } else { tn };
             // fl(119366 tau, 10), a whole turn and more past frame 83: as 11936 tau + fl(6 tau, 10)
-            // (the frame's time, scaled on the calculator)
-            let tn = c.num(tau);
             let (whole, part) = (c.mulk(tn, 11_936), c.mulk(tn, 6));
             let part = c.divk(part, 10);
             let a9 = c.add(whole, part);
@@ -1199,7 +1334,7 @@ impl Turn {
                     } else {
                         deck.push(p.class);
                     }
-                    if fade > 0 { deck.push(6 * p.bayer + 3); }
+                    if fade > 0 { deck.push(self.cga.fade[p.bayer as usize] as i32); }
                 }
                 let colours = host.go1(&self.m["tn_cga"], &[&deck], 320);
                 for x in 0..320 { idx[y * 320 + x] = colours[x] as u8; }
@@ -1216,15 +1351,17 @@ impl Turn {
 }
 
 impl Turn {
-    /// The Mac's last picture, still going, at the turn's frames: the cold open's one-bit tunnel at its frames on (108
-    /// + f, a picture every third frame), CARD ATTACK over it in full, the screen's corners; on the cold open's
+    /// The Mac's last picture, still going, at the turn's frames: the cold open's one-bit tunnel at its frames on (the
+    /// picture mac.txt gives each frame: a picture every third frame), CARD ATTACK over it in full, the screen's corners; on the cold open's
     /// machines (segments/mac, fx/mac.rs) as it makes them, its turn from its sine table run on (tn_macturn).
     fn mac_pictures(&self, host: &mut Host, demo: &Path, frames: &[usize]) -> BTreeMap<usize, Vec<u8>> {
         use super::mac::desk::{self, BLOCK, TH, TW};
         let (mw, mh) = (desk::W, desk::H);
         let m = &self.m;
         let tables = desk::tables(demo);
-        let sine: Vec<i32> = read(demo, "turn/data/mac.txt").lines().find(|l| l.starts_with("sine ")).unwrap().split_whitespace().skip(1).map(|v| v.parse().unwrap()).collect();
+        let mac = read(demo, "turn/data/mac.txt");
+        let line = |name: &str| -> Vec<i32> { mac.lines().find(|l| l.split_whitespace().next() == Some(name)).unwrap().split_whitespace().skip(1).map(|v| v.parse().unwrap()).collect() };
+        let (sine, picture) = (line("sine"), line("pictures"));
         let (cards, order, sprites) = (desk::titles(demo), desk::dissolve(demo), desk::sprites(demo));
         // the tunnel's blocks, row by row: the angle round and the ring table's cards at the distance
         let mut blocks: Vec<[i32; 5]> = vec![];
@@ -1274,7 +1411,7 @@ impl Turn {
         let card = &cards[2];
         let mut out = BTreeMap::new();
         for &f in frames {
-            let pic = tunnel(host, (108 + f) / 3);
+            let pic = tunnel(host, picture[f] as usize);
             let mut s: Vec<bool> = (0..mw * mh).map(|i| pic[(i / mw / BLOCK) * TW + i % mw / BLOCK]).collect();
             for y in 0..mh {
                 let xs: Vec<usize> = (0..mw).filter(|&x| card[(y / BLOCK) * TW + x / BLOCK] > 0).collect();
@@ -1349,7 +1486,8 @@ pub fn render(demo: &Path, refbin: &str) {
     // the CGA tunnel's pictures: each frame the screen or the frame shows one (the fade a frame on in time)
     let mut cga_of: BTreeMap<usize, Vec<u8>> = BTreeMap::new();
     let taus: Vec<(usize, usize, bool, i32)> = (MAC_FRAMES..N3D + N_CGA + FADE).filter(|&f| wanted(f)).map(|f| {
-        // fading from N3D + N_CGA on: the frame, for its level on the calculator (cga_frames), or -1
+        // fading from N3D + N_CGA on: the frame, for its level and its time on the calculator (cga_frames), or -1; the
+        // palette's second by the time
         let fading = f >= N3D + N_CGA;
         (f, if fading { f + 1 } else { f }, f >= BRAG_FROM, if fading { f as i32 } else { -1 })
     }).collect();
@@ -1360,7 +1498,7 @@ pub fn render(demo: &Path, refbin: &str) {
         live::time_frames(group[0]..group[group.len() - 1] + 1, || {
             let ts: Vec<&(usize, usize, bool, i32)> = taus.iter().filter(|t| group.contains(&t.0)).collect();
             if !ts.is_empty() {
-                let pics = turn.cga_frames(&mut host, &once.px, &ts.iter().map(|&&(_, t, b, fd)| (t, b, fd)).collect::<Vec<_>>(), &once.brag);
+                let pics = turn.cga_frames(&mut host, &once.px, &ts.iter().map(|&&(f, _, b, fd)| (f, b, fd)).collect::<Vec<_>>(), &once.brag);
                 for (&&(f, tau, _, _), idx) in ts.iter().zip(pics) { cga_of.insert(f, turn.cga_rgb(&idx, tau)); }
             }
             let scenes = turn.scenes(&mut host, group);
@@ -1375,7 +1513,7 @@ pub fn render(demo: &Path, refbin: &str) {
     let flat: Vec<&(usize, usize, bool, i32)> = taus.iter().filter(|t| t.0 >= N3D).collect();
     for chunk in flat.chunks(16) {
         live::time_frames(chunk[0].0..chunk[chunk.len() - 1].0 + 1, || {
-            let pics = turn.cga_frames(&mut host, &once.px, &chunk.iter().map(|&&(_, t, b, fd)| (t, b, fd)).collect::<Vec<_>>(), &once.brag);
+            let pics = turn.cga_frames(&mut host, &once.px, &chunk.iter().map(|&&(f, _, b, fd)| (f, b, fd)).collect::<Vec<_>>(), &once.brag);
             for (&&(f, tau, _, _), idx) in chunk.iter().zip(pics) {
                 let pic = Picture::padded(&turn.cga_rgb(&idx, tau), 320, 200);
                 let frame = &mut video.buf[f * W * H * 3..(f + 1) * W * H * 3];
@@ -1384,13 +1522,16 @@ pub fn render(demo: &Path, refbin: &str) {
         });
     }
     // the bezel's layer, for the cut's over line on the cold open: frame 0, covering (32) all but the cold open's screen
-    // (made by the block that makes frame 0; a copy of computed pixels)
+    // (made by the block that makes frame 0): a copy of its computed pixels, the cover tn_walk's runs of 32 and of 0
+    // across each row (none passing a card)
     let mut layer = cardiac_host::Video::<1536, 1024>::new(1);
     if wanted(0) {
+        let run = |cover: i32, n: i32| vec![0, cover, 0, 0, 0, 0, 0, n];
+        let items: Vec<Vec<i32>> = (0..H).flat_map(|y| if (42..726).contains(&y) { vec![run(32, 256), run(0, 512), run(0, 512), run(32, 256)] } else { vec![run(32, 768), run(32, 768)] }).collect();
+        let cover = turn.go(&mut host, "tn_walk", &[], &items);
         for y in 0..H { for x in 0..W {
             let i = (y * W + x) * 3;
-            let screen = (256..1280).contains(&x) && (42..726).contains(&y);
-            layer.buf[(y * W + x) * 4..][..4].copy_from_slice(&[video.buf[i], video.buf[i + 1], video.buf[i + 2], if screen { 0 } else { 32 }]);
+            layer.buf[(y * W + x) * 4..][..4].copy_from_slice(&[video.buf[i], video.buf[i + 1], video.buf[i + 2], cover[y * W + x] as u8]);
         } }
     }
     host.done();

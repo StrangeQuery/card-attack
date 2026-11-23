@@ -68,13 +68,17 @@ operation a machine (or a few) of [`machines/`](machines) and the host's look-up
 - **The ground**: the level deck, the street, the land, the river's water and banks, as planes: their depth by walks
   along the rows, the places by logarithms, the stretch (viaduct, cutting, tunnel, bridge, river) from the host's
   printed table by the place along the line; none where a nearer piece hides it.
-- **Which triangles** ([`frame.rs`](frame.rs), `visible`): the host decides which of the world's triangles a frame
-  considers, by its own arithmetic on the camera's place (punched by CARDIAC, divided by 100 on the host) and the
-  triangles' extents (scene data). It keeps those ahead within 2.6 km, only what is this side of the hill or framed
-  by the tunnel's exit, and small things only within 900 m; it takes each tree as its full model within 260 m and as
-  one crown beyond; and it puts each triangle in the near list (millimetres) or the far one (centimetres, from 800 m
-  on). The
-  subtractions, absolute values and comparisons are the host's, and they choose what is in the picture.
+- **Which triangles** ([`frame.rs`](frame.rs), `visible`): a frame considers the world's triangles ahead within
+  2.6 km, only what is this side of the hill or framed by the tunnel's exit, and small things only within 900 m; it
+  takes each tree as its full model within 260 m and as one crown beyond; and it puts each triangle in the near list
+  (millimetres) or the far one (centimetres, from 800 m on). At the start the machines work out, from each
+  triangle's extents (scene data), the span of the camera's places along (metres) for which a frame considers it, the
+  place short of which it is far, and which triangles stand this side of the hill and which the exit frames. Each
+  frame the machines put the camera's place in metres (divided by 100 toward zero) and compare it with the bounds,
+  one `lt` for all the frame's candidates and one for those that passed, then one for the far list; the host picks
+  the candidates by comparing the place with the tunnel's two places and reads the flags. The mirrors keep those of
+  the frame's triangles within 450 m by another such bound, and the other train is drawn, near or far, by its nose's
+  place less the camera's (on the machines) against its reach.
 - **Triangles** ([`render.rs`](render.rs)): the ones facing the camera (by frame tables of the eye's products),
   corners into the camera's space and onto the screen by logarithms, clipped to the near plane and the guard band,
   each edge's crossings of the rows and its values down them by slopes (`edge_rows`, `walk_from`), each span's
@@ -109,13 +113,17 @@ checks). The three adders have no Rust, so with `CARD_ATTACK_NATIVE=only` they s
 
 The host deals, sorts, fetches from printed tables (logarithms, squares, the curves) and from tables CARDIAC works
 out (for the frame or at the start), and copies computed pixels. It also does arithmetic of its own. The operations
-in [`host/src/fx/train.rs`](../../host/src/fx/train.rs) choose which machine runs a sum by working the sum out on the
-host first: for a list of terms the host adds every term (`s += sg * x`) to see whether each partial sum fits a card,
-and only then deals them to `tr_addc`; it picks `tr_add1`, `tr_add2p` or `tr_add2m` by the signs and sizes of the
-actual values; `lin` and `clamp` choose their machines by the values' sizes the same way. The answer that goes into
-the picture is the machine's, and the native check would catch a wrong one, but the host has computed each of those
-sums before asking CARDIAC. The host also splits each long into its thousands and units for the cards and reads the
-two cards back as one number. The culling and level of detail above and the glass's tint are the host's too.
+in [`host/src/fx/train.rs`](../../host/src/fx/train.rs) choose which machine runs a sum item by item, by comparing
+each value with a card's or a long's limits; no sum is worked out on the host. An item of at most six cards and a
+constant card goes to `tr_addc`, which punches every such sum whole, as its thousands and the rest (seven cards add
+up to at most 6,993, and CARDIAC's accumulator holds four digits). An item of one or two longs and a constant long,
+one of them added, goes to `tr_add1`, `tr_add2p` or `tr_add2m`, picked by the terms' count and signs; these keep the
+high's partial sums in the accumulator, never on a card, so only the sum itself has to be a long, which `sum`
+promises. Every other item goes to `tr_sum`. `lin` sends a sum of addends to `sum` when each of its values is within
+999,000 / w in size (w the count of terms with their multiples), so that every partial sum is a long whatever the
+order, and the rest to its three-card pieces; `lin` and `clamp` choose their product and clamp machines by the
+values' sizes the same way. The host also splits each long into its thousands and units for the cards and reads the
+two cards back as one number. The glass's tint is the host's too.
 
 ## Making it
 

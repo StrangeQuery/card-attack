@@ -4,18 +4,34 @@
 
 pub struct Wires { pub seg: Vec<[i64; 9]> }
 
-/// The segments a frame draws (the host's sorting by their punched places against the camera's).
-pub fn wire_pick(w: &Wires, cz: i64) -> Vec<usize> {
-    (0..w.seg.len()).filter(|&i| {
-        let s = &w.seg[i];
-        let (z0, z1) = (s[2].min(s[5]), s[2].max(s[5]));
-        match s[8] {
-            0 => z0 > cz + 100 && z1 < cz + 70_000,
-            1 => z0 > cz + 100 && z0 < cz + 12_000,
-            2 => cz > TUN1 - 4000 && z1 >= cz && z0 <= cz + 60_000,
-            _ => cz < TUN0 && z1 > cz + 100 && z0 < cz + 45_000,
-        }
-    }).collect()
+/// The segments a frame draws, by their kind: each segment's nearer and further place along (z0, z1) against the
+/// camera's place along cz and the kind's reach from it, every bound and comparison on the machines. The contact
+/// wire and the messenger: cz + 1 m < z0 and z1 < cz + 700 m; a dropper: cz + 1 m < z0 < cz + 120 m; the farm road's
+/// power lines (from 40 m short of the tunnel's end on): cz <= z1 and z0 <= cz + 600 m; the suburb's (short of the
+/// tunnel): cz + 1 m < z1 and z0 < cz + 450 m.
+pub fn wire_pick<O: Ops>(o: &mut O, w: &Wires, cz: i64) -> Vec<usize> {
+    let n = w.seg.len();
+    if n == 0 { return vec![]; }
+    let (za, zb): (V, V) = w.seg.iter().map(|s| (s[2], s[5])).unzip();
+    let z0 = o.min(v(&za), v(&zb));
+    let z1 = o.max(v(&za), v(&zb));
+    let of = |x: &V, ks: &[usize]| -> V { ks.iter().map(|&k| x[k]).collect() };
+    let mut keep = vec![false; n];
+    for kd in 0..4 {
+        let ks: Vec<usize> = (0..n).filter(|&i| match w.seg[i][8] { 0 => 0, 1 => 1, 2 => 2, _ => 3 } == kd).collect();
+        if ks.is_empty() || (kd == 2 && cz <= TUN1 - 4000) || (kd == 3 && cz >= TUN0) { continue; }
+        let at = |o: &mut O, d: i64| -> A<'static> { K(kl(o, &[(cz, None), (d, None)])) };
+        let (a, b) = (of(&z0, &ks), of(&z1, &ks));
+        // two flags each, and the value each must have (the farm road's: neither z1 < cz nor cz + 600 m < z0)
+        let (f, g, want) = match kd {
+            0 => { let (lo, hi) = (at(o, 100), at(o, 70_000)); (o.lt(lo, v(&a)), o.lt(v(&b), hi), 1) }
+            1 => { let (lo, hi) = (at(o, 100), at(o, 12_000)); (o.lt(lo, v(&a)), o.lt(v(&a), hi), 1) }
+            2 => { let hi = at(o, 60_000); (o.lt(v(&b), K(cz)), o.lt(hi, v(&a)), 0) }
+            _ => { let (lo, hi) = (at(o, 100), at(o, 45_000)); (o.lt(lo, v(&b)), o.lt(v(&a), hi), 1) }
+        };
+        for (j, &i) in ks.iter().enumerate() { keep[i] = f[j] == want && g[j] == want; }
+    }
+    (0..n).filter(|&i| keep[i]).collect()
 }
 
 /// Draw the wires into the frame: each segment's ends on the screen; along its longer axis, at each pixel's middle,
@@ -24,12 +40,13 @@ pub fn wire_pick(w: &Wires, cz: i64) -> Vec<usize> {
 /// segment's slope, and the width: a table), where the wire is in front.
 pub fn draw_wires<O: Ops>(o: &mut O, w: &World, cam: &Cam, env: &Env, e: i64, g: &GBuf, col: &mut [V; 3], hot: &mut [V; 3]) {
     let tb = &w.tb;
-    let pick = wire_pick(&w.wires, cam.z_cm);
+    let pick = wire_pick(o, &w.wires, cam.z_cm);
     if pick.is_empty() { return; }
     // the ends in the camera's space (millimetres) and on the screen
     let mut ends = vec![];
     for &i in &pick { let s = w.wires.seg[i]; ends.push([s[0], s[1], s[2]]); ends.push([s[3], s[4], s[5]]); }
-    let dvec: Vec<V> = (0..3).map(|i| { let p: V = ends.iter().map(|c| c[i]).collect(); o.lin(&[(v(&p), Some(K(10))), (K(-cam.eye[i]), None)]) }).collect();
+    let ne: [i64; 3] = std::array::from_fn(|i| kl(o, &[(cam.eye[i], Some(-1))]));
+    let dvec: Vec<V> = (0..3).map(|i| { let p: V = ends.iter().map(|c| c[i]).collect(); o.lin(&[(v(&p), Some(K(10))), (K(ne[i]), None)]) }).collect();
     let mut cc: Vec<[i64; 3]> = vec![[0; 3]; ends.len()];
     for r in 0..3 {
         let s = o.lin(&[(v(&dvec[0]), Some(K(cam.bt[r][0]))), (v(&dvec[1]), Some(K(cam.bt[r][1]))), (v(&dvec[2]), Some(K(cam.bt[r][2])))]);

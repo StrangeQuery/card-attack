@@ -1,13 +1,14 @@
 //! Clock, once per frame of the plasma at 192x96 (and of the ray's plasma floor). Deck: the plasma's time tf in
-//! frames (0..359). Each wave moves at its own speed round its turn, and the colours round their ring of 256.
-//! Punches where each starts this frame: the wave across 6 tf, the rolling one 2 tf and the slanting one
-//! 77 + 2 tf (turns of 96), the rings -2 tf (a turn of 64), the colours 8 tf (of 256). Each from tf mod the frames
-//! a turn takes, made 0 or more, so that nothing passes three digits.
+//! frames (0..359) as two cards that add up to it (the frame and where it counts from). Each wave moves at its own
+//! speed round its turn, and the colours round their ring of 256. Punches where each starts this frame: the wave
+//! across 6 tf, the rolling one 2 tf and the slanting one 77 + 2 tf (turns of 96), the rings -2 tf (a turn of 64),
+//! the colours 8 tf (of 256). Each from tf mod the frames a turn takes, made 0 or more, so that nothing passes three
+//! digits.
 include!("../../shared/cardiac.rs");
 include!("../../shared/prelude.rs");
 
 pub fn main() {
-    let tf = inp();
+    let tf = inp() + inp();
     let t16 = remainder(tf, 16);
     let t32 = remainder(tf, 32);
     let t48 = remainder(tf, 48);

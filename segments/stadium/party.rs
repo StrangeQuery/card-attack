@@ -176,6 +176,9 @@ pub fn party_hd<O: Ops>(o: &mut O, w: &World, cam: &Cam, sh: &Show, l: &Lists, s
     out
 }
 
+/// ln(n / 16), ten-thousandths, for a half pixel's own count n (1..4; 0 unused).
+const LN_OWN_16: [i64; 5] = [0, -27_726, -20_794, -16_740, -13_863];
+
 /// The glow of the picture: each 4 x 4 block's light over 1.1 from the half pixels (each standing for those of its
 /// four not touched at full size) and the touched full-size pixels; blurred three times each way by 5 (the edges
 /// held, each blur only round the blocks with any glow); 0.8 of it added to the half pixels and the touched pixels in
@@ -189,9 +192,15 @@ pub fn bloom_hd<O: Ops>(o: &mut O, t: &Tables, fh: &mut Frame, ff: &mut Frame) {
     let hblock = |h: usize| -> usize { ((h / hw_) / 2) * bw + (h % hw_) / 2 };
     let fblock = |p: usize| -> usize { ((p / fw) / 4) * bw + (p % fw) / 4 };
     let hp: Vec<usize> = (0..FULL_NPIX).filter(|&p| ff.hit[p]).collect();
-    // how many of each half pixel's four are its own (not touched)
+    // how many of each half pixel's four are its own (not touched): 4 less its touched ones, on CARDIAC
     let mut own = vec![4i64; nh];
-    for &p in &hp { own[half_of(p)] -= 1; }
+    {
+        let mut seen = vec![false; nh];
+        let hs: Vec<usize> = hp.iter().map(|&p| half_of(p)).filter(|&h| !std::mem::replace(&mut seen[h], true)).collect();
+        let quad = |k: usize| -> V { hs.iter().map(|&h| { let (x, y) = (2 * (h % hw_) + k % 2, 2 * (h / hw_) + k / 2); ff.hit[y * fw + x] as i64 }).collect() };
+        let q: [V; 4] = std::array::from_fn(quad);
+        if !hs.is_empty() { let n = o.sum(&[(v(&q[0]), -1), (v(&q[1]), -1), (v(&q[2]), -1), (v(&q[3]), -1)], 4); for (j, &h) in hs.iter().enumerate() { own[h] = n[j]; } }
+    }
     for c in 0..3 {
         let over = o.lt(K(11_000), v(&fh.col[c]));
         let bright: Vec<usize> = (0..nh).filter(|&h| over[h] == 1 && own[h] > 0).collect();
@@ -202,11 +211,11 @@ pub fn bloom_hd<O: Ops>(o: &mut O, t: &Tables, fh: &mut Frame, ff: &mut Frame) {
         let mut small = vec![0i64; nb];
         let mut live = vec![false; nb];
         if !bright.is_empty() {
-            // a half pixel's excess times its own count over 16 (by logarithms: ln 16 less the count's, as printed)
+            // a half pixel's excess times its own count over 16 (by logarithms: the count's ln less ln 16, printed)
             let x: V = bright.iter().map(|&h| fh.col[c][h]).collect();
             let x = o.sum(&[(v(&x), 1)], -11_000);
             let l = o.tabo(&t.ln, 999_999, v(&x));
-            let k: V = bright.iter().map(|&h| -lnf(16.0 / own[h] as f64)).collect();
+            let k: V = bright.iter().map(|&h| LN_OWN_16[own[h] as usize]).collect();
             let y = o.sum(&[(v(&l), 1), (v(&k), 1)], 0);
             let x = expv(o, t, &y, None);
             let bpx: Vec<usize> = bright.iter().map(|&h| hblock(h)).collect();

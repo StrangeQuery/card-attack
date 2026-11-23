@@ -286,7 +286,7 @@ fn main() {
         let (snow_up, snow_along, show) = (sc[33], sc[34], sc[35]);
         let fade = sc[36];
         let (on, plane, from, swirl, white32) = (sc[37], sc[38], [sc[39], sc[40]], [sc[41], sc[42]], sc[43]);
-        let aim = [sc[sc.len() - 2], sc[sc.len() - 1]];      // the torch's beam's middle, half pixels right and up
+        let aim = [sc[sc.len() - 17], sc[sc.len() - 16]];      // the torch's beam's middle, half pixels right and up
         // the frame's colours at its light
         let lit = |lo: [i32; 3], hi: [i32; 3]| mix32c(lo, hi, light);
         let water_up = lit([2, 6, 14], [40, 160, 170]);
@@ -492,7 +492,7 @@ fn main() {
         let (tip0, tip1) = (lit([4, 12, 8], [60, 200, 140]), lit([8, 15, 11], [140, 255, 180]));
         let (grass0, grass1) = (lit([4, 5, 2], [60, 90, 40]), lit([7, 9, 4], [110, 150, 60]));
         for _ in 0..nk {
-            let (mx, mxp, row, rx, rz) = (next(), next(), next(), next(), next());
+            let (mx, mxp, row, _near, rx, rz) = (next(), next(), next(), next(), next(), next());
             let stalks: Vec<(i32, i32, i32, Vec<[i32; 2]>)> = (0..3).map(|_| { let (l, t, ph) = (next(), next(), next()); (l, t, ph, (0..15).map(|_| [next(), next()]).collect()) }).collect();
             let base = 10 * map.base[row as usize] + sample(&map.rows[row as usize], 100 * mx + mxp, row - j0 as i32) - height10;
             let root = [rx, base, rz];
@@ -526,7 +526,7 @@ fn main() {
         }
         let ng = next();
         for _ in 0..ng {
-            let (mx, mxp, row, rx, rz, phase) = (next(), next(), next(), next(), next(), next());
+            let (mx, mxp, row, _near, rx, rz, phase) = (next(), next(), next(), next(), next(), next(), next());
             let heights: Vec<i32> = (0..5).map(|_| next()).collect();
             let base = 10 * map.base[row as usize] + sample(&map.rows[row as usize], 100 * mx + mxp, row - j0 as i32) - height10;
             for b in 0..5 {

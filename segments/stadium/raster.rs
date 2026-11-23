@@ -170,12 +170,15 @@ pub fn draw<O: Ops>(o: &mut O, t: &Tables, cv: &[[i64; 3]], vals: &[Vec<i64>], t
                 for (q, c) in nc.iter_mut().enumerate() { match p { 1 => c[0] = a[q], 2 => c[0] = na[q], 3 => c[1] = a[q], _ => c[1] = na[q] } }
             }
             let np = planes(o, &nc);
-            // a made corner is inside this plane by construction (its value 0 or a little either side)
+            // a made corner is inside this plane by construction (its value 0 or a little either side: held to 0 or
+            // more, CARDIAC's max)
+            let onp: V = np.iter().map(|pl| pl[p]).collect();
+            let onp = o.max(v(&onp), K(0));
             for (q, e) in need.iter().enumerate() {
                 verts.push(nc[q]);
                 vval.push(nv[q].clone());
                 let mut pl = np[q];
-                pl[p] = pl[p].max(0);
+                pl[p] = onp[q];
                 vpl.push(pl);
                 made.insert((p, e.0, e.1), verts.len() - 1);
                 if std::env::var("STADIUM_CLIPCHECK").is_ok() && vpl.last().unwrap()[..p].iter().any(|&x| x < -20) { eprintln!("made at plane {p} from {:?} {:?} and {:?} {:?}: {:?} {:?} (s {})", verts[e.0], vpl[e.0], verts[e.1], vpl[e.1], nc[q], vpl.last().unwrap(), s[q]); }
@@ -230,7 +233,8 @@ pub fn draw<O: Ops>(o: &mut O, t: &Tables, cv: &[[i64; 3]], vals: &[Vec<i64>], t
         tl = tl.into_iter().zip(drop).filter(|(_, d)| !*d).map(|(t, _)| t).collect();
         if tl.is_empty() { return out; }
     }
-    // each edge once, its upper end first
+    // each edge once (by its corners, the lesser first), its upper end first: the end with the lesser row (the rows
+    // compared on CARDIAC), the first corner where they are level
     let mut eindex: std::collections::HashMap<(usize, usize), usize> = Default::default();
     let mut edges: Vec<(usize, usize)> = vec![];
     for (_, tr) in &tl {
@@ -240,24 +244,22 @@ pub fn draw<O: Ops>(o: &mut O, t: &Tables, cv: &[[i64; 3]], vals: &[Vec<i64>], t
             eindex.entry(key).or_insert_with(|| { edges.push(key); edges.len() - 1 });
         }
     }
-    let ends: Vec<([i64; 2], [i64; 2])> = edges.iter().map(|&(a, b)| {
+    let up = { let ya: V = edges.iter().map(|e| scr[&e.0].1).collect(); let yb: V = edges.iter().map(|e| scr[&e.1].1).collect(); o.lt(v(&yb), v(&ya)) };
+    let ends: Vec<([i64; 2], [i64; 2])> = edges.iter().enumerate().map(|(i, &(a, b))| {
         let (pa, pb) = (scr[&a], scr[&b]);
-        if (pb.1, b) < (pa.1, a) { ([pb.0, pb.1], [pa.0, pa.1]) } else { ([pa.0, pa.1], [pb.0, pb.1]) }
+        if up[i] == 1 { ([pb.0, pb.1], [pa.0, pa.1]) } else { ([pa.0, pa.1], [pb.0, pb.1]) }
     }).collect();
     let cross = o.crossings(&ends, (-scr_h() / 2, scr_h() / 2));
     // the values down each edge (depth and the k): from the top's by the slope over the rows and one
     let (mut ta, mut tb_, mut tn) = (vec![], vec![], vec![]);
     for (i, &(a, b)) in edges.iter().enumerate() {
         if cross[i].1.is_empty() { continue; }
-        let (pa, pb) = (scr[&a], scr[&b]);
-        let up = (pb.1, b) < (pa.1, a);
-        let (top, bot) = if up { (b, a) } else { (a, b) };
+        let (top, bot) = if up[i] == 1 { (b, a) } else { (a, b) };
         let rows = cross[i].0;
         ta.push(scr[&top].2); tb_.push(scr[&bot].2); tn.push(rows);
         for c in 0..k { ta.push(vval[top][c]); tb_.push(vval[bot][c]); tn.push(rows); }
     }
-    let n1: V = tn.iter().map(|&r| r + 1).collect();
-    let n1 = o.sum(&[(v(&n1), 1)], 0);
+    let n1 = o.sum(&[(v(&tn), 1)], 1);
     let sl = slopes(o, t, &ta, &tb_, &n1);
     // only the rows on the screen are walked: each edge's first and how many
     let (mut k0s, mut cnts) = (vec![], vec![]);
@@ -280,11 +282,12 @@ pub fn draw<O: Ops>(o: &mut O, t: &Tables, cv: &[[i64; 3]], vals: &[Vec<i64>], t
         }
         wat += (k + 1) * cnt;
     }
-    // each triangle's spans: from its two edges' pixels on each row; values across by each span's slope
+    // each triangle's spans: from its two edges' pixels on each row, the left end the lesser (the two compared on
+    // CARDIAC), the length the right end less the left (on CARDIAC), the empty ones and those off the screen left out;
+    // values across by each span's slope
     let hw = scr_w() / 2;
-    struct Span { id: u32, row: i64, from: i64, n: i64 }
-    let mut spans: Vec<Span> = vec![];
-    let (mut va, mut vb, mut nn) = (vec![], vec![], vec![]);
+    struct Span { id: u32, row: i64, from: i64, to: i64, n: i64 }
+    let mut cand: Vec<(u32, i64, [(i64, &Vec<i64>); 2])> = vec![];
     for (ti, tr) in &tl {
         let mut by_row: std::collections::BTreeMap<i64, Vec<(i64, &Vec<i64>)>> = Default::default();
         for e in 0..3 {
@@ -292,24 +295,33 @@ pub fn draw<O: Ops>(o: &mut O, t: &Tables, cv: &[[i64; 3]], vals: &[Vec<i64>], t
             let key = if a < b { (a, b) } else { (b, a) };
             for (row, px, vals) in &on_rows[eindex[&key]] { by_row.entry(*row).or_default().push((*px, vals)); }
         }
-        for (row, mut c) in by_row {
-            if c.len() != 2 { continue; }
-            if c[1].0 < c[0].0 { c.swap(0, 1); }
-            let ((pa, a), (pb, b)) = (c[0], c[1]);
-            if pa == pb || pb <= -hw || pa >= hw { continue; }
-            spans.push(Span { id: ids[*ti], row, from: pa, n: pb - pa });
-            for q in 0..=k { va.push(a[q]); vb.push(b[q]); nn.push(pb - pa); }
-        }
+        for (row, c) in by_row { if c.len() == 2 { cand.push((ids[*ti], row, [c[0], c[1]])); } }
     }
-    let nnv = o.sum(&[(v(&nn), 1)], 0);
+    if cand.is_empty() { return out; }
+    let swap = { let x0: V = cand.iter().map(|c| c.2[0].0).collect(); let x1: V = cand.iter().map(|c| c.2[1].0).collect(); o.lt(v(&x1), v(&x0)) };
+    for (q, c) in cand.iter_mut().enumerate() { if swap[q] == 1 { c.2.swap(0, 1); } }
+    let nn = { let l: V = cand.iter().map(|c| c.2[0].0).collect(); let r: V = cand.iter().map(|c| c.2[1].0).collect(); o.sum(&[(v(&r), 1), (v(&l), -1)], 0) };
+    let mut spans: Vec<Span> = vec![];
+    let (mut va, mut vb, mut nnv) = (vec![], vec![], vec![]);
+    for (q, (id, row, [(pa, a), (pb, b)])) in cand.into_iter().enumerate() {
+        if nn[q] == 0 || pb <= -hw || pa >= hw { continue; }
+        spans.push(Span { id, row, from: pa, to: pb, n: nn[q] });
+        for c in 0..=k { va.push(a[c]); vb.push(b[c]); nnv.push(nn[q]); }
+    }
     let sl = slopes(o, t, &va, &vb, &nnv);
-    // only the pixels on the screen are walked
+    // only the pixels on the screen are walked: a span past the screen's left edge from its place -hw - from, and the
+    // count to the screen's right edge or the span's (each on CARDIAC: hw + to past the left edge, hw - from past
+    // the right, the screen's width past both)
+    let (l_in, r_in): (Vec<bool>, Vec<bool>) = (spans.iter().map(|sp| sp.from >= -hw).collect(), spans.iter().map(|sp| sp.to <= hw).collect());
+    let pick = |f: &dyn Fn(usize) -> bool| -> Vec<usize> { (0..spans.len()).filter(|&i| f(i)).collect() };
+    let (lc, lo, ro) = (pick(&|i| !l_in[i]), pick(&|i| !l_in[i] && r_in[i]), pick(&|i| l_in[i] && !r_in[i]));
+    let mut k0 = vec![0i64; spans.len()];
+    let mut cnt: V = spans.iter().map(|sp| sp.n).collect();
+    if !lc.is_empty() { let f: V = lc.iter().map(|&i| spans[i].from).collect(); let a = o.sum(&[(v(&f), -1)], -hw); for (q, &i) in lc.iter().enumerate() { k0[i] = a[q]; cnt[i] = 2 * hw; } }
+    if !lo.is_empty() { let e: V = lo.iter().map(|&i| spans[i].to).collect(); let a = o.sum(&[(v(&e), 1)], hw); for (q, &i) in lo.iter().enumerate() { cnt[i] = a[q]; } }
+    if !ro.is_empty() { let f: V = ro.iter().map(|&i| spans[i].from).collect(); let a = o.sum(&[(v(&f), -1)], hw); for (q, &i) in ro.iter().enumerate() { cnt[i] = a[q]; } }
     let (mut k0s, mut cnts) = (vec![], vec![]);
-    for sp in &spans {
-        let k0 = (-hw - sp.from).max(0);
-        let k1 = (hw - sp.from).min(sp.n);
-        for _ in 0..=k { k0s.push(k0); cnts.push(k1 - k0); }
-    }
+    for i in 0..spans.len() { for _ in 0..=k { k0s.push(k0[i]); cnts.push(cnt[i]); } }
     let sw = walk_from_off(o, t, &va, &sl, &k0s, &cnts);
     let mut at_ = 0;
     for (si, sp) in spans.iter().enumerate() {
@@ -336,8 +348,9 @@ pub fn walk_from_off<O: Ops>(o: &mut O, t: &Tables, va: &V, a: &V, k0: &[i64], c
     let mut f0: V = a.iter().map(|&x| md(x, 1000)).collect();
     if !later.is_empty() {
         let g = |x: &[i64]| -> V { later.iter().map(|&j| x[j]).collect() };
-        let kk: V = later.iter().map(|&j| k0[j] + 1).collect();
-        let lk = o.tabo(&t.ln, 999_999, v(&kk));
+        // ln (k0 + 1): the printed ln table one place on
+        let kk: V = later.iter().map(|&j| k0[j]).collect();
+        let lk = o.tabo(&t.ln, 1_000_000, v(&kk));
         let (la, ng) = lnw_v(o, t, &g(a));
         let y = o.sum(&[(v(&la), 1), (v(&lk), 1)], -LN1000);
         let y = o.min(v(&y), K(138_000));

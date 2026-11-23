@@ -223,16 +223,20 @@ pub fn draw<O: Ops>(o: &mut O, tb: &Tb, cam: &Cam, mesh: &Mesh, corners: &[[i64;
     let (hw, hh) = (W() / (2 * s), H() / (2 * s));
     let mut d = Drawn { pieces: vec![], tris: 0, clipped: 0 };
     if pick.is_empty() { return d; }
-    // which face the camera: the face normal's dot with the eye (centimetres) against the plane's distance, less a margin
+    // which face the camera: the face normal's dot with the eye (centimetres) and a margin against the plane's distance
     let fx: V = pick.iter().map(|&k| mesh.fnorm[k][0]).collect();
     let fy: V = pick.iter().map(|&k| mesh.fnorm[k][1]).collect();
     let fz: V = pick.iter().map(|&k| mesh.fnorm[k][2]).collect();
-    let fd: V = pick.iter().map(|&k| -mesh.fd[k] + 500).collect();
-    // the normal's parts (hundredths) times the eye's: tables for the frame
+    let fd: V = pick.iter().map(|&k| mesh.fd[k]).collect();
+    // the normal's parts (hundredths) times the eye's: tables for the frame (the across part's with the margin, 500)
     let parts: V = (-100..=100).collect();
-    let t: Vec<V> = (0..3).map(|i| { let tab = Tab { name: "eye_part", data: o.lin(&[(v(&parts), Some(K(cam.eye_cm[i])))]), w: 0 }; o.tabo(&tab, 100, v(&[&fx, &fy, &fz][i])) }).collect();
-    let dot = o.lin(&[(v(&t[0]), None), (v(&t[1]), None), (v(&t[2]), None), (v(&fd), None)]);
-    let back = o.lt(v(&dot), K(0));
+    let t: Vec<V> = (0..3).map(|i| {
+        let data = if i == 0 { o.lin(&[(v(&parts), Some(K(cam.eye_cm[i]))), (K(500), None)]) } else { o.lin(&[(v(&parts), Some(K(cam.eye_cm[i])))]) };
+        let tab = Tab { name: "eye_part", data, w: 0 };
+        o.tabo(&tab, 100, v(&[&fx, &fy, &fz][i]))
+    }).collect();
+    let dot = o.lin(&[(v(&t[0]), None), (v(&t[1]), None), (v(&t[2]), None)]);
+    let back = o.lt(v(&dot), v(&fd));
     let front: Vec<usize> = pick.iter().zip(&back).filter(|&(&k, &b)| b == 0 || two_sided[k]).map(|(&k, _)| k).collect();
     if front.is_empty() { return d; }
     // their corners in the camera's space: B (10 p - eye) in thousandths of a millimetre, then millimetres (or
@@ -242,7 +246,8 @@ pub fn draw<O: Ops>(o: &mut O, tb: &Tb, cam: &Cam, mesh: &Mesh, corners: &[[i64;
     used.dedup();
     let unit = if far { 1 } else { 10 };
     let e = if far { cam.eye_cm } else { cam.eye };
-    let dvec: Vec<V> = (0..3).map(|i| { let p: V = used.iter().map(|&u| corners[u][i]).collect(); o.lin(&[(v(&p), Some(K(unit))), (K(-e[i]), None)]) }).collect();
+    let ne: [i64; 3] = std::array::from_fn(|i| kl(o, &[(e[i], Some(-1))]));
+    let dvec: Vec<V> = (0..3).map(|i| { let p: V = used.iter().map(|&u| corners[u][i]).collect(); o.lin(&[(v(&p), Some(K(unit))), (K(ne[i]), None)]) }).collect();
     let mut cc: Vec<[i64; 3]> = vec![[0; 3]; used.len()];
     let ld: [LogV; 3] = std::array::from_fn(|i| logv(o, tb, &dvec[i]));
     for r in 0..3 {
@@ -376,25 +381,26 @@ pub fn draw<O: Ops>(o: &mut O, tb: &Tb, cam: &Cam, mesh: &Mesh, corners: &[[i64;
             eindex.entry(k).or_insert_with(|| { edges.push((k, mesh.smooth[t.k])); edges.len() - 1 });
         }
     }
-    // the edges' crossings of the rows, and the values down them
-    let ends: Vec<([i64; 2], [i64; 2])> = edges.iter().map(|((a, b, _, _), _)| {
+    // the edges' crossings of the rows, and the values down them; which end is the upper, on the machines
+    let (ya, yb): (V, V) = edges.iter().map(|((a, b, _, _), _)| (scr[a].1, scr[b].1)).unzip();
+    let ups = o.lt(v(&yb), v(&ya));
+    let ends: Vec<([i64; 2], [i64; 2])> = edges.iter().enumerate().map(|(i, ((a, b, _, _), _))| {
         let (pa, pb) = (scr[a], scr[b]);
-        if pb.1 < pa.1 { ([pb.0, pb.1], [pa.0, pa.1]) } else { ([pa.0, pa.1], [pb.0, pb.1]) }
+        if ups[i] == 1 { ([pb.0, pb.1], [pa.0, pa.1]) } else { ([pa.0, pa.1], [pb.0, pb.1]) }
     }).collect();
     let crossings = edge_rows(o, tb, &ends, (-hh, hh));
     // the values down each edge: from the top's by the slope (the change over the rows and one, by logarithms)
     let (mut ta, mut tb_, mut tn, mut tc) = (vec![], vec![], vec![], vec![]);
     for (i, ((a, b, na, nb), smooth)) in edges.iter().enumerate() {
         let (pa, pb) = (scr[a], scr[b]);
-        let up = pb.1 < pa.1;
+        let up = ups[i] == 1;
         let (top, bot, nt, nbm) = if up { (pb, pa, nb, na) } else { (pa, pb, na, nb) };
         let rows = crossings[i].0;
         if crossings[i].1.is_empty() { continue; }
         ta.push(top.2); tb_.push(bot.2); tn.push(rows); tc.push(false);
         if *smooth { for c in 0..3 { ta.push(nt[c]); tb_.push(nbm[c]); tn.push(rows); tc.push(true); } }
     }
-    let n1: V = tn.iter().map(|&r| r + 1).collect();
-    let sl = slopes(o, tb, &ta, &tb_, &n1);
+    let sl = slopes_rows(o, tb, &ta, &tb_, &tn);
     let wl = walk_from_c(o, &ta, &sl, &tn, &tc);
     let mut wat = 0;
     // per edge: (row, pixel, depth, normal)
@@ -413,28 +419,37 @@ pub fn draw<O: Ops>(o: &mut O, tb: &Tb, cam: &Cam, mesh: &Mesh, corners: &[[i64;
     // change over its pixels, thousandths a pixel, by logarithms), from the left edge's; pieces on the screen
     struct Span { k: usize, row: i64, from: i64, n: i64, smooth: bool, fnorm: [i64; 3] }
     let mut spans: Vec<Span> = vec![];
-    // each walk's ends (its length pb - pa on the machines below) and where each span's first walk is
-    let (mut va, mut vb, mut ends, mut cards, mut first) = (vec![], vec![], vec![], vec![], vec![]);
+    // each triangle's rows' two crossings, as their edges give them
+    let mut met: Vec<(usize, i64, [(i64, i64, [i64; 3]); 2])> = vec![];
     for t in &tris {
         let mut by_row: std::collections::BTreeMap<i64, Vec<(i64, i64, [i64; 3])>> = Default::default();
         for e in 0..3 {
             let k = key(t.v[e], t.v[(e + 1) % 3], t.n[e], t.n[(e + 1) % 3]);
             for &(row, px, z, n) in &on_rows[eindex[&k]] { by_row.entry(row).or_default().push((px, z, n)); }
         }
-        let smooth = mesh.smooth[t.k];
-        for (row, mut c) in by_row {
+        for (row, c) in by_row {
             assert_eq!(c.len(), 2, "a triangle's row met {} edges", c.len());
-            if c[1].0 < c[0].0 { c.swap(0, 1); }
-            let ((pa, za, na), (pb, zb, nb)) = (c[0], c[1]);
-            if pa == pb || pb <= -hw || pa >= hw { continue; }
-            first.push(ends.len());
-            spans.push(Span { k: t.k, row, from: pa, n: 0, smooth, fnorm: mesh.fnorm[t.k] });
-            va.push(za); vb.push(zb); ends.push((pa, pb)); cards.push(false);
-            if smooth { for c in 0..3 { va.push(na[c]); vb.push(nb[c]); ends.push((pa, pb)); cards.push(true); } }
+            met.push((t.k, row, [c[0], c[1]]));
         }
     }
-    let nn = { let (pa, pb): (V, V) = (ends.iter().map(|e| e.0).collect(), ends.iter().map(|e| e.1).collect()); o.lin(&[(v(&pb), None), (v(&pa), Some(K(-1)))]) };
-    for (sp, &i) in spans.iter_mut().zip(&first) { sp.n = nn[i]; }
+    // the second's pixel less the first's on the machines: its sign says which is the left end, its size (the left's
+    // taken from the right's, so the second sum where it is below 0) the span's length
+    let dx = { let (pa, pb): (V, V) = met.iter().map(|m| (m.2[0].0, m.2[1].0)).unzip(); o.lin(&[(v(&pb), None), (v(&pa), Some(K(-1)))]) };
+    let back: Vec<usize> = (0..met.len()).filter(|&i| dx[i] < 0).collect();
+    let nd = o.sum(&[(v(&back.iter().map(|&i| dx[i]).collect()), -1)], 0);
+    let mut len = dx.clone();
+    for (j, &i) in back.iter().enumerate() { len[i] = nd[j]; }
+    // each walk's ends and its length
+    let (mut va, mut vb, mut nn, mut cards) = (vec![], vec![], vec![], vec![]);
+    for (i, &(k, row, c)) in met.iter().enumerate() {
+        let ((pa, za, na), (pb, zb, nb)) = if dx[i] < 0 { (c[1], c[0]) } else { (c[0], c[1]) };
+        let m = len[i];
+        if m == 0 || pb <= -hw || pa >= hw { continue; }
+        let smooth = mesh.smooth[k];
+        spans.push(Span { k, row, from: pa, n: m, smooth, fnorm: mesh.fnorm[k] });
+        va.push(za); vb.push(zb); nn.push(m); cards.push(false);
+        if smooth { for c in 0..3 { va.push(na[c]); vb.push(nb[c]); nn.push(m); cards.push(true); } }
+    }
     let a = slopes(o, tb, &va, &vb, &nn);
     let sw = walk_from_c(o, &va, &a, &nn, &cards);
     let mut at_ = 0;
@@ -455,10 +470,15 @@ pub fn draw<O: Ops>(o: &mut O, tb: &Tb, cam: &Cam, mesh: &Mesh, corners: &[[i64;
 
 /// Slopes: (b - a) 1000 / n for each (longs a, b; n places, 1 or more), by logarithms (ln |b - a| + ln 1000 less ln n,
 /// ten-thousandths; e back by the table of the change's sign: three cards).
-pub fn slopes<O: Ops>(o: &mut O, tb: &Tb, a: &V, b: &V, n: &V) -> V {
+pub fn slopes<O: Ops>(o: &mut O, tb: &Tb, a: &V, b: &V, n: &V) -> V { slopes_by(o, tb, a, b, n, 0) }
+
+/// The same over the rows and one, for edges meeting `rows` rows (ln (rows + 1): the table's entry one on).
+pub fn slopes_rows<O: Ops>(o: &mut O, tb: &Tb, a: &V, b: &V, rows: &V) -> V { slopes_by(o, tb, a, b, rows, 1) }
+
+fn slopes_by<O: Ops>(o: &mut O, tb: &Tb, a: &V, b: &V, n: &V, off: i64) -> V {
     let d = o.sum(&[(v(b), 1), (v(a), -1)], 0);
     let l = o.tabo(tb.t("lnd4"), 999_999, v(&d));
-    let ln = o.tab(tb.t("lniz4"), v(n));
+    let ln = o.tabo(tb.t("lniz4"), off, v(n));
     let k = o.ldiff(&l, &ln, 0, 207);
     let neg = o.tabo(tb.t("negd"), 999_999, v(&d));
     let mut out = vec![0; d.len()];
@@ -563,7 +583,9 @@ pub fn logdot<O: Ops>(o: &mut O, tb: &Tb, q: [&LogV; 3], a: [i64; 3]) -> V {
     let n = q[0].l.len();
     let terms: Vec<V> = (0..3).map(|i| {
         if a[i] == 0 { return vec![0; n]; }
-        let c = vec![one(o.sum(&[(K(tb.t("lniz4").data[a[i].unsigned_abs() as usize]), -1)], 2 * 69_078)); n];
+        // 2 ln 1000 - ln |a|: 3 ln 1000 less ln |a| + ln 1000 (the table printed from -999,999)
+        let la = one(o.tabo(tb.t("lnd4"), 999_999, K(a[i])));
+        let c = vec![one(o.sum(&[(K(la), -1)], 3 * 69_078)); n];
         let k = o.ldiff(&q[i].l, &c, 0, 139);
         let mut r = vec![0; n];
         for (name, want) in [("exp4", (a[i] < 0) as i64), ("exp4n", (a[i] >= 0) as i64)] {

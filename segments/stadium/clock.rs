@@ -79,9 +79,10 @@ pub fn camera<O: Ops>(o: &mut O, t: &Tables, t12: i64) -> Cam {
     let tt = s_lin(&[(t12, Some(1000))], o);
     // the key it's past (the keys before it counted on CARDIAC), its neighbours
     let n = KEYS.len() as i64;
-    let mut past = 0;
+    // (counted from -1: the last key it's past)
+    let mut past = -1;
     for k in &KEYS { if s_lt(k.0, tt, o) { past = s_sum(&[(past, 1)], 1, o); } }
-    let i = s_clamp(past - 1, 0, n - 2, o) as usize;
+    let i = s_clamp(past, 0, n - 2, o) as usize;
     let (k0, k1, k2, k3) = (KEYS[i.saturating_sub(1)], KEYS[i], KEYS[i + 1], KEYS[(i + 2).min(n as usize - 1)]);
     let d21 = s_sum(&[(k2.0, 1), (k1.0, -1)], 0, o);
     let d20 = { let d = s_sum(&[(k2.0, 1), (k0.0, -1)], 0, o); s_least1(d, o) };
@@ -339,12 +340,12 @@ pub fn laser_beams<O: Ops>(o: &mut O, t: &Tables, sh: &Show, l: &Light, q: i64) 
     let n = l.par as usize;
     let crest = !s_lt(t12, CREST_T, o) && s_lt(t12, CREST_T + 24, o);
     let pat = if crest { s_divmod(q, 2, o).1 } else { s_divmod(s_sum(&[(sh.bar, 1)], q, o), 4, o).1 };
-    let spread = rad((l.power as f64).to_radians() / 2.0);    // half the spread (the data's 100 degrees)
+    let spread = l.half_spread;
     let wbar = { let a = cycle(t12, C_BAR, o); frac1m(a, o) };         // 2 pi t / BAR
     let mut out = vec![];
     for i in 0..n {
         // s from -1 to 1 across the fan, thousandths
-        let s = s_div(s_lin(&[(i as i64, Some(2000))], o), n as i64 - 1, o);
+        let s = s_div(s_lin(&[(i as i64, Some(2000))], o), l.gaps, o);
         let s = s_sum(&[(s, 1)], -1000, o);
         let base = -250_000;
         let (az, el) = match pat {

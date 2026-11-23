@@ -31,16 +31,17 @@ Rubik's cube, 8 of the crossfade) and `bbsroto` files `video.rgb` (192x96, 72 fr
 - **The page** is the UI kit's (`ui/pages.rs`'s `BBS`, `fx/text.rs`): `ui_page` places each character that has
   arrived and the cursor after the last; the host fetches each glyph's cell from the atlas's IBM CGA face by its code
   (the box's double lines and the bar's divider appended to the atlas); deep's `umix` lays its ink and paper on. How
-  many characters have arrived, 20 a frame from the seventh, is `ui_ease`'s (900 j / 45), held at the page's 891 by
-  `rb_hold`. A page is drawn on CARDIAC the first frame it is needed, and the host copies it when a later frame shows
-  the same number of characters and the same blink.
+  many characters have arrived, 20 a frame from the seventh, is `ui_ease`'s (900 j / 45, j the frame less 6 held to
+  0..45 on the train's operations), held at the page's 891 by `rb_hold`. The cursor's blink, six frames on and six
+  off, is the frame divided by 6 and then by 2 on the train's operations. A page is drawn on CARDIAC the first frame
+  it is needed, and the host copies it when a later frame shows the same number of characters and the same blink.
 - **Where the cube is:** `dr_key`, per row of the cube's frame, punches 1 for each pixel that isn't black. The host
   copies the cube's pixel there (8 x 8 on the 1536x768 frame) and the picture's elsewhere.
 - **The crossfade** into the rotozoomer (its frames 42..49) is the kit's: each pair of pixels that meets mixed once on
   `umix`, by `ui_ease`'s cover (32 j / 9).
 - **The wobble:** `dr_clock` gives each row's angle in tenths of a degree (90 a row, 3313.521 a frame, -0.5 radians),
   `rb_sine` its sine (the rubik segment's table), `dr_wobble` the push: 5 g / 15 times the sine, g the frames into the
-  wobble held at 15 (`rb_hold`), rounded half away from zero. The host works out each pixel's source column itself,
+  wobble (the frame less 36, on the train's operations) held at 15 (`rb_hold`), rounded half away from zero. The host works out each pixel's source column itself,
   the column less the push, wrapped round the row's 192 pixels, and copies that pixel.
 
 The cube's frames are read from the [tumble](../tumble)'s render (`tumble/video.rgb`), the die's

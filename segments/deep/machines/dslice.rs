@@ -6,7 +6,7 @@
 //! unit square; further out it is smooth, the two heights either side, the step between them in tenths of a unit.
 //! Punches 2 when the ray has gone past its last slice (too far to see), 3 when it is 90 or more over the base
 //! (above anything there is to hit), 1 when it is under the seabed (a hit), else 0; then the ray one slice on
-//! (x and height over the next row's base, as dealt).
+//! (x and height over the next row's base, as dealt), and the next slice's number, k + 1.
 // cardiac: phase-cards=9,0
 include!("../../shared/cardiac.rs");
 include!("../../shared/prelude.rs");
@@ -74,4 +74,5 @@ pub fn main() {
     out(x_part);
     out(height);
     out(height_part);
+    out(slice + 1);
 }

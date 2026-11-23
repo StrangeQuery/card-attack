@@ -29,7 +29,8 @@
 //   32nds of white, mains white), their glow every 4 x 4 pixels (by whole pixels along past a line's end and across
 //   it, from the table: the prototype's blur), summed (at most 32), mixed toward (170, 210, 255); and the frame
 //   flashed toward (225, 240, 255) (32nds).
-// The random choices (the blobs', flakes' and arcs') are cards from knob.txt, as a deck of random cards.
+// The random choices (the blobs', flakes' and arcs') are from knob.txt, random cards, the blobs' and arcs' printed
+// already scaled to the numbers they stand for.
 
 use super::hd::{mix32, Trig};
 use std::collections::HashMap;
@@ -298,7 +299,7 @@ fn knob(s: &Scene, d: &Data, t: &Trig, c: &Ctl, rgb: &mut [[i64; 3]], dep: &dyn 
     let (sx, sz) = if n > CLICK {
         let a10 = 12 + fl(50 * c.p19, 19);
         let (r1, r2) = (d.shake[(2 * (n - 332)) as usize], d.shake[(2 * (n - 332) + 1) as usize]);
-        (fl((2 * r1 - 999) * a10, 9990), fl((2 * r2 - 999) * a10 * 6, 99900))
+        (fl(r1 * a10, 9990), fl(r2 * a10, 99900))
     } else { (0, 0) };
     let off = |o: [i64; 3]| -> [i64; 3] { std::array::from_fn(|i| fl(rot[i][0] * o[0] + rot[i][1] * o[1] + rot[i][2] * o[2], 1000)) };
     let rock_pos: [i64; 3] = std::array::from_fn(|i| fl(30 * pc[i], 100));
@@ -371,8 +372,8 @@ fn silt(s: &Scene, d: &Data, t: &Trig, rgb: &mut [[i64; 3]]) {
         let amt: Vec<i64> = d.puff.iter().map(|&p| fl(p * (14 - age), 28)).collect();
         for i in 0..18 {
             let r = &d.silt[((puff * 18 + i) * 3) as usize..];
-            let a = 1000 * r[0];
-            let rad = 490 + fl(120 * r[1], 1000) + 12 * age;
+            let a = r[0];
+            let rad = 490 + fl(r[1], 1000) + 12 * age;
             let q = [fl(t.sin(a + 250_000) * rad, 999), -35 + fl(8 * age * (500 + r[2]), 1000), fl(t.sin(a) * rad, 999)];
             let rel = [0, 1, 2].map(|c| KNOB[c] + q[c] - s.cam[c]);
             let Some((x, y, ahead)) = proj(rel, s) else { continue };
@@ -398,14 +399,14 @@ fn silt(s: &Scene, d: &Data, t: &Trig, rgb: &mut [[i64; 3]]) {
 fn debris(s: &Scene, d: &Data, t: &Trig, rgb: &mut [[i64; 3]]) {
     for i in 0..140usize {
         let r = &d.debris[7 * i..7 * i + 7];
-        let age = s.n - (332 + fl(18 * r[0], 1000));
+        let age = s.n - (332 + fl(r[0], 1000));
         if !(0..=16).contains(&age) { continue; }
-        let a = 1000 * r[1];
-        let rad = 180 + fl(300 * r[2], 1000) + (5 + fl(17 * r[3], 1000)) * age;
-        let q = [fl(t.sin(a + 250_000) * rad, 999), 10 + (2 + fl(10 * r[4], 1000)) * age, fl(t.sin(a) * rad, 999)];
+        let a = r[1];
+        let rad = 180 + fl(r[2], 1000) + (5 + fl(r[3], 1000)) * age;
+        let q = [fl(t.sin(a + 250_000) * rad, 999), 10 + (2 + fl(r[4], 1000)) * age, fl(t.sin(a) * rad, 999)];
         let rel = [0, 1, 2].map(|c| KNOB[c] + q[c] - s.cam[c]);
         let Some((x, y, ahead)) = proj(rel, s) else { continue };
-        let p100 = fl((25 + fl(45 * r[6], 1000)) * 8000, ahead).max(100);
+        let p100 = fl((25 + fl(r[6], 1000)) * 8000, ahead).max(100);
         let (x0, x1) = (fl(x - 10 * p100, 1000).max(0), fl(x + 10 * p100, 1000).min(1535));
         let (y0, y1) = (fl(y - 10 * p100, 1000).max(0), fl(y + 10 * p100, 1000).min(767));
         let k = fl(272 * (17 - age), 170);
@@ -437,25 +438,25 @@ fn crackle(s: &Scene, d: &Data, t: &Trig, c: &Ctl, rgb: &mut [[i64; 3]]) {
     if let Some((cx, cy, _)) = proj(rel_k, s) {
         for i in 0..count {
             let r = &d.crackle[(((n - 331) * 20 + i) * 80) as usize..];
-            let a = 1000 * r[0];
-            let rad = fl(460 * (600 + fl(400 * r[1], 1000)), 1000);
+            let a = r[0];
+            let rad = fl(460 * (600 + fl(r[1], 1000)), 1000);
             let q = [fl(t.sin(a + 250_000) * rad, 999), 10, fl(t.sin(a) * rad, 999)];
             let rel = [0, 1, 2].map(|c2| KNOB[c2] + q[c2] - s.cam[c2]);
             let Some((mut x, mut y, _)) = proj(rel, s) else { continue };
             // its way out from the dial's middle (in hundredths of a pixel: the sums' angle takes sizes under 100000)
-            let mut ang = md(t.atan2(fl(y - cy, 10), fl(x - cx, 10)) + fl((r[2] - 500) * 159_155, 1000), 1_000_000);
+            let mut ang = md(t.atan2(fl(y - cy, 10), fl(x - cx, 10)) + fl(r[2], 1000), 1_000_000);
             let len = fl((500 + fl(r[3], 2)) * reach * 100, 1000);
             for j in 0..10usize {
                 let st = &r[4 + 7 * j..];
-                ang = md(ang + fl((st[0] - 500) * 222_817, 1000), 1_000_000);
+                ang = md(ang + fl(st[0], 1000), 1_000_000);
                 let (nx, ny) = (x + fl(t.sin(ang + 250_000) * len, 999), y + fl(t.sin(ang) * len, 999));
                 segs.push(Seg { a: (x, y), b: (nx, ny), first: j == 0, last: j == 9, fork: false });
                 (x, y) = (nx, ny);
                 if st[1] == 1 {
-                    let mut fa = md(ang + fl((st[2] - 500) * 413_803, 1000), 1_000_000);
+                    let mut fa = md(ang + fl(st[2], 1000), 1_000_000);
                     let (mut fx, mut fy) = (x, y);
                     for m in 0..4usize {
-                        fa = md(fa + fl((st[3 + m] - 500) * 190_986, 1000), 1_000_000);
+                        fa = md(fa + fl(st[3 + m], 1000), 1_000_000);
                         let (gx, gy) = (fx + fl(t.sin(fa + 250_000) * len * 10, 999 * 14), fy + fl(t.sin(fa) * len * 10, 999 * 14));
                         segs.push(Seg { a: (fx, fy), b: (gx, gy), first: m == 0, last: m == 3, fork: true });
                         (fx, fy) = (gx, gy);

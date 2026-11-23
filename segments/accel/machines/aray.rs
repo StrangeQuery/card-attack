@@ -1,7 +1,8 @@
 //! Rays, once per frame of the accelerated drive, twice: the camera's 768 columns (and a 769th, the last sample
-//! column's) as directions on the street. Deck: a and b (the cosine and sine of the turn, times 400, for the rays
-//! across; minus the sine and the cosine for the rays along). Punches for each column x, 0-768, the direction
-//! floor((880 b + (2 x - 767) a) / 800) (our pixels at the screen's distance, 440).
+//! column's) as directions on the street. Deck: the cosine and sine of the turn, times 400, and 0 for the rays across
+//! or 1 for the rays along. Across, a and b are the cosine and the sine; along, minus the sine and the cosine.
+//! Punches for each column x, 0-768, the direction floor((880 b + (2 x - 767) a) / 800) (our pixels at the
+//! screen's distance, 440).
 include!("../../shared/cardiac.rs");
 include!("../../shared/prelude.rs");
 
@@ -16,8 +17,10 @@ fn add(whole: i16, rest: i16, step: i16) -> (i16, i16) {
 }
 
 pub fn main() {
-    let a = inp();
-    let b = inp();
+    let cos = inp();
+    let sin = inp();
+    let along = inp();
+    let (a, b) = if along == 0 { (cos, sin) } else { (-sin, cos) };
     // 880 b, back 767 a to column 0, then 2 a a column
     let mut sum = (0, 0);
     for _ in 0..880 { sum = add(sum.0, sum.1, b); }

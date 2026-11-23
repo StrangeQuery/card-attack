@@ -38,7 +38,8 @@ across and 107 - 10 L / 3 down for its lift L. The plasma's units, its shadow an
 four 96-pixel tiles, at 0, 96, 192 and 224 across: the plasma's machines paint 96 pixels a run, so the last tile's
 first 64 pixels are the third's again, and only its last 32 are filed.
 
-**Per frame:** the plasma's `pl_clock` (its clock running on from the plasma's last frame), the ray's `rt_path`
+**Per frame:** the plasma's `pl_clock` (its clock running on from the plasma's last frame: dealt the frame and the
+plasma's frame count), the ray's `rt_path`
 ([ray](../ray): the ball on the entrance's arcs or the script, its shadow's size), and `mx_place`, which puts the ball
 in pixels. The ball falls on two arcs given by `data/entrance.txt` (an asset: each arc's first frame, length and
 height), then follows the ray's script from its 22nd frame.
@@ -46,16 +47,17 @@ height), then follows the ray's script from its 22nd frame.
 **Per tile row:** `mx_row` gives the floor's points and fog (and the shadow); `mx_span` the ball's pixels; per ball
 pixel `mx_norm` its surface and bounced ray, `mx_bounce` the light, sky, haze or the floor, and `mx_hit` the floor
 point a ray reaches. `mx_compose` lays the ball's looks, u and v over the floor's (the host deals each background
-card with the ball's after it where the ball covers it), and the plasma's machines paint the row: the plasma at the
-reflected point, 4 32nds darker.
+card with a card of the ball's beside it: the ball's laid in the row from where `mx_span` says its span starts, 0
+elsewhere; the machine picks by the span), and the plasma's machines paint the row: the plasma at the reflected
+point, 4 32nds darker.
 
 **The sign** is `data/sign.txt` (made by `data/make_data.py` from the atlas's VGA face and `ui/pages.rs`'s
 `MODEX_SIGN`): a line per lettered pixel, x and y. The outline is every pixel within 3 of a letter, found once before
 the first frame by the [titles](../titles)' role machine (`tt_role`, outlined, no shadow) run over the mask three
 times, each pass's letters and outline the next pass's mask (two runs a row, 192 columns from 0 and from 128: 600
-runs, 4.9M instructions). The host keeps each row's span of ball pixels, joining the spans `mx_span` punched in each
-tile by taking the smallest start and the largest end, and where a letter's or the outline's pixel is outside that
-span it files white on the letters and black on the outline.
+runs, 4.9M instructions; the mask dealt as a card each above, here and below). On the sign's rows `mx_compose` runs
+once more on each tile row the ball is in, laying 1s for the ball over 0s, and where it punched 0 the host files white
+on the letters and black on the outline.
 
 The 1536x768 frame shows the 320x240 one 1024x768 in the middle, black at the sides. The host works out which
 320x240 pixel each frame pixel shows, (5 x / 16, 5 y / 16), with its own multiplications and divisions (a
@@ -86,7 +88,7 @@ prototype's frames was about 4 of 255. The prototype is not in this repository.
 | `mx_norm` | 5 data + 88 / 77 / 27 | Per ball pixel: its surface's depth and the bounced ray |
 | `mx_bounce` | 82 | Per ball pixel: the light, the sky, the haze or the floor |
 | `mx_hit` | 8 data + 68 / 61 | Per ray that reaches the floor: the floor point it shows |
-| `mx_compose` | 26 | Per tile row: the ball's looks, u and v laid over the floor's |
+| `mx_compose` | 27 | Per tile row: the ball's looks, u and v laid over the floor's; on the sign's rows, where the ball is |
 | `rt_path` | (the [ray](../ray)'s) | Per frame: the ball's place on the arcs or the script, its shadow's size |
 | `tt_role` | (the [titles](../titles)') | Once: the sign's outline, three passes |
 | `pl_clock` and the plasma's row painters | (the [plasma](../plasma)'s) | The clock, the waves and the colours |

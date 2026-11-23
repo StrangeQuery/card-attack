@@ -30,6 +30,9 @@ pub const CARD: i64 = 999;
 pub const LONG: i64 = 999_999;
 pub const WIDE: i64 = 998_999_999;
 
+/// The card sorter the host puts cards in order with, by numbers they hold (host/src/sorter.rs).
+pub mod sorter { include!("../../host/src/sorter.rs"); }
+
 /// How long the vectors are (every vector argument the same).
 pub fn n_of(args: &[A]) -> usize {
     let mut n = None;

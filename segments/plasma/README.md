@@ -55,8 +55,9 @@ from quarter-turn sine tables fine enough that neighbouring pixels differ by a s
   of `data/ring.txt` (every sixth line), 32 steps apart, the colour exactly between them.
 
 **Every frame:**
-- `pl_clock`: where each wave and the colours start this frame (six, two and two units, and eight colour steps a
-  frame), each made from the frame mod its own turn so that nothing passes three digits.
+- `pl_clock`: where each wave and the colours start this frame (dealt the frame and where it counts from, which it
+  adds; six, two and two units, and eight colour steps a frame), each made from the frame mod its own turn so that
+  nothing passes three digits.
 - `pl_tilt`: how far through the tilt the frame is, in thousandths, by long division. The host fetches that line
   of `data/tilt.txt`, a table printed ahead of time in Python by `data/make_tilt.py`: for each thousandth of the way,
   the eased angle's 600 cos and 100 sin. The ease, the cosine and the sine are in the table; CARDIAC works out only
@@ -91,7 +92,7 @@ on from there with the clock running on, its scene re-built at 320x240.
 
 | Machine | Cells | What it does |
 |---|---|---|
-| `pl_clock` | 55 | Per frame: where each wave and the colours start |
+| `pl_clock` | 58 | Per frame: where each wave and the colours start |
 | `pl_tilt` | 52 | Per frame: how far through the tilt it is, in thousandths |
 | `pl_row` | 22 data + 71 / 62 / 67 / 67 / 54 / 44 | Per tile row: each pixel's point on the plane, or sky or haze; fog; the ball's shadow |
 | `pl_ring` | 93 | Per tile row: each point's distance from the rings' centre, walked |

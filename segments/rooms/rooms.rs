@@ -31,6 +31,7 @@ pub const TYPED: &str = "seaplusplus";
 pub const LOAD_N: i64 = 60;           // LOADING takes 5 s
 pub const FULL_N: i64 = 3;            // the full bar holds a quarter second before the dive starts
 pub const DESK_N: i64 = TYPE0 + 11 + 2 + LOAD_N + FULL_N;   // 100: the desktop's frames before the dive starts
+pub const DESK0: i64 = DORM_N + DRIVE_N + END_N;             // the desktop's first frame
 pub const ZIN: i64 = 108;             // the screening room's zoom in, from LOADING's start
 // 48: the dive's frames 0..47 on the screen, so that the cut, which carries the dive on from its frame 48, shows
 // none of them twice
@@ -269,42 +270,56 @@ fn scale_tab<O: Ops>(o: &mut O, num: i64, den: i64) -> Tab {
     Tab { name: "fade", w: 256, data: o.div(v(&x), K(den), 0) }
 }
 
-/// The desktop at frame f (640 x 480 RGB): the base, and in the prompt's text area the lines (the VGA face, light
-/// grey): drive.exe's line, the prompt and what's been typed, then the banner, LOADING and its bar; the cursor.
-fn desktop<O: Ops>(o: &mut O, w: &World, f: i64) -> Vec<u8> {
+/// The desktop at the rooms' frame k (640 x 480 RGB): the base, and in the prompt's text area the lines (the VGA face,
+/// light grey): drive.exe's line, the prompt and what's been typed, then the banner, LOADING and its bar; the cursor.
+/// The desktop's own frame (k - DESK0) is taken in each sum on the machines, not worked out first.
+fn desktop<O: Ops>(o: &mut O, w: &World, k: i64) -> Vec<u8> {
     let mut img = w.desk_base.clone();
-    let typed = one(o.sum(&[(K(f), 1)], -TYPE0));
+    let typed = one(o.sum(&[(K(k), 1)], -(DESK0 + TYPE0)));
     let typed = one(o.clamp(K(typed), 0, TYPED.len() as i64)) as usize;
     let type_end = TYPE0 + TYPED.len() as i64;
-    let loading = one(o.lt(K(type_end + 1), K(f))) == 1;
+    let loading = one(o.lt(K(DESK0 + type_end + 1), K(k))) == 1;
     let mut lines: Vec<String> = vec!["C:\\DEMOS>drive.exe".into(), "".into(), format!("C:\\DEMOS>{}", &TYPED[..typed])];
     let mut cursor = false;
     if loading {
-        let since = one(o.sum(&[(K(f), 1)], -type_end));
+        let since = one(o.sum(&[(K(k), 1)], -(DESK0 + type_end)));
         let (q, _) = o.divmod(K(since), K(4));
         let (_, dots) = o.divmod(K(q[0]), K(4));
-        let n = one(o.lin(&[(K(since - 0), Some(K(30)))]));
+        let n = one(o.lin(&[(K(since), Some(K(30)))]));
         let n = one(o.sum(&[(K(n), 1)], -60));
         let n = one(o.div(K(n), K(LOAD_N), 0));
         let n = one(o.clamp(K(n), 0, 30)) as usize;
+        // the bar's 30 cells, the first n marked
+        let mut bar = [' '; 30];
+        for c in bar.iter_mut().take(n) { *c = '#'; }
         lines.push("".into());
         lines.extend(banner());
         lines.push("".into());
         lines.push(format!("   ><(((o>   ~   ~   ~   LOADING{}", ".".repeat(dots[0] as usize)));
         lines.push("".into());
-        lines.push(format!("   [{}{}]", "#".repeat(n), " ".repeat(30 - n)));
+        lines.push(format!("   [{}]", bar.iter().collect::<String>()));
     } else {
+        let f = one(o.sum(&[(K(k), 1)], -DESK0));
         let (q, _) = o.divmod(K(f), K(3));
         let (_, on) = o.divmod(K(q[0]), K(2));
         cursor = on[0] == 0;
     }
-    let (tx, ty) = (91usize, 52usize);
-    for (i, l) in lines.iter().enumerate() {
-        for (j, ch) in l.chars().enumerate() { glyph(&mut img, w, cp437(ch), tx + 8 * j, ty + 16 * i); }
-    }
-    if cursor {
-        let (cx, cy) = (tx + 8 * lines[lines.len() - 1].chars().count(), ty + 16 * (lines.len() - 1));
-        for y in [cy + 13, cy + 14] { for x in cx..cx + 8 { img[(y * 640 + x) * 3..][..3].copy_from_slice(&[192, 192, 192]); } }
+    // each character's cell (line i, column j) at (tx + 8 j, ty + 16 i) on the machines, and the cursor's after the
+    // last line's last character; the host lays the glyph's set pixels there
+    let (tx, ty) = (91, 52);
+    let mut cells: Vec<(i64, i64)> = lines.iter().enumerate().flat_map(|(i, l)| (0..l.chars().count()).map(move |j| (i as i64, j as i64))).collect();
+    if cursor { cells.push(((lines.len() - 1) as i64, lines[lines.len() - 1].chars().count() as i64)); }
+    let (is, js): (V, V) = cells.iter().copied().unzip();
+    let xs = o.lin(&[(v(&js), Some(K(8))), (K(tx), None)]);
+    let ys = o.lin(&[(v(&is), Some(K(16))), (K(ty), None)]);
+    let codes = lines.iter().flat_map(|l| l.chars().map(|ch| Some(cp437(ch)))).chain(cursor.then_some(None));
+    for (c, code) in codes.enumerate() {
+        let (x, y) = (xs[c] as usize, ys[c] as usize);
+        match code {
+            Some(code) => glyph(&mut img, w, code, x, y),
+            // the cursor: its cell's rows 13 and 14
+            None => for r in [13, 14] { for b in 0..8 { img[((y + r) * 640 + x + b) * 3..][..3].copy_from_slice(&[192, 192, 192]); } },
+        }
     }
     img
 }
@@ -363,15 +378,15 @@ pub fn render<O: Ops>(o: &mut O, w: &World, s: &Srcs, k: i64) -> Vec<u8> {
         Show::Drive(f) => {
             let mut img = s.drive[f as usize * fr..][..fr].to_vec();
             if DRIVE0 + f >= BRAG_AT { brag(o, &mut img, &s.brag, DRIVE0 + f - BRAG_AT); }
-            // the last FADE_H frames fade to black
-            let lv = along_at(o, f, -1, 1 - DRIVE_N, FADE_H);
+            // the last FADE_H frames fade to black (the drive's frame f is the rooms' k - DORM_N)
+            let lv = along_at(o, k, -1, 1 - DRIVE_N - DORM_N, FADE_H);
             if lv < 1000 { let t = scale_tab(o, lv, 1000); for b in img.iter_mut() { *b = t.data[*b as usize] as u8; } }
             let m = mean_of(o, w, &img, 1536, 0, 1536, 0, 768, 1000);
             (Picture { img, iw: 1536, ih: 768 }, m)
         }
-        Show::End(f) => {
-            // THE END on black, fading in over 6 frames
-            let a = along_at(o, f, 1, -1, 6);
+        Show::End(_) => {
+            // THE END on black, fading in over 6 frames from its first (the rooms' DORM_N + DRIVE_N)
+            let a = along_at(o, k, 1, DORM_N + DRIVE_N - 1, 6);
             let a = one(o.lin(&[(K(a), Some(K(255)))]));
             let a = one(o.div(K(a), K(1000), 0));
             let t = scale_tab(o, a, 255);
@@ -379,9 +394,9 @@ pub fn render<O: Ops>(o: &mut O, w: &World, s: &Srcs, k: i64) -> Vec<u8> {
             let m = mean_of(o, w, &img, 1536, 0, 1536, 0, 768, 1000);
             (Picture { img, iw: 1536, ih: 768 }, m)
         }
-        Show::Desk(f) => {
+        Show::Desk(_) => {
             // the desktop (640 x 480) pillarboxed on the 2:1 screen: 960 x 480, its columns from 160
-            let d = desktop(o, w, f);
+            let d = desktop(o, w, k);
             let mut img = vec![0u8; 960 * 480 * 3];
             for y in 0..480 { img[(y * 960 + 160) * 3..(y * 960 + 800) * 3].copy_from_slice(&d[y * 640 * 3..(y + 1) * 640 * 3]); }
             let m = mean_of(o, w, &img, 960, 160, 800, 0, 480, 1000);

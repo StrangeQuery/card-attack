@@ -48,7 +48,8 @@ impl<'a, O: Ops> Shading<O> for NightShade<'a> {
                 // frames in twelve, else dark
                 let code = par(&w.sc, px, 0);
                 let strobe = within_v(o, &code, 150, 250);
-                let flash = if f % 12 < 2 { 40 } else { 0 };
+                let (_, ph) = o.divmod(K(f), K(12));
+                let flash = if ph[0] < 2 { 40 } else { 0 };
                 let k = o.sel(&strobe, K(flash), K(14));
                 let k = o.lin(&[(v(&k), Some(K(e)))]);
                 let t: [V; 3] = std::array::from_fn(|c| { let t = o.lin(&[(v(&alb[c]), Some(v(&k)))]); o.div(v(&t), K(4000), 0) });
@@ -177,7 +178,10 @@ fn screens<O: Ops>(o: &mut O, w: &World, s: &NightShade, px: &Px, e: i64) -> [V;
         let b = o.clamp(v(&b), 0, 999);
         let demo = sc[11];
         let res: [V; 3] = if sc[12] == 0 {
-            let fr = clip_frame(o, nw, demo, (f + 7 * i as i64).rem_euclid(60));
+            // (its footage's frame: f + 7 i mod 60, on the machines)
+            let fi = kl(o, &[(f, None), (7 * i as i64, None)]);
+            let (_, k) = o.divmod(K(fi), K(60));
+            let fr = clip_frame(o, nw, demo, k[0]);
             clip_texels(o, nw, &fr, demo, &a, &b, 2200, e, true, true)
         } else {
             let t = Tab { name: "banner", data: nw.pics.get(&format!("banner_{demo}")).to_vec(), w: 768 };
@@ -215,7 +219,7 @@ fn standin<O: Ops>(o: &mut O, nw: &NightWorld, demo: i64, kind: i64, k: i64) -> 
     let tb = &nw.w.tb;
     let (sw, sh) = (80usize, 60usize);
     let n = sw * sh;
-    let off = 137 * demo;
+    let off = kl(o, &[(demo, Some(137))]);
     let off1000 = one(o.wrap(K(off), 1));
     let pal = tb.t("si_pal");
     let pc = |o: &mut O, row: i64| -> [i64; 3] { std::array::from_fn(|c| one(o.tab2(pal, K(kind * 6000 + row), K(c as i64)))) };
@@ -265,10 +269,11 @@ fn standin<O: Ops>(o: &mut O, nw: &NightWorld, demo: i64, kind: i64, k: i64) -> 
             let ks = one({ let t = o.lin(&[(K(sz[0]), Some(K(300)))]); let t = o.div(v(&t), K(999), 0); o.lin(&[(v(&t), None), (K(600), None)]) });
             let ka = one({ let t = o.lin(&[(K(ks), Some(K(ca[0])))]); o.div(v(&t), K(999), 0) });
             let kb = one({ let t = o.lin(&[(K(ks), Some(K(sa[0])))]); o.div(v(&t), K(999), 0) });
+            let nkb = kl(o, &[(kb, Some(-1))]);
             let xs: V = (0..sw as i64).map(|x| x - 40).collect();
             let ys: V = (0..sh as i64).map(|y| y - 30).collect();
             let ux = o.lin(&[(v(&xs), Some(K(ka)))]);
-            let uy = o.lin(&[(v(&ys), Some(K(-kb))), (K(80_000), None)]);
+            let uy = o.lin(&[(v(&ys), Some(K(nkb))), (K(80_000), None)]);
             let vx = o.lin(&[(v(&xs), Some(K(kb)))]);
             let vy = o.lin(&[(v(&ys), Some(K(ka))), (K(80_000), None)]);
             let g = |a: &V, b: &V| -> (V, V) { ((0..n).map(|q| a[q % sw]).collect(), (0..n).map(|q| b[q / sw]).collect()) };
@@ -435,7 +440,7 @@ fn hull<O: Ops>(o: &mut O, s: &NightShade, px: &Px, e: i64, out: &mut Out) {
     let n = px.len();
     let lf = &px.lvl;
     let c = s.fx.blimp;
-    let p: [V; 3] = std::array::from_fn(|i| o.sum(&[(v(&px.p[i]), 1)], -c[i]));
+    let p: [V; 3] = std::array::from_fn(|i| o.sum(&[(v(&px.p[i]), 1), (K(c[i]), -1)], 0));
     let (_, ph1) = o.phase(v(&p[0]), 323, 5);
     let yz = o.sum(&[(v(&p[1]), 1), (v(&p[2]), 1)], 0);
     let (_, ph2) = o.phase(v(&yz), 435, 5);
@@ -475,7 +480,7 @@ fn hull<O: Ops>(o: &mut O, s: &NightShade, px: &Px, e: i64, out: &mut Out) {
     let mut lp: Vec<Vec<i64>> = vec![vec![]; n];
     for k in 0..s.fx.up_spot.len() {
         let q = s.fx.up_spot[k];
-        let rel: [V; 3] = std::array::from_fn(|i| o.sum(&[(v(&px.p[i]), 1)], -q[i]));
+        let rel: [V; 3] = std::array::from_fn(|i| o.sum(&[(v(&px.p[i]), 1), (K(q[i]), -1)], 0));
         // within 25 m of the spot each way: the host's picking by the places punched
         let near: Vec<usize> = (0..n).filter(|&i| (0..3).all(|c_| rel[c_][i].abs() < 2500)).collect();
         if near.is_empty() { continue; }
@@ -568,16 +573,23 @@ fn airship_screen<O: Ops>(o: &mut O, s: &NightShade, px: &Px, e: i64) -> [V; 3] 
     let b = o.div(v(&b), K(100), 0);
     let b = o.clamp(v(&b), 0, 999);
     let pa = &nw.path;
-    let (vol_on, vol_off) = (pa.f_read - 46, pa.f_read + 20);
-    let seg = ((f + 6) / 30) % 3;
+    let (vol_on, vol_off) = (pa.f_vol_on, pa.f_cut);
+    // its slot of three (30 frames each, from 6 before the clock's), on the machines
+    let f6 = kl(o, &[(f, None), (6, None)]);
+    let (q30, _) = o.divmod(K(f6), K(30));
+    let seg = o.divmod(K(q30[0]), K(3)).1[0];
     let reading = f >= F_CHASE && { let d = { let t = kl(o, &[(f, Some(10)), (-10 * F_CHASE, None)]); cam_dist(o, pa, t) }; let x = one(o.lin(&[(K(d), None), (K(pa.d_read), Some(K(-1)))])); let mx = one(o.lin(&[(K(x), Some(K(-1)))])); let ax = one(o.max(K(x), K(mx))); one(o.lt(K(ax), K(60_000))) == 1 };
     // (VOL 11 held through the join onto the dive, the orbit skipped)
-    let held = vol_off + CUT_N <= f && f < vol_off + CUT_N + JOIN;
+    let held = pa.f_join[0] <= f && f < pa.f_join[1];
     let col: [V; 3] = if (vol_on <= f && f < vol_off) || held { vol_screen(o, s, &a, &b) }
         else if seg == 0 || f < F_STOP || reading { blimp_screen(o, s, &a, &b) }
         else {
-            let i = ((f + 6) / 90 * 2 + seg) % 63;
-            let fr = clip_frame(o, nw, i, f.rem_euclid(60));
+            // the demo (two of the slots in three a demo, 63 of them) and its footage's frame, on the machines
+            let (q90, _) = o.divmod(K(f6), K(90));
+            let d = kl(o, &[(q90[0], Some(2)), (seg, None)]);
+            let i = o.divmod(K(d), K(63)).1[0];
+            let (_, k) = o.divmod(K(f), K(60));
+            let fr = clip_frame(o, nw, i, k[0]);
             // nearest: row (1 - b) 120, column a 160; 2.4 times (as R per 1.0: by clip_texels at k 2400)
             let bb = o.lin(&[(v(&b), Some(K(-1))), (K(999), None)]);
             let t = clip_texels(o, nw, &fr, i, &a, &bb, 2400, 1000, true, false);
@@ -722,7 +734,7 @@ fn vol_screen<O: Ops>(o: &mut O, s: &NightShade, a: &V, b: &V) -> [V; 3] {
     let tb = &nw.w.tb;
     let f = s.l.f;
     let pa = &nw.path;
-    let (v11a, v11b, click) = (pa.f_read - 30, pa.f_read - 20, pa.f_read - 12);
+    let [click, click1, click2] = pa.f_click;
     let n = a.len();
     // the texel (nearest): row (1 - b) 560, column a 1000
     let row = o.tab(tb.t("vol_row"), v(b));
@@ -730,7 +742,7 @@ fn vol_screen<O: Ops>(o: &mut O, s: &NightShade, a: &V, b: &V) -> [V; 3] {
     let base = tb.t("vol_base");
     let mut c: [V; 3] = std::array::from_fn(|ch| { let ci = o.lin(&[(v(&col), Some(K(3))), (K(ch as i64), None)]); o.tab2(base, v(&row), v(&ci)) });
     // the 11: white m, m its coming (thousandths)
-    let m11 = smooth1(o, f, v11a, v11b);
+    let m11 = one(smoothk(o, &vec![f], pa.k_v11, 10));
     let red = f >= click;
     if m11 > 0 {
         let mk = o.tab2(tb.t("vol_m11"), v(&row), v(&col));
@@ -739,7 +751,7 @@ fn vol_screen<O: Ops>(o: &mut O, s: &NightShade, a: &V, b: &V) -> [V; 3] {
     }
     // the knob's knurls (40, from 0.86 R to R, 4 wide) and pointer (0.2 R to 0.95 R, 16 wide), turned 27 degrees a
     // step of its setting
-    let kv = if f < click { 10_000 } else if f < click + 1 { 10_600 } else if f < click + 2 { 11_120 } else { 11_000 };
+    let kv = if f < click { 10_000 } else if f < click1 { 10_600 } else if f < click2 { 11_120 } else { 11_000 };
     let dx = o.lin(&[(v(&col), None), (K(-290), None)]);
     let dy = o.lin(&[(v(&row), Some(K(-1))), (K(215), None)]);
     let r2 = o.lin(&[(v(&dx), Some(v(&dx))), (v(&dy), Some(v(&dy)))]);
@@ -768,9 +780,10 @@ fn vol_screen<O: Ops>(o: &mut O, s: &NightShade, a: &V, b: &V) -> [V; 3] {
         let pa_m = fk(o, pa_, 159_155, 1000);
         let (ps, pc) = o.sincos(K(pa_m));
         let (ps, pc) = (ps[0], pc[0]);
+        let nps = kl(o, &[(ps, Some(-1))]);
         let along = o.lin(&[(v(&gx), Some(K(ps))), (v(&gy), Some(K(pc)))]);
         let along = o.div(v(&along), K(1000), 0);
-        let across = o.lin(&[(v(&gx), Some(K(pc))), (v(&gy), Some(K(-ps)))]);
+        let across = o.lin(&[(v(&gx), Some(K(pc))), (v(&gy), Some(K(nps)))]);
         let across = o.div(v(&across), K(1000), 0);
         let am = o.lin(&[(v(&across), Some(K(-1)))]);
         let aab = o.max(v(&across), v(&am));
@@ -812,7 +825,7 @@ fn vol_screen<O: Ops>(o: &mut O, s: &NightShade, a: &V, b: &V) -> [V; 3] {
             lc[ch] = o.sum(&[(v(&lc[ch]), 1), (v(&t), 1)], 0);
         }
     }
-    if click <= f && f < click + 2 { for ch in 0..3 { lc[ch] = scaled(o, &lc[ch], 16, 10); } }
+    if click <= f && f < click2 { for ch in 0..3 { lc[ch] = scaled(o, &lc[ch], 16, 10); } }
     lc
 }
 

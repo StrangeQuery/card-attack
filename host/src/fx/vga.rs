@@ -9,8 +9,9 @@
 //! ring (fx/plasma.rs `places`: the row, ring, rings, wave and slant machines); the host fetches its colour's code
 //! from the printed table (vga/data/ansi.txt) by that place, and paint16 colours them from the EGA's palette
 //! (vga/data/ega.txt). The wipe: the host takes the rows above the edge from the plasma's own frame
-//! (plasma/video.rgb), the edge's row white, the rest the 16-colour frame's (vga/data/wipe.txt: the edge a frame).
-//! The page, the crossfade and the brag are the text kit's (fx/text.rs).
+//! (plasma/video.rgb), the edge's row from paint16's white (the EGA's colour 15), the rest the 16-colour frame's
+//! (vga/data/wipe.txt: the edge a frame). The page, the crossfade and the brag are the text kit's (fx/text.rs); the
+//! cursor's blink is the train's operations' (a sum and two divisions).
 //!
 //! It files three: video.rgb, 44 frames at 192x96 (the 16-colour plasma of the plasma's frames 48..77, the cut
 //! mixing the rotozoomer into its first six; then of 90..97; then the wipe over 98..103); video_hd.rgb, 30 frames at
@@ -19,6 +20,7 @@
 use crate::*;
 use crate::fx::plasma::{third, Plasma};
 use crate::fx::text::{self, pages, Shown, Text};
+use crate::fx::train::{imp::{v, Ops, K}, Cardiac};
 use std::path::Path;
 
 /// The 16-colour plasma's frames: the plasma's frame each shows (the intro, back after the page, the wipe).
@@ -27,7 +29,10 @@ pub const BACK0: usize = 90;
 pub const BACK: usize = 8;
 pub const WIPE: usize = 6;
 pub const EGA_FRAMES: usize = INTRO + BACK + WIPE;
-pub fn plasma_frame(f: usize) -> usize { if f < INTRO { 48 + f } else { BACK0 + f - INTRO } }
+/// Where frame f's count starts among the plasma's frames: the intro's from 48, the rest from BACK0 - INTRO.
+pub fn plasma_from(f: usize) -> usize { if f < INTRO { 48 } else { BACK0 - INTRO } }
+/// The plasma's frame that frame f shows, to fetch its script line and its pixels by.
+pub fn plasma_frame(f: usize) -> usize { plasma_from(f) + f }
 /// Frames of a crossfade (its steps 1..=6 of 7), frames of the page held.
 pub const X: usize = 6;
 pub const HOLD: usize = 24;
@@ -41,13 +46,16 @@ pub fn render(demo: &Path, refbin: &str) {
     let paint = rust(demo, "paint16");
     let (pl, clock, script) = (Plasma::new(demo), rust(demo, "pl_clock"), fx::plasma::script(demo));
     let kit = Text::new(demo);
-    // a host each for the three it files, so each says what it took
+    // a host each for the three it files, so each says what it took; the cursor's blink on the train's operations
     let (mut host, mut lo, mut once) = (Host::new(), Host::new(), Host::new());
-    // the 16-colour plasma: each pixel's place on the ring, its code by the printed table, painted
+    let mut o = Cardiac::new(demo);
+    // the 16-colour plasma: each pixel's place on the ring, its code by the printed table, painted; the wipe's edge
+    // row painted white (the EGA's colour 15)
     let mut ega = Video2::new(EGA_FRAMES);
+    let white = lo.go1(&paint, &[&palette, &vec![15; W]], 3 * W);
     for f in 0..EGA_FRAMES {
         let pf = plasma_frame(f);
-        let times = lo.go1(&clock, &[&[pf as i32]], 5);
+        let times = lo.go1(&clock, &[&[f as i32, plasma_from(f) as i32]], 5);
         for (tx, ty) in [(0, 0), (W as i32, 0), (0, H as i32), (W as i32, H as i32)] {
             for y in 0..H as i32 {
                 let points = pl.points(&mut lo, ty + y, tx, script[pf], [0, 0, 0]);
@@ -63,7 +71,9 @@ pub fn render(demo: &Path, refbin: &str) {
             let edge = wipe[f - INTRO - BACK] as usize;
             let row = W2 * 3;
             for y in 0..edge.min(H2) { ega.buf[(f * H2 + y) * row..][..row].copy_from_slice(&plasma[(pf * H2 + y) * row..][..row]); }
-            if edge < H2 { ega.buf[(f * H2 + edge) * row..][..row].fill(255); }
+            if edge < H2 {
+                for (p, &v) in ega.buf[(f * H2 + edge) * row..][..row].iter_mut().zip(white.iter().cycle()) { *p = v as u8; }
+            }
         }
     }
     // the page and the crossfade into it, at 1536x768
@@ -79,7 +89,11 @@ pub fn render(demo: &Path, refbin: &str) {
             let px = kit.draw(&mut host, page, arrived[f] as usize, true);
             kit.crossfade(&mut host, &Shown { px: ega.frame(INTRO - X + f), at: &big }, &Shown { px: &px, at: &on }, covers[f])
         } else {
-            Text::blit(&Shown { px: &kit.draw(&mut host, page, total as usize, (f - X) / 6 % 2 == 0), at: &on })
+            // the cursor on for six frames, off for six, from the page's first frame held
+            let held = o.sum(&[(K(f as i64), 1)], -(X as i64));
+            let (sixes, _) = o.divmod(v(&held), K(6));
+            let (_, off) = o.divmod(v(&sixes), K(2));
+            Text::blit(&Shown { px: &kit.draw(&mut host, page, total as usize, off[0] == 0), at: &on })
         };
         hd.buf[f * frame.len()..(f + 1) * frame.len()].copy_from_slice(&frame);
     }
@@ -94,6 +108,7 @@ pub fn render(demo: &Path, refbin: &str) {
         let i = at[(brag.y + y) * text::HW + brag.x + x] as usize;
         layer.buf[(y * bw + x) * 4..][..4].copy_from_slice(&[px[3 * i], px[3 * i + 1], px[3 * i + 2], 32]);
     } }
+    host.steps += o.host.steps; host.runs += o.host.runs;
     for h in [&mut host, &mut lo, &mut once] { h.done(); }
 
     let both = reference(refbin, &[demo]);

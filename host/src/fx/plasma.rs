@@ -90,7 +90,7 @@ pub fn render(demo: &Path, refbin: &str) {
     let mut video = Video2::new(FRAMES);
     for f in live::frames(FRAMES) {
         let tilt = script[f];
-        let times = host.go1(&clock, &[&[f as i32]], 5);
+        let times = host.go1(&clock, &[&[f as i32, 0]], 5);
         for (tx, ty) in [(0, 0), (W as i32, 0), (0, H as i32), (W as i32, H as i32)] {
             for y in 0..H as i32 {
                 let points = plasma.points(&mut host, ty + y, tx, tilt, [0, 0, 0]);

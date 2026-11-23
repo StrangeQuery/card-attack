@@ -502,11 +502,6 @@ path = "openers/machines/op_ink.rs"
 name = "op_tint"
 path = "openers/machines/op_tint.rs"
 
-# overlays
-[[bin]]
-name = "big"
-path = "overlays/machines/big.rs"
-
 # plasma
 [[bin]]
 name = "rt_sway"
@@ -934,6 +929,9 @@ path = "mac/machines/mac_thirds.rs"
 name = "mac_dissolve"
 path = "mac/machines/mac_dissolve.rs"
 [[bin]]
+name = "mac_fill"
+path = "mac/machines/mac_fill.rs"
+[[bin]]
 name = "dr_clock"
 path = "dierubik/machines/dr_clock.rs"
 [[bin]]
@@ -955,11 +953,17 @@ path = "dierubik/machines/dr_wobble.rs"
 name = "tn_edge"
 path = "turn/machines/tn_edge.rs"
 [[bin]]
+name = "tn_front"
+path = "turn/machines/tn_front.rs"
+[[bin]]
 name = "tn_twist"
 path = "turn/machines/tn_twist.rs"
 [[bin]]
 name = "tn_cga"
 path = "turn/machines/tn_cga.rs"
+[[bin]]
+name = "tn_cells"
+path = "turn/machines/tn_cells.rs"
 [[bin]]
 name = "tn_walk"
 path = "turn/machines/tn_walk.rs"
@@ -1007,6 +1011,9 @@ path = "mesh/machines/mesh_mix.rs"
 [[bin]]
 name = "mesh_depth"
 path = "mesh/machines/mesh_depth.rs"
+[[bin]]
+name = "mesh_ends"
+path = "mesh/machines/mesh_ends.rs"
 [[bin]]
 name = "mesh_front"
 path = "mesh/machines/mesh_front.rs"

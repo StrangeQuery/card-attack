@@ -13,12 +13,9 @@ frames backwards). Between and under them it can say more:
 
 | Line | Meaning |
 |---|---|
-| `mix N` | Dissolve into the next segment over N frames (the two overlap) |
-| `stutter N1 N2 ...` | Cut back and forth into the next segment instead: beats of N1, N2, ... frames, this segment's last frame, then the next segment's own frames as it runs on underneath, and so on (the two overlap by the total) |
+| `stutter N1 N2 ...` | Cut back and forth into the next segment: beats of N1, N2, ... frames, this segment's last frame, then the next segment's own frames as it runs on underneath, and so on (the two overlap by the total) |
 | `hold N` | Hold the segment's last frame N frames more |
 | `gap N` | N black frames after it |
-| `in N` / `out N` | Dissolve from black at the start, or to black at the end |
-| `black N` | N black frames at the very end |
 | `freeze AT N` | Hold the segment's frame AT for N frames more; it carries on after |
 | `repeat AT F1 F2 ...` | After the segment's frame AT, show its frames F1, F2, ..., then carry on from AT + 1 |
 | `unpixelate N8 N4 N2` | On a 1536x768 segment: its first N8 frames averaged over 8 x 8 blocks, the next N4 over 4 x 4, the next N2 over 2 x 2, then sharp |
@@ -30,7 +27,7 @@ layers: the Mac's bezel over the whole [cold open](../mac) (377 frames, `turn/be
 (47 frames), and the [party chat](../partychat) over the [stadium](../stadium) (495 frames).
 
 **Two sizes.** The cut itself is 192x96. A segment drawn at 192x96 (`192x96` on its line) is taken as it is. A
-segment drawn at 1536x768 is never mixed: the cut files a black frame in its place at 192x96
+segment drawn at 1536x768 is cut to and from: the cut files a black frame in its place at 192x96
 and lists which video frame goes there in `hd.txt` (`frame video f`, a line each). A frame under a layer is made at
 1536x768, filed in `video_hd.rgb` beside the cut file and listed in `hd.txt` too; at 192x96 the cut files it without
 the layer. Of the film's 3,419 frames, 2,887 are shown at 1536x768 (`hd.txt`'s lines) and 532 at 192x96, each pixel
@@ -51,27 +48,14 @@ video file, the 192x96 frames scaled up 8 x 8 by copying each pixel, so every fr
 --dry-run`): seconds, or for a maker the player splits into blocks of frames, the seconds a block takes to set up
 and each frame's. The player cuts the blocks and schedules by them.
 
-## Why a dissolve is hard on CARDIAC
-
-A dissolve mixes two pictures, a little more of the new one each frame. Mixing means multiplying each colour by how
-far along the dissolve is, and CARDIAC has no multiply, no fractions, and only three digits a card. The `dissolve`
-machine doesn't mix: it dithers. Each pixel shows the incoming picture if the level (0..16) beats its place in the 4 x
-4 Bayer map, else the outgoing one, so over a 16-frame `mix` the new segment arrives as an even scatter of pixels that
-fills in. The level itself is worked out on the host, 16 (k + 1) / (n + 1) at the k-th of n frames; the present cut
-has no `mix`, `in` or `out` line, so the film shows no dissolve. A layer's cover is a product, so the layers are mixed
-properly, a channel at a time, by `umix`.
-
 ## Machines
 
 | Machine | Cells | What it does |
 |---|---|---|
-| `dissolve` | 78 | Per run of 96 pixels: the incoming or the outgoing pixel, by the level against the Bayer map (`mix`, `in`, `out`) |
 | `blockmean` | 60 | Per row of blocks per channel: each block's mean, rounded half up (`unpixelate`) |
 | `umix` | 83 (deep's) | A run of up to 256 covered pixels mixed toward the layer (`over`) |
 
-`dissolve` replaces the hand-written `original/mix.asm`: the host asks for the file and gets the Rust machine. In
-the present cut only `umix` runs, since there are no dissolves or un-pixelated frames; the test cut (below) runs all
-three.
+In the present cut only `umix` runs, since no frame is un-pixelated; the test cut (below) runs both.
 
 **Instructions:** 12,074M for the film's 961 frames under a layer, all of them `umix`'s, in 94,377 runs. The other
 2,458 frames take nothing here: the cut only files them.
@@ -81,27 +65,25 @@ three.
 `reference.rs` builds the same cut in ordinary Rust from the same videos, and `card-attack cut refs/cut_ref`
 checks every frame of `video.rgb` and `video_hd.rgb` against it: identical 3,419/3,419 and 961/961.
 
-**The test cut.** The film uses few of the cut's lines, so [`test/cut.txt`](test/cut.txt) is a small cut (182
-frames, 15 s) that uses them all: a fade in and out, a dissolve (`mix`), a `stutter`, a `repeat`, a `freeze`, a
-`hold`, a `gap`, `black`, a segment played in `reverse`, a switch from 192x96 to 1536x768, the un-pixelate steps, and
-layers, two of them over one segment. It reads videos the segments make (the plasma's, the polys', the drive's at
-both sizes, the dive's, the VGA's), the brag and the video options dialog, and its own layer, `test/layer.rgba`
-(480x144, eight frames). After `./build.sh`, `./refs.sh` and a render of those segments (`card-attack all refs`
+**The test cut.** The film uses few of the cut's lines, so [`test/cut.txt`](test/cut.txt) is a small cut that tries more of them: a `repeat`, a `freeze`, a `hold`, a switch from 1536x768 to 192x96, the
+un-pixelate steps, and layers, two of them over one segment. It reads videos the segments make (the plasma's, the
+swarm's, the ending's at both sizes), the UI kit's notification, and its own layer, `test/layer.rgba` (480x144, eight
+frames). After `./build.sh`, `./refs.sh` and a render of those segments (`card-attack all refs`
 renders them all), from the repository's root:
 
     python3 segments/cut/test/make_layer.py                                  # test/layer.rgba (not kept)
     host/target/release/card-attack cut refs/cut_ref cut/test/cut.txt        # the test cut, checked
 
-It files `video.rgb`, `video_hd.rgb` and `hd.txt` in `test/` (not kept) and says identical 182/182 and 68/68; its
-dissolves, block means and layers run `dissolve`, `blockmean` and `umix`.
+It files `video.rgb`, `video_hd.rgb` and `hd.txt` in `test/` (not kept) and checks each frame against the reference; its
+block means and layers run `blockmean` and `umix`.
 
 ## Files
 
 - `cut.txt`: the running order.
 - `hd.txt`: which video frame each 1536x768 frame of the film is, written by the cut.
 - `costs.txt`: each maker's seconds in the last dry run, for the live player's blocks and schedule.
-- `machines/`: `dissolve` and `blockmean`.
-- `original/mix.asm`: the hand-written dissolve.
+- `machines/`: `blockmean`, and `dissolve`, the [tumble](../tumble)'s.
+- `original/mix.asm`: the hand-written `dissolve`.
 - `reference.rs`: the cut in ordinary Rust.
 - `test/`: the test cut and its layer's generator.
 - Host: [`host/src/fx/cut.rs`](../../host/src/fx/cut.rs).

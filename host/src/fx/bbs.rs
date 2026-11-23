@@ -17,6 +17,7 @@
 //! (pushed along its row by the punched push).
 use crate::*;
 use crate::fx::text::{self, pages, Shown, Text};
+use crate::fx::train::{imp::{v, Ops, K, V}, Cardiac};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -50,10 +51,15 @@ pub fn render(demo: &Path, refbin: &str) {
     let kit = Text::new(demo);
     let (key, hold) = (rust(demo, "dr_key"), rust(demo, "rb_hold"));
     let mut host = Host::new();
+    let mut o = Cardiac::new(demo);
     let page = &pages::BBS;
     let (big, on) = (text::big8(), text::on_frame(page));
-    // how many characters have arrived at each frame (20 a frame, held at the page's end), the crossfade's covers
-    let steps: Vec<(i32, i32)> = (0..HD_FRAMES).map(|k| ((k.clamp(DELAY, DELAY + 45) - DELAY) as i32, 45)).collect();
+    // how many characters have arrived at each frame (20 a frame from frame DELAY, held at the page's end): the
+    // frame's step from DELAY, held to 0..45, on the train's operations; the crossfade's covers
+    let ks: V = (0..HD_FRAMES as i64).collect();
+    let since = o.sum(&[(v(&ks), 1)], -(DELAY as i64));
+    let since = o.clamp(v(&since), 0, 45);
+    let steps: Vec<(i32, i32)> = since.iter().map(|&j| (j as i32, 45)).collect();
     let arrived = kit.steps(&mut host, 900, &steps);
     let mut deck = vec![arrived.len() as i32, 0, page.chars() as i32];
     deck.extend(&arrived);
@@ -63,7 +69,10 @@ pub fn render(demo: &Path, refbin: &str) {
     let mut drawn: HashMap<(i32, bool), Vec<u8>> = HashMap::new();
     let mut video = cardiac_host::Video::<{ text::HW }, { text::HH }>::new(HD_FRAMES);
     for k in live::frames(HD_FRAMES) {
-        let cursor = k / 6 % 2 == 0;
+        // the cursor on for six frames, off for six
+        let (sixes, _) = o.divmod(K(k as i64), K(6));
+        let (_, off) = o.divmod(v(&sixes), K(2));
+        let cursor = off[0] == 0;
         let px = drawn.entry((arrived[k], cursor)).or_insert_with(|| kit.draw(&mut host, page, arrived[k] as usize, cursor)).clone();
         let front = if k < TUMBLE { &tumble[(TUMBLE0 + k) * FRAME2..][..FRAME2] } else { &cube[(k - TUMBLE) * FRAME2..][..FRAME2] };
         let mut frame = if k < TUMBLE + CUBE {
@@ -77,6 +86,7 @@ pub fn render(demo: &Path, refbin: &str) {
         for (i, &at) in big.iter().enumerate() { if here[at as usize] == 1 { frame[3 * i..3 * i + 3].copy_from_slice(&front[3 * at as usize..3 * at as usize + 3]); } }
         video.buf[k * frame.len()..(k + 1) * frame.len()].copy_from_slice(&frame);
     }
+    host.steps += o.host.steps; host.runs += o.host.runs;
     host.done();
     finish("bbs (1536x768)", &host, &video, &reference(refbin, &[demo, Path::new("hd")]), &demo.join("bbs/video_hd.rgb"), "");
 }
@@ -89,13 +99,15 @@ pub fn render_roto(demo: &Path, refbin: &str) {
     let rates = numbers(&demo.join("dierubik/data/rates.txt"));
     let (down, on) = (&rates[30..33], &rates[33..36]);
     let mut host = Host::new();
+    let mut o = Cardiac::new(demo);
     let mut video = Video2::new(ROTO_FRAMES);
     for k in live::frames(ROTO_FRAMES) {
         let back = &roto[(ROTO0 + k) * FRAME2..][..FRAME2];
         let front = &cube[(CUBE + CROSS + k) * FRAME2..][..FRAME2];
         // each row's push: its wave's angle (9 degrees a row, -0.5 radians a frame), its sine, the push
         let push = if k < WOBBLE { vec![0; H2] } else {
-            let w = (k - WOBBLE) as i32;
+            // the wobble's frame from its start, on the train's operations
+            let w = o.sum(&[(K(k as i64), 1)], -(WOBBLE as i64))[0] as i32;
             let grown = host.go1(&hold, &[&[1, 0, 15, w, 0]], 1)[0];
             let mut deck = vec![H2 as i32];
             for y in 0..H2 as i32 { deck.extend([2, y]); deck.extend(down); deck.push(w); deck.extend(on); }
@@ -114,6 +126,7 @@ pub fn render_roto(demo: &Path, refbin: &str) {
         } }
         video.buf[k * FRAME2..(k + 1) * FRAME2].copy_from_slice(&img);
     }
+    host.steps += o.host.steps; host.runs += o.host.runs;
     host.done();
     finish("bbsroto", &host, &video, &reference(refbin, &[demo, Path::new("roto")]), &demo.join("bbs/video.rgb"), "");
 }

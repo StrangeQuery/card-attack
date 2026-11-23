@@ -10,6 +10,10 @@
 pub fn hw() -> i64 { scr_w() / 2 }
 pub fn hh() -> i64 { scr_h() / 2 }
 
+/// The samples' middles along a beam or a laser, in thousandths of a sample: 500 (2 j + 1) for the j-th, a printed
+/// table of 256 (a line's first ns of them).
+pub const MIDS: [i64; 256] = { let mut a = [0; 256]; let mut j = 0; while j < 256 { a[j] = 500 * (2 * j as i64 + 1); j += 1; } a };
+
 /// The rays of the half-size grid in the camera's space, worked out once: each part's logarithm (thousandths:
 /// (x, y, 1000) times 1 / |ray|) and sign.
 pub struct HalfRays { pub ln: [V; 3], pub neg: [V; 2] }
@@ -56,19 +60,44 @@ pub fn beam_list<O: Ops>(o: &mut O, sc: &Scene, sh: &Show, spot_d: &[[i64; 3]], 
 /// A band of the half-size screen as pixel runs: (row, first column, columns), from a convex polygon (half-size
 /// pixels, hundredths, from the middle), by its edges' crossings.
 pub fn band<O: Ops>(o: &mut O, poly: &[(i64, i64)]) -> Vec<(i64, i64, i64)> {
+    let ends = row_ends(o, poly, (-hh() / 2, hh() / 2), hw() / 2);
+    counted(o, &ends)
+}
+
+/// A convex polygon's rows (hundredths, from the middle): each edge from its top end (the ends' rows compared on
+/// CARDIAC), its crossings of the rows in `range`, and on each row crossed twice or more the least and the greatest
+/// crossing (CARDIAC's min and max), held to -w..w: (row, first column, the column past the last).
+pub fn row_ends<O: Ops>(o: &mut O, poly: &[(i64, i64)], range: (i64, i64), w: i64) -> Vec<(i64, i64, i64)> {
     let n = poly.len();
-    let ends: Vec<([i64; 2], [i64; 2])> = (0..n).map(|i| { let (a, b) = (poly[i], poly[(i + 1) % n]); if b.1 < a.1 { ([b.0, b.1], [a.0, a.1]) } else { ([a.0, a.1], [b.0, b.1]) } }).collect();
-    let cross = o.crossings(&ends, (-hh() / 2, hh() / 2));
+    let ay: V = (0..n).map(|i| poly[i].1).collect();
+    let by: V = (0..n).map(|i| poly[(i + 1) % n].1).collect();
+    let up = o.lt(v(&by), v(&ay));
+    let ends: Vec<([i64; 2], [i64; 2])> = (0..n).map(|i| { let (a, b) = (poly[i], poly[(i + 1) % n]); if up[i] == 1 { ([b.0, b.1], [a.0, a.1]) } else { ([a.0, a.1], [b.0, b.1]) } }).collect();
+    let cross = o.crossings(&ends, range);
     let mut rows: std::collections::BTreeMap<i64, Vec<i64>> = Default::default();
     for (_, l) in &cross { for &(row, px, _) in l { rows.entry(row).or_default().push(px); } }
-    let mut out = vec![];
-    for (row, mut xs) in rows {
-        if xs.len() < 2 { continue; }
-        xs.sort();
-        let (a, b) = (xs[0].max(-hw() / 2), xs[xs.len() - 1].min(hw() / 2));
-        if b > a { out.push((row, a, b - a)); }
+    let rows: Vec<(i64, Vec<i64>)> = rows.into_iter().filter(|r| r.1.len() >= 2).collect();
+    let mut lo: V = rows.iter().map(|r| r.1[0]).collect();
+    let mut hi = lo.clone();
+    let most = rows.iter().map(|r| r.1.len()).max().unwrap_or(0);
+    for j in 1..most {
+        let at: Vec<usize> = (0..rows.len()).filter(|&i| rows[i].1.len() > j).collect();
+        let x: V = at.iter().map(|&i| rows[i].1[j]).collect();
+        let (a, b): (V, V) = (at.iter().map(|&i| lo[i]).collect(), at.iter().map(|&i| hi[i]).collect());
+        let (a, b) = (o.min(v(&a), v(&x)), o.max(v(&b), v(&x)));
+        for (q, &i) in at.iter().enumerate() { lo[i] = a[q]; hi[i] = b[q]; }
     }
-    out
+    (0..rows.len()).map(|i| (rows[i].0, lo[i].max(-w), hi[i].min(w))).collect()
+}
+
+/// Runs from rows' ends: (row, first column, columns), the columns the ends' difference (on CARDIAC), the rows with
+/// none left out.
+pub fn counted<O: Ops>(o: &mut O, ends: &[(i64, i64, i64)]) -> Vec<(i64, i64, i64)> {
+    if ends.is_empty() { return vec![]; }
+    let a: V = ends.iter().map(|e| e.1).collect();
+    let b: V = ends.iter().map(|e| e.2).collect();
+    let n = o.sum(&[(v(&b), 1), (v(&a), -1)], 0);
+    (0..ends.len()).filter(|&i| n[i] > 0).map(|i| (ends[i].0, ends[i].1, n[i])).collect()
 }
 
 /// The beams' light at half size (each colour), and which half-size pixels it reached. Each beam's axis (clipped to
@@ -100,8 +129,7 @@ pub fn volumetric<O: Ops>(o: &mut O, t: &Tables, bt: &BeamTabs, lz: &LaserTabs, 
         let len = { let h = s_div(s_lnw({ if s_lt(ll, 1, o) { 1 } else { ll } }, t, o), 2, o); s_tab_o(&t.exp, -EXP_LO, h, o) };
         // the samples: every 8 half pixels, 1 to 256 of them; tau (thousandths) at each one's middle
         let ns = s_clamp(s_div(len, 8, o), 1, 256, o);
-        let jj: V = (0..ns).map(|j| 2 * j + 1).collect();
-        let tau = { let a = o.lin(&[(v(&jj), Some(K(500)))]); o.div(v(&a), K(ns), 0) };
+        let tau = { let a = MIDS[..ns as usize].to_vec(); o.div(v(&a), K(ns), 0) };
         // depth on the screen straight in 1 / z: iz = iz_a + tau (iz_b - iz_a); the share along the 3D line w = tau iz_b / iz
         let diz = s_sum(&[(izb, 1), (iza, -1)], 0, o);
         let izj = { let (lt_, _) = lnv(o, t, &tau); let ld = s_tab_o(&t.ln, 999_999, diz, o); let nd = s_tab_o(&t.neg, 999_999, diz, o); let y = { let k_ = s_sum(&[(ld, 1)], -LN1000, o); o.sum(&[(v(&lt_), 1)], k_) }; let e = expv(o, t, &y, Some(&vec![nd; tau.len()])); o.sum(&[(v(&e), 1)], iza) };
@@ -159,10 +187,11 @@ pub fn volumetric<O: Ops>(o: &mut O, t: &Tables, bt: &BeamTabs, lz: &LaserTabs, 
         if runs.is_empty() { continue; }
         // along (hundred-thousandths of the line) and across (hundredths of a half pixel) at each run's first pixel's
         // middle, and their steps a pixel
-        let row_c: V = runs.iter().map(|r| 100 * r.0 + 50).collect();
-        let col_c: V = runs.iter().map(|r| 100 * r.1 + 50).collect();
-        let rx = { let a = { let k_ = s_neg(xa, o); o.sum(&[(v(&col_c), 1)], k_) }; o.div(v(&a), K(100), 0) };
-        let ry = { let a = { let k_ = s_neg(ya, o); o.sum(&[(v(&row_c), 1)], k_) }; o.div(v(&a), K(100), 0) };
+        // (the middle 100 c + 50 less the end, in whole pixels: c + fl((50 - xa) / 100))
+        let rows_: V = runs.iter().map(|r| r.0).collect();
+        let cols_: V = runs.iter().map(|r| r.1).collect();
+        let rx = { let k_ = s_div(s_sum(&[(xa, -1)], 50, o), 100, o); o.sum(&[(v(&cols_), 1)], k_) };
+        let ry = { let k_ = s_div(s_sum(&[(ya, -1)], 50, o), 100, o); o.sum(&[(v(&rows_), 1)], k_) };
         let ll1 = { if s_lt(ll, 1, o) { 1 } else { ll } };
         let alongv = { let a = o.lin(&[(v(&rx), Some(K(dxp))), (v(&ry), Some(K(dyp)))]); let (l_, ng) = lnw_v(o, t, &a); let lll = s_lnw(ll1, t, o); let y = { let k_ = s_sum(&[(lll, -1)], 3 * LN10, o); o.sum(&[(v(&l_), 1)], k_) }; expv(o, t, &y, Some(&ng)) };
         let across = { let nuy = s_neg(uy, o); let a = o.lin(&[(v(&rx), Some(K(nuy))), (v(&ry), Some(K(ux)))]); o.div(v(&a), K(10), 0) };
@@ -184,10 +213,12 @@ pub fn volumetric<O: Ops>(o: &mut O, t: &Tables, bt: &BeamTabs, lz: &LaserTabs, 
         for (end, flag) in [((xa, ya), &before), ((xb, yb), &after)] {
             let at: Vec<usize> = (0..px.len()).filter(|&k| flag[k] == 1).collect();
             if at.is_empty() { continue; }
-            let gx: V = at.iter().map(|&k| 100 * (px[k] as i64 % hw() - hw() / 2) + 50).collect();
-            let gy: V = at.iter().map(|&k| 100 * (px[k] as i64 / hw() - hh() / 2) + 50).collect();
-            let ex = { let a = { let k_ = s_neg(end.0, o); o.sum(&[(v(&gx), 1)], k_) }; let a = o.div(v(&a), K(10), 0); o.clamp(v(&a), -700, 700) };
-            let ey = { let a = { let k_ = s_neg(end.1, o); o.sum(&[(v(&gy), 1)], k_) }; let a = o.div(v(&a), K(10), 0); o.clamp(v(&a), -700, 700) };
+            // (the pixel's middle less the end, tenths: 10 c + fl((50 - 100 (w / 2) - end) / 10), c its column in the
+            // buffer)
+            let gx: V = at.iter().map(|&k| px[k] as i64 % hw()).collect();
+            let gy: V = at.iter().map(|&k| px[k] as i64 / hw()).collect();
+            let ex = { let k_ = s_div(s_sum(&[(end.0, -1)], 50 - 100 * (hw() / 2), o), 10, o); let a = o.lin(&[(v(&gx), Some(K(10))), (K(k_), None)]); o.clamp(v(&a), -700, 700) };
+            let ey = { let k_ = s_div(s_sum(&[(end.1, -1)], 50 - 100 * (hh() / 2), o), 10, o); let a = o.lin(&[(v(&gy), Some(K(10))), (K(k_), None)]); o.clamp(v(&a), -700, 700) };
             let q2 = { let a = o.tabo(&lz.sq, 5000, v(&ex)); let b = o.tabo(&lz.sq, 5000, v(&ey)); o.sum(&[(v(&a), 1), (v(&b), 1)], 0) };
             let d = o.tab(&lz.sqrt, v(&q2));
             let d = o.lin(&[(v(&d), Some(K(10)))]);
@@ -395,23 +426,6 @@ pub fn add_beams<O: Ops>(o: &mut O, t: &Tables, f: &mut Frame, acc: &[V; 3], tou
     }
 }
 
-/// Pixel runs of a convex polygon (hundredths, from the middle) on the full screen: (row, first column, columns).
-pub fn runs_full<O: Ops>(o: &mut O, poly: &[(i64, i64)]) -> Vec<(i64, i64, i64)> {
-    let n = poly.len();
-    let ends: Vec<([i64; 2], [i64; 2])> = (0..n).map(|i| { let (a, b) = (poly[i], poly[(i + 1) % n]); if b.1 < a.1 { ([b.0, b.1], [a.0, a.1]) } else { ([a.0, a.1], [b.0, b.1]) } }).collect();
-    let cross = o.crossings(&ends, (-scr_h() / 2, scr_h() / 2));
-    let mut rows: std::collections::BTreeMap<i64, Vec<i64>> = Default::default();
-    for (_, l) in &cross { for &(row, px, _) in l { rows.entry(row).or_default().push(px); } }
-    let mut out = vec![];
-    for (row, mut xs) in rows {
-        if xs.len() < 2 { continue; }
-        xs.sort();
-        let (a, b) = (xs[0].max(-scr_w() / 2), xs[xs.len() - 1].min(scr_w() / 2));
-        if b > a { out.push((row, a, b - a)); }
-    }
-    out
-}
-
 /// ln |x| and the sign for numbers up to three cards (past a long by their thousands).
 pub fn lnw_v<O: Ops>(o: &mut O, t: &Tables, x: &V) -> (V, V) {
     let big = { let lo = o.lt(v(x), K(-999_000)); let hi = o.lt(K(999_999), v(x)); (0..x.len()).map(|i| (lo[i] == 1 || hi[i] == 1) as i64).collect::<V>() };
@@ -497,22 +511,23 @@ pub fn lasers<O: Ops>(o: &mut O, t: &Tables, bt: &LaserTabs, f: &mut Frame, cam:
             ];
             let bm = 100 * we;
             let bx0 = s_div(s_sum(&[(s_min(ax, bx, o), 1)], -bm, o), 100, o);
-            let bx1 = s_div(s_sum(&[(s_max(ax, bx, o), 1)], bm, o), 100, o);
+            // (bx1: the column past the box)
+            let bx1 = s_div(s_sum(&[(s_max(ax, bx, o), 1)], bm + 100, o), 100, o);
             let by0 = s_div(s_sum(&[(s_min(ay, by, o), 1)], -bm, o), 100, o);
             let by1 = s_div(s_sum(&[(s_max(ay, by, o), 1)], bm, o), 100, o);
             let poly = clip_y(o, t, &poly, -(scr_h() / 2 + 4) * 100, (scr_h() / 2 + 4) * 100);
             let poly = clip_axis(o, t, &poly, 0, -(scr_w() / 2 + 4) * 100, (scr_w() / 2 + 4) * 100);
             if poly.len() < 3 { continue; }
-            let runs: Vec<(i64, i64, i64)> = runs_full(o, &poly).into_iter().filter(|r| r.0 >= by0 && r.0 <= by1).map(|(row, a0, m)| { let a1 = a0.max(bx0); let b1 = (a0 + m).min(bx1 + 1); (row, a1, b1 - a1) }).filter(|r| r.2 > 0).collect();
+            let ends: Vec<(i64, i64, i64)> = row_ends(o, &poly, (-scr_h() / 2, scr_h() / 2), scr_w() / 2).into_iter().filter(|r| r.0 >= by0 && r.0 <= by1).map(|(row, a, b)| (row, a.max(bx0), b.min(bx1))).collect();
+            let runs = counted(o, &ends);
             if runs.is_empty() { continue; }
             // along the line (thousandths) and across it (tenths of a pixel) at each run's first pixel's middle, and
             // their steps a pixel (thousandths of those)
-            let row_c: V = runs.iter().map(|r| 100 * r.0 + 50).collect();
-            let col_c: V = runs.iter().map(|r| 100 * r.1 + 50).collect();
-            let dxs = { let k_ = s_neg(ax, o); o.sum(&[(v(&col_c), 1)], k_) };
-            let dys = { let k_ = s_neg(ay, o); o.sum(&[(v(&row_c), 1)], k_) };
-            let dxp = o.div(v(&dxs), K(100), 0);
-            let dyp = o.div(v(&dys), K(100), 0);
+            // (the middle 100 c + 50 less the end, in whole pixels: c + fl((50 - ax) / 100))
+            let rows_: V = runs.iter().map(|r| r.0).collect();
+            let cols_: V = runs.iter().map(|r| r.1).collect();
+            let dxp = { let k_ = s_div(s_sum(&[(ax, -1)], 50, o), 100, o); o.sum(&[(v(&cols_), 1)], k_) };
+            let dyp = { let k_ = s_div(s_sum(&[(ay, -1)], 50, o), 100, o); o.sum(&[(v(&rows_), 1)], k_) };
             let along = { let a = o.lin(&[(v(&dxp), Some(K(vxp))), (v(&dyp), Some(K(vyp)))]); let (l_, ng) = lnw_v(o, t, &a); let lll = s_lnw(ll, t, o); let y = { let k_ = s_sum(&[(lll, -1)], 3 * LN10, o); o.sum(&[(v(&l_), 1)], k_) }; expv(o, t, &y, Some(&ng)) };
             let across = { let nuy = s_neg(uy, o); let a = o.lin(&[(v(&dxp), Some(K(nuy))), (v(&dyp), Some(K(ux)))]); o.div(v(&a), K(100), 0) };
             let s_step = { let la = s_tab_o(&t.ln, 999_999, vxp, o); let na = s_tab_o(&t.neg, 999_999, vxp, o); let y = s_sum(&[(la, 1), (s_lnw(ll, t, o), -1)], 6 * LN10, o); s_tab_o(if na == 1 { &t.expwn } else { &t.expw }, -EXP_LO, y, o) };
@@ -532,10 +547,11 @@ pub fn lasers<O: Ops>(o: &mut O, t: &Tables, bt: &LaserTabs, f: &mut Frame, cam:
             for (end, flag) in [((ax, ay), &before), ((bx, by), &after)] {
                 let at: Vec<usize> = (0..px.len()).filter(|&k| flag[k] == 1).collect();
                 if at.is_empty() { continue; }
-                let gx: V = at.iter().map(|&k| 100 * (px[k] as i64 % scr_w() - scr_w() / 2) + 50).collect();
-                let gy: V = at.iter().map(|&k| 100 * (px[k] as i64 / scr_w() - scr_h() / 2) + 50).collect();
-                let dx = { let a = { let k_ = s_neg(end.0, o); o.sum(&[(v(&gx), 1)], k_) }; let a = o.div(v(&a), K(10), 0); o.clamp(v(&a), -700, 700) };
-                let dy = { let a = { let k_ = s_neg(end.1, o); o.sum(&[(v(&gy), 1)], k_) }; let a = o.div(v(&a), K(10), 0); o.clamp(v(&a), -700, 700) };
+                // (as the beams' ends: 10 c + fl((50 - 100 (w / 2) - end) / 10), c the pixel's column in the buffer)
+                let gx: V = at.iter().map(|&k| px[k] as i64 % scr_w()).collect();
+                let gy: V = at.iter().map(|&k| px[k] as i64 / scr_w()).collect();
+                let dx = { let k_ = s_div(s_sum(&[(end.0, -1)], 50 - 100 * (scr_w() / 2), o), 10, o); let a = o.lin(&[(v(&gx), Some(K(10))), (K(k_), None)]); o.clamp(v(&a), -700, 700) };
+                let dy = { let k_ = s_div(s_sum(&[(end.1, -1)], 50 - 100 * (scr_h() / 2), o), 10, o); let a = o.lin(&[(v(&gy), Some(K(10))), (K(k_), None)]); o.clamp(v(&a), -700, 700) };
                 let q2 = { let a = o.tabo(&bt.sq, 5000, v(&dx)); let b = o.tabo(&bt.sq, 5000, v(&dy)); o.sum(&[(v(&a), 1), (v(&b), 1)], 0) };
                 let d = o.tab(&bt.sqrt, v(&q2));
                 for (q, &k) in at.iter().enumerate() { dist[k] = d[q]; }
@@ -547,8 +563,7 @@ pub fn lasers<O: Ops>(o: &mut O, t: &Tables, bt: &LaserTabs, f: &mut Frame, cam:
             // screen) and the fading there (with the depth, along the line), with the beam's level
             let lenp = { let h = s_div(s_lnw(ll, t, o), 2, o); s_tab_o(&t.exp, -EXP_LO, h, o) };
             let ns = s_clamp(s_div(lenp, 8, o), 1, 256, o);
-            let jj: V = (0..ns).map(|j| 2 * j + 1).collect();
-            let tau = { let a = o.lin(&[(v(&jj), Some(K(500)))]); o.div(v(&a), K(ns), 0) };
+            let tau = { let a = MIDS[..ns as usize].to_vec(); o.div(v(&a), K(ns), 0) };
             let diz = s_sum(&[(izb, 1), (iza, -1)], 0, o);
             let izj = {
                 let (ls, _) = lnv(o, t, &tau);
@@ -649,34 +664,38 @@ pub fn pyro<O: Ops>(o: &mut O, t: &Tables, bt: &LaserTabs, f: &mut Frame, cam: &
         let x1 = s_div(s_sum(&[(s_max(ax, bx, o), 1), (wid, 3)], 0, o), 100, o).min(scr_w() / 2);
         let y0 = s_div(s_sum(&[(by, 1), (wid, -2)], 0, o), 100, o).max(-scr_h() / 2);
         let y1 = s_div(s_sum(&[(ay, 1), (wid, 1)], 0, o), 100, o).min(scr_h() / 2);
-        if x1 <= x0 || y1 <= y0 { continue; }
+        // the columns across and the rows down the box (the ends' differences, on CARDIAC)
+        let n = s_sum(&[(x1, 1), (x0, -1)], 0, o);
+        let ny = s_sum(&[(y1, 1), (y0, -1)], 0, o);
+        if n <= 0 || ny <= 0 { continue; }
         // the rows above ay + 2 px; on each: s = clip((ay - y) / (ay - by)), the flame's middle and width there
-        let ys: V = (y0..y1).map(|y| 100 * y + 50).collect();
+        let yr: V = (y0..y1).collect();
+        let ys = o.lin(&[(v(&yr), Some(K(100))), (K(50), None)]);
         let lim = s_sum(&[(ay, 1)], 200, o);
         let above = o.lt(v(&ys), K(lim));
         let rows: Vec<usize> = (0..ys.len()).filter(|&k| above[k] == 1).collect();
         if rows.is_empty() { continue; }
         let ys: V = rows.iter().map(|&k| ys[k]).collect();
+        let yr: V = rows.iter().map(|&k| yr[k]).collect();
         let span = s_sum(&[(ay, 1), (by, -1)], 0, o);
         if !s_lt(0, span, o) { continue; }
         let dy = o.sum(&[(v(&ys), -1)], ay);
         let s = { let (l_, ng) = lnv(o, t, &dy); let ls = s_tab_o(&t.ln, 999_999, span, o); let y = { let k_ = s_sum(&[(ls, -1)], LN1000, o); o.sum(&[(v(&l_), 1)], k_) }; let e = expv(o, t, &y, Some(&ng)); o.clamp(v(&e), 0, 1000) };
-        let tt = s_lin(&[(sh.t12, Some(265_258)), (159_155 * i as i64, None)], o);
+        let tt = s_lin(&[(sh.t12, Some(265_258)), (i as i64, Some(159_155))], o);
         let ang = { let a = o.lin(&[(v(&s), Some(K(1_432))), (K(tt), None)]); o.turns(v(&a)) };
         let (sn, _) = o.sincos(v(&ang));
         let dxl = s_sum(&[(bx, 1), (ax, -1)], 0, o);
         let mid = { let (ls, _) = lnv(o, t, &s); let ld = s_tab_o(&t.ln, 999_999, dxl, o); let nd = s_tab_o(&t.neg, 999_999, dxl, o); let y = { let k_ = s_sum(&[(ld, 1)], -LN1000, o); o.sum(&[(v(&ls), 1)], k_) }; let a = expv(o, t, &y, Some(&vec![nd; s.len()])); let w4 = o.lin(&[(v(&sn), Some(K(wid)))]); let w4 = o.div(v(&w4), K(3996), 0); o.sum(&[(v(&a), 1), (v(&w4), 1)], ax) };
         let wl = { let a = o.lin(&[(v(&s), Some(K(-7)))]); let a = o.div(v(&a), K(10), 0); let a = o.sum(&[(v(&a), 1)], 1000); let a = o.lin(&[(v(&a), Some(K(wid)))]); let a = o.div(v(&a), K(1000), 0); o.max(v(&a), K(50)) };
         // across each row: (x - mid) / wl, thousandths, from the row's first pixel by the step 100 000 / wl
-        let n = x1 - x0;
-        let first = { let a = o.sum(&[(v(&mid), -1)], 100 * x0 + 50); let (l_, ng) = lnv(o, t, &a); let lw = o.tabo(&t.ln, 999_999, v(&wl)); let y = o.sum(&[(v(&l_), 1), (v(&lw), -1)], LN1000); expv(o, t, &y, Some(&ng)) };
+        let first = { let k_ = s_lin(&[(x0, Some(100)), (50, None)], o); let a = o.sum(&[(v(&mid), -1)], k_); let (l_, ng) = lnv(o, t, &a); let lw = o.tabo(&t.ln, 999_999, v(&wl)); let y = o.sum(&[(v(&l_), 1), (v(&lw), -1)], LN1000); expv(o, t, &y, Some(&ng)) };
         let step = { let lw = o.tabo(&t.ln, 999_999, v(&wl)); let y = o.sum(&[(v(&lw), -1)], lnf(100_000.0)); let e = expv(o, t, &y, None); o.lin(&[(v(&e), Some(K(1000)))]) };
         let walks: Vec<(i64, i64, i64, i64)> = (0..ys.len()).map(|k| (n, first[k], step[k], 0)).collect();
         let dv = o.walka(&walks);
         let dv = o.clamp(v(&dv), -9999, 9999);
         let lg = o.tabo(&bt.ln_flame, 9999, v(&dv));
         let lrow = o.tab(&bt.ln_flame_row, v(&s));
-        let px: Vec<usize> = (0..ys.len()).flat_map(|k| { let row = (ys[k] - 50) / 100; (0..n).map(move |c| ((row + scr_h() / 2) * scr_w() + x0 + c + scr_w() / 2) as usize) }).collect();
+        let px: Vec<usize> = (0..ys.len()).flat_map(|k| { let row = yr[k]; (0..n).map(move |c| ((row + scr_h() / 2) * scr_w() + x0 + c + scr_w() / 2) as usize) }).collect();
         let pz: V = px.iter().map(|&p| f.iz[p]).collect();
         let lim = s_div(s_lin(&[(iza, Some(100))], o), 98, o);
         let vis = o.lt(v(&pz), K(lim));

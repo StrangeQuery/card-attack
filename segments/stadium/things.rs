@@ -3,6 +3,15 @@
 // airship's drift, the dancers' turn and place), drawn by raster.rs, and shaded by its own light. Included after
 // air.rs.
 
+/// The flag's grid, printed: u (thousandths) by its column, v (thousandths) by its row, and the picture's places there
+/// (thousandths of a texel: 320 u across, 200 (1 - v) down).
+const FLAG_U: [i64; 11] = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000];
+const FLAG_V: [i64; 3] = [0, 500, 1000];
+const FLAG_TU: [i64; 11] = [0, 32_000, 64_000, 96_000, 128_000, 160_000, 192_000, 224_000, 256_000, 288_000, 320_000];
+const FLAG_TV: [i64; 3] = [200_000, 100_000, 0];
+/// A pole's corners from its holder's place (centimetres along x and up).
+const POLE: [(i64, i64); 4] = [(-3, 195), (3, 195), (3, 455), (-3, 455)];
+
 /// A list of triangles drawn this frame: their pieces, and for each triangle what it is (the list's own index).
 pub struct Drawn { pub p: Pieces, pub kind: Vec<u32> }
 
@@ -29,8 +38,8 @@ pub fn flags<O: Ops>(o: &mut O, t: &Tables, sc: &Scene, cam: &Cam, cube: &Cube, 
     for &j in &use_ { for iv in 0..=gv { for iu in 0..=gu { fl_.push((j, iu as i64, iv as i64)); } } }
     let n = fl_.len();
     if n == 0 { return (Drawn { p: Pieces::new(5), kind: vec![] }, Drawn { p: Pieces::new(3), kind: vec![] }); }
-    let uu: V = fl_.iter().map(|q| q.1 * 100).collect();     // thousandths
-    let vv: V = fl_.iter().map(|q| q.2 * 500).collect();
+    let uu: V = fl_.iter().map(|q| FLAG_U[q.1 as usize]).collect();
+    let vv: V = fl_.iter().map(|q| FLAG_V[q.2 as usize]).collect();
     let ph: V = fl_.iter().map(|q| sc.flag_ph[q.0]).collect();
     // the wave's angle: 0.9 u turns + the phase + the time's
     let ang = o.lin(&[(v(&uu), Some(K(900))), (v(&ph), None), (K(wt), None)]);
@@ -56,7 +65,7 @@ pub fn flags<O: Ops>(o: &mut O, t: &Tables, sc: &Scene, cam: &Cam, cube: &Cube, 
     let lt_: [V; 3] = std::array::from_fn(|c| { let h = divk(o, &lb[c], 2); o.sum(&[(v(&lf[c]), 1), (v(&h), 1)], 1000) });
     let pts: Vec<[i64; 3]> = (0..n).map(|k| [x[k], y[k], z[k]]).collect();
     let cv = to_cam(o, t, cam, &pts);
-    let vals: Vec<Vec<i64>> = (0..n).map(|k| vec![uu[k] * 320, (1000 - vv[k]) * 200, lt_[0][k], lt_[1][k], lt_[2][k]]).collect();
+    let vals: Vec<Vec<i64>> = (0..n).map(|k| vec![FLAG_TU[fl_[k].1 as usize], FLAG_TV[fl_[k].2 as usize], lt_[0][k], lt_[1][k], lt_[2][k]]).collect();
     let per = (gu + 1) * (gv + 1);
     let mut tris = vec![];
     let mut ids = vec![];
@@ -71,16 +80,22 @@ pub fn flags<O: Ops>(o: &mut O, t: &Tables, sc: &Scene, cam: &Cam, cube: &Cube, 
     let cloth = draw(o, t, &cv, &vals, &tris, &ids, false);
     // the poles: a quad along x, 5 cm wide, from 0.65 m to 3.25 m (its middle at 3.25 m less... as the prototype:
     // centre 3.25 m, 2.6 m tall), lit from the probe facing -y
-    let mut pv = vec![];
     let mut ptri = vec![];
     let mut pid = vec![];
-    for &j in &use_ {
-        let p = pos[j];
-        let b0 = pv.len();
-        for (dx, dz) in [(-3, 195), (3, 195), (3, 455), (-3, 455)] { pv.push([p[0] + dx, p[1], p[2] + dz]); }
+    for (q, &j) in use_.iter().enumerate() {
+        let b0 = 4 * q;
         ptri.push([b0, b0 + 1, b0 + 2]); ptri.push([b0, b0 + 2, b0 + 3]);
         pid.push(j as u32); pid.push(j as u32);
     }
+    // the corners: the holder's place plus the offsets, on CARDIAC
+    let pv: Vec<[i64; 3]> = {
+        let c = |i: usize| -> V { use_.iter().flat_map(|&j| [pos[j][i]; 4]).collect() };
+        let (dx, dz): (V, V) = (use_.iter().flat_map(|_| POLE.map(|d| d.0)).collect(), use_.iter().flat_map(|_| POLE.map(|d| d.1)).collect());
+        let (x, y, z) = (c(0), c(1), c(2));
+        let x = o.sum(&[(v(&x), 1), (v(&dx), 1)], 0);
+        let z = o.sum(&[(v(&z), 1), (v(&dz), 1)], 0);
+        (0..x.len()).map(|k| [x[k], y[k], z[k]]).collect()
+    };
     let pprobe: Vec<usize> = use_.iter().map(|&j| sc.cprobe()[sc.flag_pid[j]]).collect();
     let pl = cube_light(o, t, cube, &pprobe, &vec![[0, -99, 0]; use_.len()]);
     let pcol: [V; 3] = std::array::from_fn(|c| { let a = o.lin(&[(v(&pl[c]), Some(K(3)))]); let a = o.div(v(&a), K(10), 0); o.sum(&[(v(&a), 1)], 12) });

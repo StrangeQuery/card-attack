@@ -60,7 +60,7 @@ pub fn night_falls<O: Ops>(o: &mut O, tb: &Tb, nt: &SkyNight, dy: &[i64], dn: Op
     let n = dy.len();
     if n == 0 { return; }
     let d2 = dn.map(|d| {
-        let sq: Vec<V> = (0..3).map(|i| { let t = o.sum(&[(A::V(d[i]), 1)], -nt.c[i]); o.tabo(tb.t("sq2000"), 2000, v(&t)) }).collect();
+        let sq: Vec<V> = (0..3).map(|i| { let nc = kl(o, &[(nt.c[i], Some(-1))]); let t = o.sum(&[(A::V(d[i]), 1)], nc); o.tabo(tb.t("sq2000"), 2000, v(&t)) }).collect();
         let s = o.lin(&[(v(&sq[0]), None), (v(&sq[1]), None), (v(&sq[2]), None)]);
         let (q, _) = o.divmod(v(&s), K(100));
         o.min(v(&q), K(29_999))
@@ -400,7 +400,8 @@ pub fn sun_core<O: Ops>(o: &mut O, tb: &Tb, env: &Env, e: i64, at: &[usize], dn:
     let mut d2 = vec![];
     for i in 0..3 {
         let d = g(dn[i]);
-        let d = o.sum(&[(v(&d), 1)], -env.sun[i]);
+        let ns = kl(o, &[(env.sun[i], Some(-1))]);
+        let d = o.sum(&[(v(&d), 1)], ns);
         let d = o.clamp(v(&d), -999, 999);
         d2.push(o.tabo(tb.t("sq999c"), 999, v(&d)));
     }

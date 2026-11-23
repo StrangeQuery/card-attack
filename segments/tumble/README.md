@@ -27,9 +27,9 @@ each pixel 8 x 8 on the 1536x768 frame. The screenshot is the BBS's frame 25, th
 ## How it's done
 
 The frame is four 96x48 tiles, as for the [rotozoomer](../roto). The host deals cards, carries what one machine
-punches to the next, and files the pixels. Every number of the frame is a machine's except the big cube's corner
-cards, whose depth the host scales from the cube folder's ±12 to ±24 (c / 12 x 24) before dealing them. The sine
-tables are built by the host when it starts.
+punches to the next, and files the pixels. Every number of the frame is a machine's. The sine tables, and the
+corner cards for each axis at both sizes (the cube folder's depth of ±12, and ±24), are built by the host when it
+starts; each frame takes its axis's.
 
 **Once per frame:**
 

@@ -322,11 +322,12 @@ fn corners(m: &Machines, host: &mut Host, sp: &Sphere, fr: &Frame, centre: Optio
 }
 
 /// The frame's triangles, in drawing order: the grid's two a square, then the splits, each at the middle of an
-/// edge (its corner worked out by the dot machine): triangle 7919 k (mod 7680) for the k-th, its second half added
-/// at the end. With each, the line its second edge lies on if that edge is half of a split one: the whole edge, the
-/// way the triangle beside it has it, so that the halves are filled to the same line as their neighbour and no
-/// pixel falls between (the middle corner, cut to a whole quarter pixel, is off the line by a little).
-fn triangles(m: &Machines, host: &mut Host, c: &mut Vec<Corner>, lon: i32, lat: i32, extra: i32) -> (Vec<[usize; 3]>, Vec<Option<[usize; 2]>>) {
+/// edge (its corner worked out by the dot machine): triangle 7919 k (mod 7680) for the k-th (on the train's
+/// operations), its second half added at the end. With each, the line its second edge lies on if that edge is half
+/// of a split one: the whole edge, the way the triangle beside it has it, so that the halves are filled to the same
+/// line as their neighbour and no pixel falls between (the middle corner, cut to a whole quarter pixel, is off the
+/// line by a little).
+fn triangles<O: Ops>(m: &Machines, host: &mut Host, o: &mut O, c: &mut Vec<Corner>, lon: i32, lat: i32, extra: i32) -> (Vec<[usize; 3]>, Vec<Option<[usize; 2]>>) {
     let at = |i: i32, j: i32| (i * lon + j % lon) as usize;
     let mut tris = vec![];
     for i in 0..lat - 1 { for j in 0..lon {
@@ -335,7 +336,10 @@ fn triangles(m: &Machines, host: &mut Host, c: &mut Vec<Corner>, lon: i32, lat: 
     } }
     let mut lines = vec![None; tris.len()];
     if extra == 0 { return (tris, lines); }
-    let splits: Vec<(usize, [usize; 3])> = (0..extra as usize).map(|k| { let t = k * 7919 % 7680; (t, tris[t]) }).collect();
+    let ks: V = (0..extra as i64).collect();
+    let x = o.lin(&[(v(&ks), Some(K(7919)))]);
+    let (_, cut) = o.divmod(v(&x), K(7680));
+    let splits: Vec<(usize, [usize; 3])> = cut.iter().map(|&t| (t as usize, tris[t as usize])).collect();
     let values = |q: &Corner| [q.x, q.y, q.z, q.n[0], q.n[1], q.n[2]];
     let items: Vec<(i32, Vec<Pair>)> = splits.iter().flat_map(|&(_, [_, b, e])| {
         let (p, q) = (values(&c[b]), values(&c[e]));
@@ -428,7 +432,7 @@ fn raster<const K: usize>(m: &Machines, host: &mut Host, t: usize, corner: impl 
             }
             at += (1 + K) * n;
         }
-        by_row.sort_by_key(|(y, _)| *y);
+        sorter::sort(&mut by_row, &[sorter::CARD], |(y, _)| [*y as i64]);
         for (y, l) in by_row { assert_eq!(l.len(), 2, "triangle {i} row {y}"); met.push((i, y, l)); }
     }
     let mut deck: Vec<i32> = met.iter().flat_map(|(_, _, l)| [l[0][0], l[1][0]]).collect();
@@ -544,7 +548,7 @@ pub fn render(demo: &Path, refbin: &str) {
         }
         if !spheres.contains_key(&(lon, lat)) { let s = sphere(&m, &mut host, lon, lat); spheres.insert((lon, lat), s); }
         let mut c = corners(&m, &mut host, &spheres[&(lon, lat)], &fr, orbit.as_ref().map(|o| o.0));
-        let (mut tris, mut lines) = triangles(&m, &mut host, &mut c, lon, lat, extra);
+        let (mut tris, mut lines) = triangles(&m, &mut host, &mut o, &mut c, lon, lat, extra);
         let first = tris.len();
         // the second blob, on the far side of the centre, closing in (dot): its corners and triangles, drawn after
         // the first's
@@ -554,7 +558,7 @@ pub fn render(demo: &Path, refbin: &str) {
             let centre: Vec<i32> = (0..3).map(|k| m.dot(&mut host, 0, &[(middle[k], vec![(way[k], apart)])])[0]).collect();
             if !spheres.contains_key(&(lon, lat)) { let s = sphere(&m, &mut host, lon, lat); spheres.insert((lon, lat), s); }
             let mut c2 = corners(&m, &mut host, &spheres[&(lon, lat)], &t_.two, Some([centre[0], centre[1], centre[2]]));
-            let (tris2, lines2) = triangles(&m, &mut host, &mut c2, lon, lat, extra);
+            let (tris2, lines2) = triangles(&m, &mut host, &mut o, &mut c2, lon, lat, extra);
             let base = c.len();
             tris.extend(tris2.iter().map(|t| t.map(|v| base + v)));
             lines.extend(lines2.iter().map(|l| l.map(|l| l.map(|v| base + v))));

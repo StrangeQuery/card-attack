@@ -68,7 +68,7 @@ face, the counters' places, the map's and textures' files, the page's sphere, th
 
 **Assets** made ahead of time in Python ([`data/make_data.py`](data/make_data.py), which runs the prototypes' own
 drawing code): the sprites
-(`sprites.txt`: the icons plain, selected and the floppy opened; the arrow and the watch's eight hands; the Alarm
+(`sprites.txt`: the desktop's 50% grey, a checker of every other pixel black; the icons plain, selected and the floppy opened; the arrow and the watch's eight hands; the Alarm
 Clock's small clock; the close, zoom and grow boxes, the scroll arrows, the close box's starburst; the OK button and
 pressed; the screen's rounded corners; the gun's four frames, the face's six, the status bar without its counters, the
 counters' digits, the page's title and LEARN TO SPEAK / FINNISH in Chicago at twice the size); `boom.txt` (the map,
@@ -88,11 +88,12 @@ power 1.3) are worked out in Python and printed in these tables; CARDIAC fetches
 3. `ui_ease` works out the zoom rects' edges (from + (to - from) j / n); `mac_glide` how much of the pointer's way is
    still to go at its step, (m / n)^3 of it by three multiply-and-divides by adding (and of that again), and
    `mac_arc` its place, the bow 8 / 25 of the difference to one side.
-4. The host draws the desktop's 50% grey itself (a checker, every other pixel black), then lays each item in order:
-   fills the rectangles (clipping them to the screen), lays each glyph's and sprite's pixels where they were placed,
-   copies each picture's (the sphere's dots only).
-5. The host clips each zoom rect to the screen and lists its outline's pixels; `mac_xor` turns them over, one rect
-   after another.
+4. `mac_fill` punches the pixels of every box of one colour in the frame (the filled rectangles, each outline's four
+   sides, the text boxes' backs), each clipped to the screen by the host. The host lays the desktop's grey from
+   `sprites.txt`, then lays each item in order: a box's pixels from `mac_fill`, each glyph's and sprite's pixels where
+   they were placed, each picture's (the sphere's dots only).
+5. The host clips each zoom rect to the screen and lists its outline's pixels, each once; `mac_xor` turns them over,
+   one rect after another.
 
 **Each frame of Boom.** Its numbers are sums on [the swarm's](../swarm) arithmetic machines (`host/src/fx/swarm_calc.rs`: exact
 sums of products, divisions rounded down, the sine table), as the turn's are. Units: texels, 64 a cell.
@@ -134,7 +135,7 @@ the light across the row (the square under the root changes by 2x + 1 a pixel: a
 over the root's square passes either way; the light in hundreds and the rest), `mac_bdot` dithers it (the 4x4 ordered
 dither at twice the size). The Finnish flag: its size (60 narrower than the window's inside, 18:11, cropped 8 above
 its foot) and the cross's bands (ceil of 5 and 8 eighteenths across, 4 and 7 elevenths down) on the arithmetic;
-`mac_flag` its pixels, the cross blue as three dots in four; the host frames it in black.
+`mac_flag` its pixels, the cross blue as three dots in four; `mac_fill` its black frame.
 
 **The tunnel, set up once** (per block, row by row): `mac_offset` gives its offset from the middle in half pixels
 (8 ix - 507, 8 iy - 337, odd, never 0), the longer and the shorter and the octant; `mac_slope` the slope step,
@@ -249,6 +250,7 @@ change times a thousandth of the way). The view behind's angle, half a turn on, 
 | `mac_glide` | 71 | Per glide frame, twice: what is left of the way, (m / n)^3 |
 | `mac_arc` | 59 | Per glide frame: the pointer's place, the bow |
 | `mac_xor` | 14 | Per zoom rect: its outline's pixels turned over |
+| `mac_fill` | 35 | Per frame: the pixels of the boxes of one colour (fills, outlines, text backs, the flag's frame) |
 | `mac_cross` | 90 | Per game frame: each ray across the lines one way, the cells and how far across |
 | `mac_across` | 96 | Per game frame: each crossing's cell the other way and the texel crossed at |
 | `mac_first` | 76 | Per game frame: each way's first wall and the door before it |

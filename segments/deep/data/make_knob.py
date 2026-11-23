@@ -449,17 +449,35 @@ def tables(at):
         L.append(f"glow{w} " + " ".join(str(round(32 * min(1.0, 3 * w / (sg * math.sqrt(2 * math.pi)) * math.exp(-(a * a + b * b) / (2 * sg * sg))))) for a in range(64) for b in range(64)))
     rng = np.random.default_rng(2026_10_26)
     card = lambda n: " ".join(str(int(v)) for v in rng.integers(0, 1000, n))
-    L.append("silt " + card(2 * 18 * 3))
-    # the flakes: when (of 18 frames), angle, from the middle, speed, rise, pale (1 for 45 in 100, a flag) and size
-    deb = rng.integers(0, 1000, (140, 7))
+    # the silt's blobs, 3 numbers each: the angle round the plate (millionths of a turn, 1000 c), how far out (120 c)
+    # and the rise (c), from a card c each
+    silt = rng.integers(0, 1000, (2 * 18, 3)).astype(np.int64) * [1000, 120, 1]
+    L.append("silt " + " ".join(str(int(v)) for v in silt.ravel()))
+    # the flakes, 7 numbers each from a card c each: when (thousandths of a frame, 18 c), the angle (millionths of a
+    # turn, 1000 c), how far from the middle (300 c), the speed (17 c), the rise (10 c), pale (1 for 45 in 100, a
+    # flag) and the size (45 c)
+    deb = rng.integers(0, 1000, (140, 7)).astype(np.int64)
     deb[:, 5] = rng.random(140) < 0.45
+    deb *= [18, 1000, 300, 17, 10, 1, 45]
     L.append("debris " + " ".join(str(int(v)) for v in deb.ravel()))
-    L.append("shake " + card(2 * 21))
-    # the arcs, 80 cards each: angle, how far out, turn, length, then per step its turn, whether it forks (1 for 3 in
-    # 10, a flag), the fork's turn and its four steps' turns
-    arc = rng.integers(0, 1000, (22 * 20, 80))
+    # the knob's shudder, per frame from a card c each: across 2 c - 999 and along 6 (2 c - 999)
+    shake = (2 * rng.integers(0, 1000, (21, 2)).astype(np.int64) - 999) * [1, 6]
+    L.append("shake " + " ".join(str(int(v)) for v in shake.ravel()))
+    # the arcs, 80 numbers each from a card c each: the angle (millionths of a turn, 1000 c), how far out (400 c), the
+    # turn (1000ths of nt, (c - 500) 159,155), the length (c), then per step its turn ((c - 500) 222,817), whether it
+    # forks (1 for 3 in 10, a flag), the fork's turn ((c - 500) 413,803) and its four steps' turns ((c - 500) 190,986)
+    arc = rng.integers(0, 1000, (22 * 20, 80)).astype(np.int64)
     for j in range(10):
         arc[:, 5 + 7 * j] = rng.random(22 * 20) < 0.3
+    arc[:, 0] *= 1000
+    arc[:, 1] *= 400
+    arc[:, 2] = (arc[:, 2] - 500) * 159_155
+    for j in range(10):
+        b = 4 + 7 * j
+        arc[:, b] = (arc[:, b] - 500) * 222_817
+        arc[:, b + 2] = (arc[:, b + 2] - 500) * 413_803
+        for m in range(4):
+            arc[:, b + 3 + m] = (arc[:, b + 3 + m] - 500) * 190_986
     L.append("crackle " + " ".join(str(int(v)) for v in arc.ravel()))
     open(os.path.join(HERE, "knob.txt"), "w").write("\n".join(L) + "\n")
 

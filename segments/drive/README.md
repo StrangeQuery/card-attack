@@ -19,7 +19,7 @@ punches the stretch.
 The host does a little index arithmetic around them: it adds 1 to a punched entry to fetch the next, finds the
 cards of block k in `dface`'s output at 10 k plus the card's place, and takes the block a wall belongs to as the
 face's index over 10 (`dhit` punches the index). The rays the columns are cast along are accel's `aray`'s, and the
-along part of each comes from the turn's sine negated by the host (see the [accel](../accel)).
+along part of each comes from the turn's sine, negated by `aray` (see the [accel](../accel)).
 
 The tables are assets printed ahead of time: the street's plan and the blocks are [accel](../accel)'s, and the turn
 table (`data/turn.txt`, the cosine and sine for each slope) is printed by `data/make_data.py`.

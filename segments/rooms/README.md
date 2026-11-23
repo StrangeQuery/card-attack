@@ -58,13 +58,13 @@ each operation with the train's machines, and `reference.rs` does them natively)
 - each palette entry's light, (A + B m) times the room's light, and its sRGB byte;
 - the walks from the frame's columns and rows to the picture's pixels and to each room picture's art;
 - the fades' and THE END's byte tables; the desktop's typed count, the cursor's blink, how many of LOADING's dots
-  and how much of its bar show;
+  and how much of its bar show (each from the rooms' frame, the part's start taken in the machines' sums);
+- each of the desktop's glyphs' places, 8 pixels a column and 16 a row from the text area's corner, and the cursor's
+  after the last character;
 - the brag's mix where it lies on the projected drive (by its cover in 32nds, as the cut's over line).
 
-The desktop's text is laid out by the host, not by the UI kit's `ui_page` as the film's other text pages are: from
-those counts the host builds the lines (padding the bar with spaces to 30), places each glyph of the VGA face at
-8 pixels a column and 16 a row from the text area's corner, and draws the cursor in grey on two rows after the last
-character.
+From those counts the host builds the desktop's lines (the bar 30 cells, the first so many marked) and lays each
+glyph of the VGA face where its place was punched, its set pixels in grey, and the cursor's two rows the same way.
 
 The host fetches each pixel: the palette index from the printed table by the walks' indices, the lit byte by it, and
 the picture's pixel by its walks, and picks the screen's where its mask says. The pictures on the screens are read

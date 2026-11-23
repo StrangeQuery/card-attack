@@ -182,7 +182,9 @@ pub fn lamps<O: Ops>(o: &mut O, sc: &Scene, sh: &Show, spot_d: &[[i64; 3]], sear
             if l.mode != 0 { out.push(Lamp { pos: l.pos, rgb: l.rgb, kind: LampKind::Search(search_d[j]) }); }
         }
     } else if sh.pyro > 0 {
-        for p in &sc.pyro { let rgb = scale(o, [10_000, 5500, 2000], sh.pyro); out.push(Lamp { pos: [p[0], p[1], p[2] + 600], rgb, kind: LampKind::Point(20) }); }
+        // (each lamp 6 m over its pyro's place)
+        let z = { let z: V = sc.pyro.iter().map(|p| p[2]).collect(); o.sum(&[(v(&z), 1)], 600) };
+        for (i, p) in sc.pyro.iter().enumerate() { let rgb = scale(o, [10_000, 5500, 2000], sh.pyro); out.push(Lamp { pos: [p[0], p[1], z[i]], rgb, kind: LampKind::Point(20) }); }
     }
     out
 }

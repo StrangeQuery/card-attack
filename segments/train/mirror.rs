@@ -38,9 +38,8 @@ pub const MS: usize = 2;
 /// The mirror's buffer for the water at level h, at 1 / MS of the screen's size each way (its pixels at every MS-th
 /// row and column): the world's triangles (those the frame considers, above the level, within 450 m) and the other train's,
 /// flipped; for the river also the land beyond it, flipped.
-pub fn mirror_gbuf<O: Ops>(o: &mut O, w: &World, cam: &Cam, k: i64, h: i64, ray: &[V; 3]) -> GBuf {
-    let (near, far) = visible(&w.sc, cam.z_cm / 100);
-    let cands: Vec<usize> = near.iter().chain(far.iter()).copied().collect();
+pub fn mirror_gbuf<O: Ops>(o: &mut O, w: &World, cam: &Cam, k: i64, h: i64, ray: &[V; 3], vis: &(Vec<usize>, Vec<usize>)) -> GBuf {
+    let cands: Vec<usize> = vis.0.iter().chain(vis.1.iter()).copied().collect();
     mirror_gbuf_of(o, w, cam, Some(k), h, ray, &cands, &w.screen().nlq7)
 }
 
@@ -49,10 +48,12 @@ pub fn mirror_gbuf<O: Ops>(o: &mut O, w: &World, cam: &Cam, k: i64, h: i64, ray:
 pub fn mirror_gbuf_of<O: Ops>(o: &mut O, w: &World, cam: &Cam, k: Option<i64>, h: i64, ray: &[V; 3], cands: &[usize], nlq7: &[i64]) -> GBuf {
     let sc = &w.sc;
     let mut g = GBuf { iz: vec![0; N_PIX()], mat: vec![-1; N_PIX()], n: [vec![0; N_PIX()], vec![0; N_PIX()], vec![0; N_PIX()]], src: vec![0; N_PIX()], tri: vec![0; N_PIX()] };
-    let cz = cam.z_cm / 100;
+    let cz = metres(o, cam.z_cm);
     let above = |m: &Mesh, c: &[[i64; 3]], t: usize| -> bool { m.tris[t].iter().any(|&u| c[u][1] > h + 5) };
-    let pick: Vec<usize> = cands.iter().copied()
-        .filter(|&t| above(&sc.world, &sc.world.corners, t) && sc.zlo[t] < cz + 450).collect();
+    // those above the level, and of them those within 450 m (zlo - 450 < cz, on the machines)
+    let up: Vec<usize> = cands.iter().copied().filter(|&t| above(&sc.world, &sc.world.corners, t)).collect();
+    let near = o.lt(v(&up.iter().map(|&t| w.cull.mirror[t]).collect()), K(cz));
+    let pick: Vec<usize> = (0..up.len()).filter(|&j| near[j] == 1).map(|j| up[j]).collect();
     if h == RIVER {
         // the land beyond the river, upside down in it: the plane at 2h - LAND, where it lies past the river's ends
         let iz0 = ground_depth(o, &w.tb, cam);
@@ -88,7 +89,9 @@ pub fn mirror_gbuf_of<O: Ops>(o: &mut O, w: &World, cam: &Cam, k: Option<i64>, h
     let d = draw(o, &w.tb, cam, &fm, &fm.corners, &two, &all, false, MS as i64);
     let mut lists: Vec<(u8, Drawn, Mesh)> = vec![(1, d, fm)];
     let (front, tc) = match k { Some(k) => train_corners(o, sc, k), None => (i64::MIN / 4, vec![]) };
-    if k.is_some() && front < cam.z_cm + 45_000 && front + CARS * CAR > cam.z_cm - 500 {
+    // the other train's nose from the camera, on the machines, against the reach
+    let ahead = k.map(|_| kl(o, &[(front, None), (cam.z_cm, Some(-1))]));
+    if matches!(ahead, Some(a) if a < 45_000 && a > -500 - CARS * CAR) {
         let tp: Vec<usize> = (0..sc.train.tris.len()).filter(|&t| above(&sc.train, &tc, t)).collect();
         let pt = placed_train(o, sc, &tc);
         let tm = flip_mesh(o, &pt, &tc, &tp, h);
